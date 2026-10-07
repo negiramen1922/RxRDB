@@ -98,6 +98,7 @@ function open() {
   document.getElementById("main").hidden = true;
   AM.hidden = false;
   document.getElementById("userTabs").hidden = true;
+  { const st = document.getElementById("subTabs"); if (st) st.hidden = true; }
   NAV.hidden = false;
   const ab = document.getElementById("actionbar"); if (ab) ab.classList.add("hidden");
   headerButton(true);
@@ -115,6 +116,7 @@ function close() {
   AM.hidden = true; NAV.hidden = true;
   document.getElementById("main").hidden = false;
   document.getElementById("userTabs").hidden = false;
+  { const st = document.getElementById("subTabs"); if (st) st.hidden = false; }
   R.rebuild(); R.renderUser(); R.setNews(R.NEWS);
   if (location.hash === "#admin" || location.hash === "#") history.replaceState(null, "", location.pathname + location.search);
   window.scrollTo(0, 0);

@@ -152,6 +152,43 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .sharepv{background:var(--field);border:1px solid var(--line);padding:8px;max-height:60vh;overflow:auto;text-align:center}
 .sharepv img{max-width:100%;display:block;margin:0 auto}
 .sharebtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.subtabs{max-width:1240px;margin:0 auto;padding:12px 20px 0}
+.subtabs .subin{display:inline-flex;gap:4px;background:var(--panel);box-shadow:var(--shadow);padding:4px;max-width:100%;overflow-x:auto}
+.subtabs button{border:0;background:none;padding:7px 16px;font-weight:700;font-size:13.5px;color:var(--muted);cursor:pointer;white-space:nowrap;clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)}
+.subtabs button[aria-current="true"]{background:linear-gradient(100deg,#0d3b8c,#1a86ff);color:#fff}
+.subtabs button:hover:not([aria-current="true"]){color:var(--accent-ink);background:var(--soft)}
+.ownhead{display:grid;grid-template-columns:auto auto 1fr;gap:16px;align-items:stretch;margin-bottom:12px}
+.ownrate,.ownstars,.ownbars{background:var(--panel);box-shadow:var(--shadow);padding:12px 18px}
+.ownrate{display:flex;flex-direction:column;justify-content:center;min-width:180px;border-left:4px solid var(--accent)}
+.ownrate small{color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.1em}
+.ownrate b{font-family:var(--display);font-size:54px;line-height:1;color:var(--accent-ink)}
+.ownrate b span{font-size:24px;margin-left:2px}
+.ownrate>span{font-size:13px;color:var(--muted)}
+.ownstars{display:flex;flex-direction:column;justify-content:center;gap:2px;font-size:13px}
+.ownstars div{display:flex;justify-content:space-between;gap:14px}
+.ownstars .st{color:#e0a800;letter-spacing:-1px}
+.ownbars{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 20px;align-content:center}
+.obar{display:grid;grid-template-columns:8.5em 1fr 3.6em;gap:8px;align-items:center;font-size:12.5px;margin:2px 0}
+.obl{display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.obl .ic{width:16px;height:16px}
+.obt{height:7px;background:var(--line);overflow:hidden}
+.obt i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.obn{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.ownctl{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.ownctl .search{max-width:240px}
+.owngrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.ocard{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--panel);box-shadow:var(--shadow);padding:6px 4px 4px;border-bottom:3px solid transparent}
+.ocard.on{border-bottom-color:var(--gc)}
+.oimg{position:relative;border:0;padding:0;background:none;cursor:pointer;width:80px;height:80px}
+.oimg img,.oimg .noimg{width:80px;height:80px;object-fit:cover;display:block;filter:grayscale(1) brightness(.75);opacity:.6;transition:filter .15s,opacity .15s}
+.ocard.on .oimg img{filter:none;opacity:1}
+.ock{position:absolute;right:-4px;top:-4px;width:20px;height:20px;border-radius:50%;background:var(--good);color:#fff;font-size:12px;font-weight:900;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.onm{font-size:11.5px;font-weight:700;text-align:center;line-height:1.25;min-height:2.5em}
+.ostars{display:flex}
+.ostars button{border:0;background:none;padding:0 1px;font-size:14px;color:var(--line2);cursor:pointer;line-height:1}
+.ostars button.on{color:#f0b400}
+.ownbtn[aria-pressed="true"]{background:var(--good);color:#fff;border-color:transparent}
+@media (max-width:760px){.ownhead{grid-template-columns:1fr 1fr}.ownbars{grid-column:1/-1}.owngrid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}.oimg,.oimg img,.oimg .noimg{width:70px;height:70px}}
 .viewbar{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .viewseg{display:inline-flex;background:var(--panel);box-shadow:var(--shadow);padding:4px;gap:4px}
 .viewseg button{border:0;background:none;padding:8px 18px;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
@@ -463,15 +500,13 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
     </div>
   </div>
   <nav class="tabs" id="userTabs" role="tablist">
-    <button role="tab" data-tab="tier" aria-selected="true">バベル攻略</button>
-    <button role="tab" data-tab="sum" aria-selected="false">全階層まとめ</button>
-    <button role="tab" data-tab="chars" aria-selected="false">キャラデータ</button>
-    <button role="tab" data-tab="babel" aria-selected="false">バベル一覧</button>
-    <button role="tab" data-tab="scripts" aria-selected="false">スクリプト</button>
-    <button role="tab" data-tab="rank" aria-selected="false">ランキング</button>
+    <button role="tab" data-top="chara" aria-selected="true">キャラクター</button>
+    <button role="tab" data-top="script" aria-selected="false">スクリプト</button>
+    <button role="tab" data-top="babel" aria-selected="false">バベル</button>
   </nav>
   <nav class="tabs admin" id="adminTabs" role="tablist" hidden></nav>
 </header>
+<nav class="subtabs" id="subTabs" aria-label="サブメニュー"></nav>
 <div id="newsbar" class="newsbar" hidden></div>
 <main id="main"></main>
 <main id="admin" hidden></main>
@@ -641,7 +676,7 @@ function fit(c,f){
 }
 
 /* ---------- ui state ---------- */
-let tab="tier",sel=null;
+let tab="chars",sel=null;
 const pool={q:"",attr:null,role:null,sort:"fit"};
 const tstate={chars:{q:"",sort:-1,dir:1,attr:null,role:null,all:false},scripts:{q:"",sort:-1,dir:1,rar:null,role:null},babel:{q:""}};
 const curFloor=()=>FLOORS.find(f=>f.key===S.curFloor)||null;
@@ -652,15 +687,31 @@ const EMPTY_P=Object.freeze({});
 const MINE=()=>MODE!=="admin"&&S.view==="mine";
 const CANEDIT=()=>TIER_EDIT||MINE();
 const place=fk=>MINE()?((S.tiers||{})[fk]||EMPTY_P):(OFFICIAL[fk]||EMPTY_P);
-function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">公式Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${m&&tab==="tier"?`<div class="mytools"><button class="btn small" data-act="mycopy">公式の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
+function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">公式Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"&&hasOwn()?`<button class="btn small ownbtn" data-act="onlyown" aria-pressed="${!!S.onlyOwn}">${S.onlyOwn?"✓ ":""}持っているキャラだけ</button>`:""}${tab==="tier"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${m&&tab==="tier"?`<div class="mytools"><button class="btn small" data-act="mycopy">公式の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
-document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)));
-function switchTab(t){track("tab",{tab:t});tab=t;sel=null;document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.tab===t)));render();window.scrollTo(0,0);}
+/* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
+const TOPS={chara:[["chars","キャラ一覧"],["own","所持率チェッカー"],["rank:chars","ランキング"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]]};
+const LASTSUB={};
+function topOf(t){if(t==="rank")return RK.t==="scripts"?"script":"chara";for(const k in TOPS)if(TOPS[k].some(([x])=>x===t))return k;return "chara";}
+function subKey(){return tab==="rank"?"rank:"+RK.t:tab;}
+function renderNav(){
+  const top=topOf(tab);LASTSUB[top]=subKey();
+  document.querySelectorAll("#userTabs [data-top]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.top===top)));
+  const sn=document.getElementById("subTabs");if(!sn)return;
+  sn.hidden=MODE==="admin";
+  sn.innerHTML=`<div class="subin">${TOPS[top].map(([k,l])=>`<button data-sub="${k}" aria-current="${k===subKey()}">${l}</button>`).join("")}</div>`;
+}
+document.querySelectorAll("#userTabs [data-top]").forEach(b=>b.addEventListener("click",()=>{const top=b.dataset.top;goSub(LASTSUB[top]||TOPS[top][0][0]);}));
+document.getElementById("subTabs").addEventListener("click",e=>{const b=e.target.closest("[data-sub]");if(b)goSub(b.dataset.sub);});
+function goSub(k){if(k.startsWith("rank:")){const t=k.slice(5);if(RK.t!==t){RK.t=t;RK.stat=RKDEF[t][0][0];RK.dir=RKDEF[t][0][2];RK.focus=null;RK.role=null;RK.rar=null;RK.attr=null;}switchTab("rank");}else switchTab(k);}
+function switchTab(t){track("tab",{tab:t});tab=t;sel=null;render();window.scrollTo(0,0);}
 let main=document.getElementById("main");
 function render(){
   if(MODE==="admin"){if(ADMIN_LIST)ADMIN_LIST();return;}
   if(!SITE_LOADED){main.innerHTML=`<div class="empty"><h2>読み込み中…</h2><p>データを読み込んでいます。</p></div>`;return;}
+  renderNav();
   if(tab==="tier")renderTier();
+  else if(tab==="own")renderOwn();
   else if(tab==="sum")renderSum();
   else if(tab==="chars")renderChars();
   else if(tab==="babel")renderBabel();
@@ -700,7 +751,7 @@ function renderTier(){
   else if(!TIER_EDIT)h+=`<p class="offnote">${placed?`このTier表は運営メンバーが作成しています。キャラを押すと詳細が見られます。${OFFICIAL_AT?`<span class="count">最終更新 ${fmtDay(OFFICIAL_AT)}</span>`:""}`:`この階層のTier表は準備中です。もうしばらくお待ちください。`}</p>`;
   h+=`<div class="board">`;
   TIERS.forEach((t,i)=>{
-    const inT=CH.filter(c=>P[c.id]===t).sort((a,b)=>fits[b.id]-fits[a.id]);
+    const inT=CH.filter(c=>P[c.id]===t&&(!S.onlyOwn||!hasOwn()||OWN()[c.id])).sort((a,b)=>fits[b.id]-fits[a.id]);
     h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(TDESC[t])}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(c=>tile(c,f,fits)).join(""):`<span class="zhint">${esc(TDESC[t])}</span>`}</div></div>`;
   });
   h+=`</div>`;
@@ -956,7 +1007,7 @@ document.addEventListener("click",e=>{
   if(ds.zone!==undefined){if(sel){moveTo(sel,ds.zone);sel=null;render();}return;}
   if(ds.rank){const[tg,stat,id]=ds.rank.split("|");const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();RK.t=tg;RK.stat=stat;RK.dir=RKDEF[tg].find(x=>x[0]===stat)?.[2]||"desc";RK.focus=id;RK.attr=null;RK.role=null;RK.rar=null;switchTab("rank");
     const el=main.querySelector(".rkrow-focus");if(el)el.scrollIntoView({block:"center"});return;}
-  if(ds.rkt){RK.t=ds.rkt;RK.stat=RKDEF[RK.t][0][0];RK.dir=RKDEF[RK.t][0][2];RK.focus=null;RK.role=null;RK.rar=null;renderRank();return;}
+  if(ds.rkt){RK.t=ds.rkt;RK.stat=RKDEF[RK.t][0][0];RK.dir=RKDEF[RK.t][0][2];RK.focus=null;RK.role=null;RK.rar=null;render();return;}
   if(ds.rkstat){RK.stat=ds.rkstat;RK.dir=RKDEF[RK.t].find(x=>x[0]===ds.rkstat)[2];renderRank();return;}
   if(ds.rkdir){RK.dir=RK.dir==="desc"?"asc":"desc";renderRank();return;}
   if(ds.rkattr){RK.attr=RK.attr===ds.rkattr?null:ds.rkattr;renderRank();return;}
@@ -982,6 +1033,10 @@ document.addEventListener("click",e=>{
   else if(a==="mycopy"){const fk=S.curFloor;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の公式Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、公式の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);save();render();toast("公式の配置をコピーしました。ここから自由に動かせます");}
   else if(a==="myclear"){const fk=S.curFloor;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];sel=null;save();render();toast("リセットしました");}
   else if(a==="share")openShare();
+  else if(a==="ownshare"){const st=ownStats(CH);if(!st.k){toast("まず持っているキャラを選んでください");return;}showShare(makeOwnImage,`リバリバのキャラ所持率は ${st.p}%（${st.k}/${st.n}）でした！\n#リバリバ #RxRwiki`,SITE_URL+"?tab=own",`rxr-collection.png`,"所持率を共有");track("share_open",{floor:"own"});}
+  else if(a==="ownall"){const o=OWN();main.querySelectorAll("[data-owntoggle]").forEach(b=>{const id=b.dataset.owntoggle;if(!o[id])o[id]=1;});save();renderOwn();}
+  else if(a==="ownreset"){if(!confirm("所持の記録をすべて消しますか？"))return;S.own={};save();renderOwn();}
+  else if(a==="onlyown"){S.onlyOwn=!S.onlyOwn;save();render();}
   else if(a==="mytext"){const f=curFloor();const tx=f&&floorText(f);if(!tx){toast("まだ配置がありません");return;}navigator.clipboard.writeText(tx).then(()=>toast("テキストをコピーしました。SNSなどに貼り付けられます"),()=>toast("コピーできませんでした"));}
   else if(a==="allcols"){tstate.chars.all=!tstate.chars.all;renderChars();}
 });
@@ -1176,20 +1231,86 @@ async function makeTierImage(f,P,mine){
 async function openShare(){
   const f=curFloor();if(!f)return;const mine=MINE();const P=place(f.key);
   if(!Object.keys(P).length){toast(mine?"まだ配置がありません。キャラを配置してから共有してください":"この階層の公式Tier表はまだありません");return;}
-  const dl=document.getElementById("dlgShare");document.getElementById("sharePv").innerHTML='<p class="count">画像を作っています…</p>';document.getElementById("shareBtns").innerHTML="";document.getElementById("shareHint").textContent="";dl.showModal();
-  const link=`${SITE_URL}?floor=${encodeURIComponent(f.key)}`;
-  const text=`【リバリバ バベル】${f.type} ${f.floor}F ${f.boss||""} の${mine?"自分の":"公式"}Tier表\n#リバリバ #リバリババベル`;
-  let blob;try{blob=await makeTierImage(f,P,mine);}catch(e){document.getElementById("sharePv").innerHTML='<p class="err">画像を作れませんでした</p>';return;}
+  showShare(()=>makeTierImage(f,P,mine),`【リバリバ バベル】${f.type} ${f.floor}F ${f.boss||""} の${mine?"自分の":"公式"}Tier表\n#リバリバ #リバリババベル #RxRwiki`,`${SITE_URL}?floor=${encodeURIComponent(f.key)}`,`babel-tier-${f.floor}F.png`,"画像で共有");
+  track("share_open",{floor:f.key,view:mine?"mine":"official"});
+}
+async function showShare(make,text,link,name,title){
+  const dl=document.getElementById("dlgShare");dl.querySelector("h2").textContent=title||"画像で共有";
+  document.getElementById("sharePv").innerHTML='<p class="count">画像を作っています…</p>';document.getElementById("shareBtns").innerHTML="";document.getElementById("shareHint").textContent="";if(!dl.open)dl.showModal();
+  let blob;try{blob=await make();}catch(e){document.getElementById("sharePv").innerHTML='<p class="err">画像を作れませんでした</p>';return;}
   if(SHARE.url)URL.revokeObjectURL(SHARE.url);
-  SHARE={blob,url:URL.createObjectURL(blob),text,link,name:`babel-tier-${f.floor}F.png`,f};
-  document.getElementById("sharePv").innerHTML=`<img src="${SHARE.url}" alt="Tier表の画像">`;
-  const file=new File([blob],SHARE.name,{type:"image/png"});
+  SHARE={blob,url:URL.createObjectURL(blob),text,link,name};
+  document.getElementById("sharePv").innerHTML=`<img src="${SHARE.url}" alt="共有する画像">`;
+  const file=new File([blob],name,{type:"image/png"});
   const canFile=!!(navigator.canShare&&navigator.canShare({files:[file]}));
   const canCopy=!!(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write);
   document.getElementById("shareBtns").innerHTML=(canFile?`<button class="btn primary" data-share="native">画像を共有（X・LINEなど）</button>`:"")+
     `<button class="btn ${canFile?"":"primary"}" data-share="x">Xに投稿</button><button class="btn" data-share="save">画像を保存</button>${canCopy?`<button class="btn" data-share="copyimg">画像をコピー</button>`:""}<button class="btn" data-share="copytext">文とURLをコピー</button>`;
   document.getElementById("shareHint").textContent=canFile?"「画像を共有」から X や LINE を選ぶと、画像と URL がいっしょに投稿できます。":"「Xに投稿」は文と URL が入った投稿画面が開きます。画像は「画像を保存」または「画像をコピー」してから、投稿に貼り付けてください。";
-  track("share_open",{floor:f.key,view:mine?"mine":"official"});
+}
+/* ================= 所持率チェッカー ================= */
+const OWNF={q:"",attr:null,role:null,show:"all",sort:"date"};
+const OWN=()=>S.own||(S.own={});
+const hasOwn=()=>Object.keys(S.own||{}).length>0;
+function ownStats(list){const o=OWN();const n=list.length,k=list.filter(c=>o[c.id]).length;return{n,k,p:n?Math.round(k/n*1000)/10:0};}
+function bar(label,st,icon){return `<div class="obar"><span class="obl">${icon||""}${esc(label)}</span><span class="obt"><i style="width:${st.n?st.k/st.n*100:0}%"></i></span><span class="obn">${st.k}/${st.n}</span></div>`;}
+function renderOwn(){
+  if(!CH.length){main.innerHTML=emptyBlock("chars");return;}
+  const o=OWN();const all=ownStats(CH);
+  const bases=[...new Set(CH.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>CH.some(c=>c.base===b&&o[c.id])).length;
+  const stars=[1,2,3,4,5].map(n=>CH.filter(c=>o[c.id]===n).length);
+  let list=CH.slice();const q=OWNF.q.toLowerCase();
+  if(q)list=list.filter(c=>(c.name+c.id+c.base).toLowerCase().includes(q));
+  if(OWNF.attr)list=list.filter(c=>c.attr===OWNF.attr);if(OWNF.role)list=list.filter(c=>c.role===OWNF.role);
+  if(OWNF.show==="own")list=list.filter(c=>o[c.id]);else if(OWNF.show==="not")list=list.filter(c=>!o[c.id]);
+  if(OWNF.sort==="date")list.sort((a,b)=>b.date-a.date);else if(OWNF.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));else list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
+  const attrs=ATTRS.filter(a=>CH.some(c=>c.attr===a)),roles=ROLES.filter(a=>CH.some(c=>c.role===a)),ords=ORDERS.filter(a=>CH.some(c=>c.order===a));
+  let h=`<div class="toolbar"><h2><small>COLLECTION</small>所持率チェッカー</h2><span style="flex:1"></span><button class="btn small" data-act="ownshare">画像で共有</button></div>
+  <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} スタイル</span><span>キャラクター ${bOwned} / ${bases.length}</span></div>
+  <div class="ownstars">${stars.map((n,i)=>`<div><span class="st">${"★".repeat(i+1)}</span><b>${n}</b></div>`).reverse().join("")}</div>
+  <div class="ownbars"><div>${attrs.map(a=>bar(a,ownStats(CH.filter(c=>c.attr===a)),ic(a))).join("")}</div><div>${roles.map(a=>bar(a,ownStats(CH.filter(c=>c.role===a)),ic(a))).join("")}</div><div>${ords.map(a=>bar(a,ownStats(CH.filter(c=>c.order===a)),ic(a,"ord"))).join("")}</div></div></div>
+  <p class="hint" style="margin:0 0 10px">キャラの画像を押すと「持っている／持っていない」が切り替わります。★を押すと凸数（星の数）を記録できます。記録はこのブラウザにだけ保存されます。</p>
+  <div class="ownctl"><input class="search" id="ownQ" placeholder="キャラ名で絞り込み" value="${esc(OWNF.q)}">
+   <div class="seg"><button data-ownshow="all" aria-pressed="${OWNF.show==="all"}">すべて</button><button data-ownshow="own" aria-pressed="${OWNF.show==="own"}">所持</button><button data-ownshow="not" aria-pressed="${OWNF.show==="not"}">未所持</button></div>
+   <div class="seg"><button data-ownsort="date" aria-pressed="${OWNF.sort==="date"}">新しい順</button><button data-ownsort="name" aria-pressed="${OWNF.sort==="name"}">名前順</button><button data-ownsort="star" aria-pressed="${OWNF.sort==="star"}">★順</button></div>
+   <div class="chips">${attrs.map(a=>`<button class="chip" data-ownattr="${a}" aria-pressed="${OWNF.attr===a}">${ic(a)}${a}</button>`).join("")}</div>
+   <div class="chips">${roles.map(a=>`<button class="chip" data-ownrole="${a}" aria-pressed="${OWNF.role===a}">${ic(a)}${a}</button>`).join("")}</div>
+   <span style="flex:1"></span><button class="btn small" data-act="ownall">表示中をすべて所持に</button><button class="btn small" data-act="ownreset">リセット</button></div>
+  <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${attrColor(c.attr)}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${IMG[c.id]?`<img src="${IMG[c.id]}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span><span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}" aria-label="★${n}">★</button>`).join("")}</span></div>`;}).join("")||'<p class="count">該当するキャラがいません</p>'}</div>`;
+  main.innerHTML=h;
+  const qi=document.getElementById("ownQ");qi.addEventListener("input",()=>{OWNF.q=qi.value;const p=qi.selectionStart;renderOwn();const n=document.getElementById("ownQ");n.focus();n.setSelectionRange(p,p);});
+}
+main.addEventListener("click",e=>{
+  if(tab!=="own")return;const t=e.target.closest("[data-owntoggle],[data-ownstar],[data-ownshow],[data-ownsort],[data-ownattr],[data-ownrole]");if(!t)return;const ds=t.dataset;const o=OWN();
+  if(ds.owntoggle){if(o[ds.owntoggle])delete o[ds.owntoggle];else o[ds.owntoggle]=1;save();renderOwn();return;}
+  if(ds.ownstar){const[id,n]=ds.ownstar.split("|");o[id]=+n;save();renderOwn();return;}
+  if(ds.ownshow){OWNF.show=ds.ownshow;renderOwn();return;}
+  if(ds.ownsort){OWNF.sort=ds.ownsort;renderOwn();return;}
+  if(ds.ownattr){OWNF.attr=OWNF.attr===ds.ownattr?null:ds.ownattr;renderOwn();return;}
+  if(ds.ownrole){OWNF.role=OWNF.role===ds.ownrole?null:ds.ownrole;renderOwn();return;}
+});
+async function makeOwnImage(){
+  try{await document.fonts.ready;}catch(e){}
+  const o=OWN();const list=CH.slice().sort((a,b)=>a.date-b.date);const all=ownStats(CH);
+  const W=1200,PAD=28,TS=60,GAP=6,NAMEH=0,per=Math.floor((W-PAD*2+GAP)/(TS+GAP));const rows=Math.ceil(list.length/per);
+  const HEAD=190,FOOT=86,H=HEAD+rows*(TS+14+GAP)+FOOT+10;
+  const cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
+  const JP='"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif',EN='"Oswald","Arial Narrow",sans-serif';
+  let g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0a1d42");g.addColorStop(.4,"#1b6fe0");g.addColorStop(1,"#cfeaff");c.fillStyle=g;c.fillRect(0,0,W,H);
+  const hero=await loadImgEl(HERO);if(hero){c.save();c.beginPath();c.rect(0,0,W,HEAD);c.clip();c.globalAlpha=.5;const sc=Math.max(W/hero.width,HEAD/hero.height);c.drawImage(hero,(W-hero.width*sc)/2,0,hero.width*sc,hero.height*sc);c.restore();g=c.createLinearGradient(0,0,W,0);g.addColorStop(0,"rgba(5,20,55,.92)");g.addColorStop(.75,"rgba(5,20,55,.3)");c.fillStyle=g;c.fillRect(0,0,W,HEAD);}
+  c.fillStyle="#cfe3ff";c.font=`600 15px ${EN}`;c.fillText("REVERSE BLUE × REVERSE END  /  RxRwiki",PAD,36);
+  c.fillStyle="#fff";c.font=`900 34px ${JP}`;c.fillText("キャラ所持率",PAD,82);
+  c.font=`700 84px ${EN}`;c.fillText(`${all.p}%`,PAD,170);const pw=c.measureText(`${all.p}%`).width;
+  c.font=`700 24px ${JP}`;c.fillStyle="#e6f0ff";c.fillText(`${all.k} / ${all.n} スタイル`,PAD+pw+24,140);
+  const stars=[5,4,3,2,1].map(n=>[n,CH.filter(ch=>o[ch.id]===n).length]);c.font=`700 20px ${JP}`;let sx=PAD+pw+24;stars.forEach(([n,k])=>{const t=`★${n}×${k}`;c.fillStyle="#ffd84a";c.fillText(t,sx,172);sx+=c.measureText(t).width+18;});
+  const imgs={};await Promise.all(list.map(async ch=>{imgs[ch.id]=await loadImgEl(IMG[ch.id]);}));
+  list.forEach((ch,i)=>{const x=PAD+(i%per)*(TS+GAP),y=HEAD+10+Math.floor(i/per)*(TS+14+GAP);const st=o[ch.id]||0;
+    c.save();rrect(x,c,y,TS,TS,5);c.clip();c.fillStyle=st?"#dff1ff":"#3d4f6e";c.fillRect(x,y,TS,TS);const im=imgs[ch.id];if(im){if(!st)c.filter="grayscale(1) brightness(.55)";const sc=Math.max(TS/im.width,TS/im.height);c.drawImage(im,x+(TS-im.width*sc)/2,y+(TS-im.height*sc)/2,im.width*sc,im.height*sc);c.filter="none";}else{c.fillStyle=st?"#0d2346":"#9fb3d1";c.font=`700 10px ${JP}`;const parts=ch.name.split(/\s+/);parts.slice(0,2).forEach((t,k)=>{let tt=t;while(c.measureText(tt).width>TS-6&&tt.length>1)tt=tt.slice(0,-1);c.fillText(tt,x+(TS-c.measureText(tt).width)/2,y+TS/2+(k-0.5*(Math.min(parts.length,2)-1))*13+4);});}c.restore();
+    if(st){c.fillStyle="#ffd84a";c.font=`700 11px ${JP}`;const t="★".repeat(st);c.fillText(t,x+(TS-c.measureText(t).width)/2,y+TS+12);}});
+  const fy=H-FOOT;g=c.createLinearGradient(0,fy,0,H);g.addColorStop(0,"rgba(5,20,55,0)");g.addColorStop(.35,"rgba(5,20,55,.85)");g.addColorStop(1,"rgba(5,20,55,.95)");c.fillStyle=g;c.fillRect(0,fy,W,FOOT);
+  c.fillStyle="#fff";c.font=`900 22px ${JP}`;c.fillText("RxRwiki｜リバリバ 所持率チェッカー",PAD,H-38);c.fillStyle="#9fd2ff";c.font=`600 20px ${EN}`;c.fillText(SITE_URL.replace(/^https?:\/\//,""),PAD,H-12);
+  const d=new Date();const ds=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;c.fillStyle="#cfe3ff";c.font=`500 15px ${JP}`;c.fillText(ds,W-PAD-c.measureText(ds).width,H-14);
+  return new Promise(r=>cv.toBlob(r,"image/png"));
 }
 document.getElementById("dlgShare").addEventListener("click",async e=>{
   const b=e.target.closest("[data-share]");if(!b)return;const k=b.dataset.share;track("share",{method:k});
@@ -1200,7 +1321,7 @@ document.getElementById("dlgShare").addEventListener("click",async e=>{
   if(k==="copytext"){navigator.clipboard.writeText(SHARE.text+"\n"+SHARE.link).then(()=>toast("コピーしました"),()=>toast("コピーできませんでした"));return;}
 });
 /* 共有リンク（?floor=種類|階層）で開いたときはその階層を表示 */
-function applyFloorParam(){try{const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;S.curType=f.type;S.curFloor=f.key;S.view="official";tab="tier";document.querySelectorAll("#userTabs button").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.tab==="tier")));history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+function applyFloorParam(){try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&["own","chars","scripts","tier","sum","babel"].includes(tp)){tab=tp;history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;S.curType=f.type;S.curFloor=f.key;S.view="official";tab="tier";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 
 /* ================= お知らせ ================= */
 let NEWS=[];
@@ -1228,7 +1349,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=10");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=11");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1245,7 +1366,7 @@ const dlgF=document.getElementById("dlgFeedback");
 document.querySelectorAll("[data-feedback]").forEach(b=>b.addEventListener("click",ev=>{ev.preventDefault();
   document.getElementById("fbText").value="";document.getElementById("fbContact").value="";document.getElementById("fbErr").textContent="";
   document.getElementById("fbPage").textContent=feedbackPage();dlgF.showModal();}));
-function feedbackPage(){const f=curFloor();const t={tier:"バベル攻略",sum:"全階層まとめ",chars:"キャラデータ",babel:"バベル一覧",scripts:"スクリプト",rank:"ランキング"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
+function feedbackPage(){const f=curFloor();const t={tier:"バベル攻略",sum:"全階層まとめ",chars:"キャラ一覧",babel:"階層一覧",scripts:"スクリプト",rank:"ランキング",own:"所持率チェッカー"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
 document.getElementById("fbSend").addEventListener("click",async e=>{
   const text=document.getElementById("fbText").value.trim(),contact=document.getElementById("fbContact").value.trim(),kind=document.querySelector('input[name="fbKind"]:checked').value;
   const err=document.getElementById("fbErr");
