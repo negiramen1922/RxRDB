@@ -273,7 +273,8 @@ dialog::backdrop{background:radial-gradient(ellipse at 50% 30%,rgba(30,110,220,.
 .dlg{padding:22px}
 .dlg h2{margin:0 0 8px;font-weight:900;font-size:26px;transform:skewX(-6deg)}
 .dlg h3{font-size:13px;margin:20px 0 8px;padding:3px 12px;color:#fff;background:linear-gradient(100deg,#0d3b8c,var(--accent) 60%,transparent);letter-spacing:.12em;clip-path:polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%)}
-.dlg .foot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.dlg .foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;position:sticky;bottom:0;z-index:5;margin:18px -22px -22px;padding:12px 22px calc(12px + env(safe-area-inset-bottom));background:var(--panel2);border-top:1px solid var(--line);box-shadow:0 -6px 16px rgba(4,20,60,.08)}
+dialog{overflow:auto;overscroll-behavior:contain}
 .dlg label{display:block;font-weight:700;font-size:13px;margin:12px 0 4px}
 .dlg textarea{width:100%;min-height:150px;border:1px solid var(--line2);background:var(--field);border-radius:2px;padding:8px;font-size:13px}
 .dlg select,.dlg input[type=number]{border:1px solid var(--line2);background:var(--field);padding:6px}
@@ -563,10 +564,12 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
   <div class="sharepv" id="sharePv"><p class="count">画像を作っています…</p></div>
   <div class="sharebtns" id="shareBtns"></div>
   <p class="hint" id="shareHint"></p>
+  <div class="foot"><button class="btn primary" data-close>閉じる</button></div>
 </div></dialog>
 <dialog id="dlgNews"><div class="dlg">
   <div class="newshead"><h2>お知らせ</h2><span style="flex:1"></span><button class="btn small" data-close>✕ 閉じる</button></div>
   <div id="newsList"></div>
+  <div class="foot"><button class="btn primary" data-close>閉じる</button></div>
 </div></dialog>
 <dialog id="dlgFeedback"><div class="dlg">
   <h2>不具合・ご要望</h2>
