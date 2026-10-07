@@ -141,6 +141,13 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .trow:first-child{border-top:0}
 .offnote{margin:0 0 10px;padding:8px 14px;background:var(--panel);box-shadow:var(--shadow);border-left:4px solid var(--accent);font-size:13.5px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center}
 .offnote .count{margin-left:auto}
+.viewbar{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.viewseg{display:inline-flex;background:var(--panel);box-shadow:var(--shadow);padding:4px;gap:4px}
+.viewseg button{border:0;background:none;padding:8px 18px;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.viewseg button[aria-pressed="true"]{background:linear-gradient(100deg,#0d3b8c,#1a86ff);color:#fff}
+.viewseg button[data-view="mine"][aria-pressed="true"]{background:linear-gradient(100deg,#a0379a,#ff5fa2)}
+.mytools{display:flex;gap:6px;flex-wrap:wrap}
+.offnote.mine{border-left-color:#ff5fa2}
 .tcrit{margin:0 0 10px;background:var(--panel);box-shadow:var(--shadow)}
 .tcrit summary{cursor:pointer;padding:7px 14px;font-weight:700;font-size:13.5px;color:var(--accent-ink);letter-spacing:.08em}
 .tcrit dl{margin:0;padding:2px 14px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 18px}
@@ -624,7 +631,11 @@ const curFloor=()=>FLOORS.find(f=>f.key===S.curFloor)||null;
 /* 公式Tier（運営が管理画面で作成し public/tiers で公開） */
 let OFFICIAL={},OFFICIAL_AT=0,TIER_EDIT=false,TIER_HOOK=null;
 const EMPTY_P=Object.freeze({});
-const place=fk=>OFFICIAL[fk]||EMPTY_P;
+/* 自分のTier表（このブラウザだけに保存）: S.view==="mine" のとき */
+const MINE=()=>MODE!=="admin"&&S.view==="mine";
+const CANEDIT=()=>TIER_EDIT||MINE();
+const place=fk=>MINE()?((S.tiers||{})[fk]||EMPTY_P):(OFFICIAL[fk]||EMPTY_P);
+function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">公式Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${m&&tab==="tier"?`<div class="mytools"><button class="btn small" data-act="mycopy">公式の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)));
 function switchTab(t){track("tab",{tab:t});tab=t;sel=null;document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.tab===t)));render();window.scrollTo(0,0);}
@@ -652,7 +663,7 @@ function renderTier(){
   const f=curFloor();const P=place(f.key);
   const fl=FLOORS.filter(x=>x.type===S.curType).slice().reverse();
   const n=fl.length;
-  let h=`<div class="tierwrap"><aside class="tower" aria-label="階層">${typeSeg()}<div class="spire"></div><div class="floors">`;
+  let h=viewSeg()+`<div class="tierwrap"><aside class="tower" aria-label="階層">${typeSeg()}<div class="spire"></div><div class="floors">`;
   fl.forEach((x,i)=>{
     const c=Object.keys(place(x.key)).length;
     h+=`<button class="floorbtn" data-floor="${esc(x.key)}" aria-current="${x.key===f.key}" aria-label="${esc(x.floor)}階"><b>${esc(x.floor)}</b>${c?`<small>${c}</small>`:""}</button>`;
@@ -668,14 +679,15 @@ function renderTier(){
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
   h+=`<details class="tcrit"${S.critClosed?"":" open"}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(TDESC[t])}</dd></div>`).join("")}</dl></details>`;
   const placed=Object.keys(P).length;
-  if(!TIER_EDIT)h+=`<p class="offnote">${placed?`このTier表は運営メンバーが作成しています。キャラを押すと詳細が見られます。${OFFICIAL_AT?`<span class="count">最終更新 ${fmtDay(OFFICIAL_AT)}</span>`:""}`:`この階層のTier表は準備中です。もうしばらくお待ちください。`}</p>`;
+  if(MINE())h+=`<p class="offnote mine">自分用のTier表です。キャラを選んでTierを押すか、ドラッグで配置できます。<b>このブラウザにだけ保存</b>され、公式のTier表には影響しません。</p>`;
+  else if(!TIER_EDIT)h+=`<p class="offnote">${placed?`このTier表は運営メンバーが作成しています。キャラを押すと詳細が見られます。${OFFICIAL_AT?`<span class="count">最終更新 ${fmtDay(OFFICIAL_AT)}</span>`:""}`:`この階層のTier表は準備中です。もうしばらくお待ちください。`}</p>`;
   h+=`<div class="board">`;
   TIERS.forEach((t,i)=>{
     const inT=CH.filter(c=>P[c.id]===t).sort((a,b)=>fits[b.id]-fits[a.id]);
     h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(TDESC[t])}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(c=>tile(c,f,fits)).join(""):`<span class="zhint">${esc(TDESC[t])}</span>`}</div></div>`;
   });
   h+=`</div>`;
-  if(!TIER_EDIT){h+=`</section></div>`;main.innerHTML=h;const m=document.getElementById("memo");m.addEventListener("input",()=>{S.notes[f.key]=m.value;save();});return;}
+  if(!CANEDIT()){h+=`</section></div>`;main.innerHTML=h;const m=document.getElementById("memo");m.addEventListener("input",()=>{S.notes[f.key]=m.value;save();});return;}
   let list=CH.filter(c=>!TIERS.includes(P[c.id]));
   if(pool.q){const q=pool.q.toLowerCase();list=list.filter(c=>(c.name+c.id).toLowerCase().includes(q));}
   if(pool.attr)list=list.filter(c=>c.attr===pool.attr);
@@ -702,7 +714,7 @@ function fmtDay(t){const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()
 function tile(c,f,fits){
   const s=fits?fits[c.id]:0;const rec=f&&f.recs.includes(c.id);
   const img=IMG[c.id];
-  return `<button class="tile" draggable="${TIER_EDIT}" data-id="${esc(c.id)}" aria-pressed="${sel===c.id}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)} / ${esc(c.attr)} ${esc(c.role)} ${esc(c.rank)}">${img?`<img src="${img}" alt="">`:""}<span class="nm">${esc(c.name)}</span>${ICON[c.role]?ic(c.role):`<span class="rl">${esc(ROLE_SHORT[c.role]||"")}</span>`}${s?`<span class="ft ${s>0?"p":"n"}">${s>0?"▲":"▼"}${Math.abs(s)}</span>`:""}${rec?'<span class="rec">★</span>':""}</button>`;
+  return `<button class="tile" draggable="${CANEDIT()}" data-id="${esc(c.id)}" aria-pressed="${sel===c.id}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)} / ${esc(c.attr)} ${esc(c.role)} ${esc(c.rank)}">${img?`<img src="${img}" alt="">`:""}<span class="nm">${esc(c.name)}</span>${ICON[c.role]?ic(c.role):`<span class="rl">${esc(ROLE_SHORT[c.role]||"")}</span>`}${s?`<span class="ft ${s>0?"p":"n"}">${s>0?"▲":"▼"}${Math.abs(s)}</span>`:""}${rec?'<span class="rec">★</span>':""}</button>`;
 }
 function ptile(c){
   const img=IMG[c.id];
@@ -710,6 +722,7 @@ function ptile(c){
 }
 function attrColor(a){return a==="破壊"?"var(--a-break)":a==="衝撃"?"var(--a-impact)":a==="爆発"?"var(--a-blast)":"var(--line)";}
 function moveTo(id,tier){
+  if(MINE()){const fk=S.curFloor;S.tiers=S.tiers||{};const P=S.tiers[fk]||(S.tiers[fk]={});if(tier)P[id]=tier;else delete P[id];if(!Object.keys(P).length)delete S.tiers[fk];save();return;}
   if(!TIER_EDIT)return;const fk=S.curFloor;const P=OFFICIAL[fk]||(OFFICIAL[fk]={});const prev=P[id]||"";
   if((tier||"")===prev)return;if(tier)P[id]=tier;else delete P[id];
   if(TIER_HOOK)TIER_HOOK(fk,id,tier||"",prev);
@@ -727,7 +740,7 @@ function bindDrag(){
 }
 function renderActionBar(){
   const bar=document.getElementById("actionbar");
-  if(!TIER_EDIT||!sel||!CHMAP[sel]){bar.classList.add("hidden");bar.innerHTML="";return;}
+  if(!CANEDIT()||!sel||!CHMAP[sel]){bar.classList.add("hidden");bar.innerHTML="";return;}
   const cur=place(S.curFloor)[sel];
   bar.innerHTML=`<b>${esc(CHMAP[sel].name)}</b>`+TIERS.map((t,i)=>`<button class="tb" style="background:${TCOL[i]};${cur===t?"outline:2px solid #fff;outline-offset:-3px":""}" data-moveto="${t}">${t}</button>`).join("")+
   `<button class="btn small ghost-dark" data-moveto="">未配置へ</button><button class="btn small ghost-dark" data-detail="${esc(sel)}">詳細</button><button class="btn small ghost-dark" data-act="unsel" aria-label="選択解除">✕</button>`;
@@ -741,7 +754,7 @@ function renderSum(){
   const sc=t=>{const i=TIERS.indexOf(t);return i<0?null:TIERS.length-i;};
   const rows=CH.map(c=>{const ts=fl.map(f=>place(f.key)[c.id]);const v=ts.map(sc).filter(x=>x!=null);return{c,ts,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null,cnt:v.length};})
     .filter(r=>r.cnt).sort((a,b)=>b.avg-a.avg||b.cnt-a.cnt);
-  let h=`<div class="toolbar"><h2><small>SUMMARY</small>全階層まとめ</h2>${typeSeg()}<span class="count">SSS=7 … D=1 で平均。評価した階層だけで計算します。</span></div>`;
+  let h=viewSeg()+`<div class="toolbar"><h2><small>SUMMARY</small>全階層まとめ</h2>${typeSeg()}<span class="count">SSS=7 … D=1 で平均。評価した階層だけで計算します。</span></div>`;
   if(!rows.length){main.innerHTML=h+`<div class="empty"><h2>Tier表は準備中です</h2><p>運営が${esc(S.curType)}のTier表を公開すると、ここに全階層の評価がまとめて並びます。</p></div>`;return;}
   h+=`<div class="tscroll"><table><thead><tr><th class="first">キャラ</th><th>属性</th><th>ロール</th><th>平均</th>${fl.map(f=>`<th title="${esc(f.boss)}">${esc(f.floor)}</th>`).join("")}</tr></thead><tbody>`;
   rows.forEach(r=>{h+=`<tr data-detail="${esc(r.c.id)}"><td class="first">${IMG[r.c.id]?`<img src="${IMG[r.c.id]}" alt="" style="width:24px;height:24px;border-radius:5px;vertical-align:middle;margin-right:6px">`:""}<b>${esc(r.c.name)}</b></td><td>${ic(r.c.attr)} <span class="attr ${esc(r.c.attr)}">${esc(r.c.attr)}</span></td><td>${ic(r.c.role)} ${esc(r.c.role)}</td><td>${r.avg.toFixed(2)}</td>${r.ts.map(t=>`<td>${t?badge(t):'<span class="dash">—</span>'}</td>`).join("")}</tr>`;});
@@ -917,11 +930,11 @@ function openRow(kind,i){
 
 /* ---------- clicks ---------- */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act]");
+  const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act],[data-view]");
   if(!t)return;const ds=t.dataset;
   if(t.hasAttribute("data-close")){t.closest("dialog").close();return;}
   if(MODE==="admin"){const inA=t.closest("#admin");if(!inA&&!t.closest("#actionbar"))return;if(inA&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN&&window.RXR_ADMIN.pick(ds))return;}
-  if(t.classList.contains("tile")){if(!TIER_EDIT){openChar(ds.id);return;}sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
+  if(t.classList.contains("tile")){if(!CANEDIT()){openChar(ds.id);return;}sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
   if(ds.moveto!==undefined){if(sel){moveTo(sel,ds.moveto);sel=null;render();}return;}
   if(ds.zone!==undefined){if(sel){moveTo(sel,ds.zone);sel=null;render();}return;}
   if(ds.rank){const[tg,stat,id]=ds.rank.split("|");const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();RK.t=tg;RK.stat=stat;RK.dir=RKDEF[tg].find(x=>x[0]===stat)?.[2]||"desc";RK.focus=id;RK.attr=null;RK.role=null;RK.rar=null;switchTab("rank");
@@ -934,7 +947,7 @@ document.addEventListener("click",e=>{
   if(ds.detail!==undefined){openChar(ds.detail);return;}
   if(ds.floor){track("floor",{floor:ds.floor});S.curFloor=ds.floor;sel=null;save();if(ds.go)switchTab("tier");else render();return;}
   if(ds.type){S.curType=ds.type;const fl=FLOORS.filter(f=>f.type===ds.type);S.curFloor=fl.length?fl[fl.length-1].key:null;sel=null;save();render();return;}
-  if(ds.pick){if(!TIER_EDIT){if(CHMAP[ds.pick])openChar(ds.pick);return;}if(CHMAP[ds.pick]){sel=ds.pick;pool.q="";render();const el=main.querySelector(`.tile[data-id="${CSS.escape(ds.pick)}"]`);if(el)el.scrollIntoView({block:"center",behavior:"smooth"});}return;}
+  if(ds.pick){if(!CANEDIT()){if(CHMAP[ds.pick])openChar(ds.pick);return;}if(CHMAP[ds.pick]){sel=ds.pick;pool.q="";render();const el=main.querySelector(`.tile[data-id="${CSS.escape(ds.pick)}"]`);if(el)el.scrollIntoView({block:"center",behavior:"smooth"});}return;}
   if(ds.psort){pool.sort=ds.psort;renderTier();return;}
   if(ds.pattr){pool.attr=pool.attr===ds.pattr?null:ds.pattr;renderTier();return;}
   if(ds.prole){pool.role=pool.role===ds.prole?null:ds.prole;renderTier();return;}
@@ -945,9 +958,13 @@ document.addEventListener("click",e=>{
   if(ds.sdetail!==undefined){openScript(+ds.sdetail);return;}
   if(ds.srar){tstate.scripts.rar=tstate.scripts.rar===ds.srar?null:ds.srar;renderScripts();return;}
   if(ds.srole){tstate.scripts.role=tstate.scripts.role===ds.srole?null:ds.srole;renderScripts();return;}
+  if(ds.view){S.view=ds.view==="mine"?"mine":"official";sel=null;save();render();track("view",{view:S.view});return;}
   const a=ds.act;
   if(a==="unsel"){sel=null;render();}
   else if(a==="admin")enterAdmin();
+  else if(a==="mycopy"){const fk=S.curFloor;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の公式Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、公式の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);save();render();toast("公式の配置をコピーしました。ここから自由に動かせます");}
+  else if(a==="myclear"){const fk=S.curFloor;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];sel=null;save();render();toast("リセットしました");}
+  else if(a==="mytext"){const f=curFloor();const tx=f&&floorText(f);if(!tx){toast("まだ配置がありません");return;}navigator.clipboard.writeText(tx).then(()=>toast("テキストをコピーしました。SNSなどに貼り付けられます"),()=>toast("コピーできませんでした"));}
   else if(a==="allcols"){tstate.chars.all=!tstate.chars.all;renderChars();}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sel){sel=null;render();}});
