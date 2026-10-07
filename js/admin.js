@@ -66,8 +66,11 @@ const toast = (m, ms) => R.toast(m, ms);
 const now = () => Date.now();
 const rid = () => now().toString(36) + Math.random().toString(36).slice(2, 10);
 const me = () => S.user ? (S.user.email || "").toLowerCase() : "";
-const meName = () => S.user ? (S.user.displayName || me().split("@")[0]) : "";
-const shortName = e => { const r = ROLES.find(x => x.email === e); return (r && r.name) || (e || "").split("@")[0]; };
+const meName = () => S.user ? (S.user.displayName || "メンバー") : "";
+const meId = () => S.user ? S.user.uid : "";
+let NAMES = {};          // uid -> {name}（メンバーの表示名。メールアドレスは持たない）
+// 表示名：uid → 名前。古いデータのメールアドレスはオーナーにだけ見せる
+const shortName = x => { if (!x) return "メンバー"; if (NAMES[x] && NAMES[x].name) return NAMES[x].name; if (x === meId()) return meName(); if (String(x).includes("@")) { if (S.role !== "owner") return "メンバー"; const r = ROLES.find(m => m.email === x); return (r && r.name) || x.split("@")[0]; } return "メンバー"; };
 const fmtTime = t => { if (!t) return ""; const d = new Date(t); const p = n => String(n).padStart(2, "0"); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 const ago = t => { const s = (now() - t) / 1000; if (s < 60) return "たった今"; if (s < 3600) return Math.floor(s / 60) + "分前"; if (s < 86400) return Math.floor(s / 3600) + "時間前"; return fmtTime(t); };
 function fbErr(e) {
@@ -170,7 +173,11 @@ function startListeners() {
     softRender();
   }));
   on(F.collection(F.db, "editing"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); EDITING = o; softRender(); });
-  on(F.collection(F.db, "roles"), q => { ROLES = q.docs.map(d => Object.assign({ email: d.id }, d.data())); softRender(); });
+  if (S.role === "owner") on(F.collection(F.db, "roles"), q => { ROLES = q.docs.map(d => Object.assign({ email: d.id }, d.data())); softRender(); });
+  else ROLES = [];
+  S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
+  F.setDoc(F.doc(F.db, "names", meId()), { name: meName(), role: S.role, at: now() }).catch(() => { });
+  if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
   on(F.query(F.collection(F.db, "feedback"), F.orderBy("at", "desc"), F.limit(300)), q => {
     FEEDBACK = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: x.at && x.at.toMillis ? x.at.toMillis() : (x.at || 0) }); });
     renderNav(); softRender();
@@ -223,18 +230,18 @@ const pubTimers = {};
 function maybePublish(k) {
   if (!TABLES.includes(k) || !seeded(k) || T[k].pending || !(k in PUB)) return;
   const sig = sigOf(k);
-  if (PUB[k] && PUB[k].sig === sig) return;
+  if (PUB[k] && PUB[k].sig === sig && !String(PUB[k].by || "").includes("@")) return;
   clearTimeout(pubTimers[k]);
   pubTimers[k] = setTimeout(() => publish(k).catch(e => console.warn(e)), 1200 + Math.random() * 1500);
 }
 async function publish(k, force) {
   if (!seeded(k)) return;
   const sig = sigOf(k);
-  if (!force && PUB[k] && PUB[k].sig === sig) return;
+  if (!force && PUB[k] && PUB[k].sig === sig && !String(PUB[k].by || "").includes("@")) return;
   const d = publicData(k);
   const json = JSON.stringify({ headers: d.headers, rows: d.rows });
   if (json.length > 1000000) { toast(`${TLABEL[k]}データが大きすぎて公開できません（1MB超）`, 6000); return; }
-  await F.setDoc(F.doc(F.db, "public", k), { json, sig, at: now(), by: me(), count: d.rows.length });
+  await F.setDoc(F.doc(F.db, "public", k), { json, sig, at: now(), count: d.rows.length });
 }
 function pubState(k) {
   if (!seeded(k)) return { cls: "warn", t: "未登録" };
@@ -246,7 +253,7 @@ function pubState(k) {
 /* ================= presence ================= */
 function setPresence() {
   if (!S.user || !ED.id) return;
-  F.setDoc(F.doc(F.db, "editing", S.user.uid), { email: me(), name: meName(), k: ED.k, id: ED.id, at: now() }).catch(() => { });
+  F.setDoc(F.doc(F.db, "editing", S.user.uid), { name: meName(), k: ED.k, id: ED.id, at: now() }).catch(() => { });
 }
 function clearPresence() {
   if (!S.user) return;
@@ -397,7 +404,7 @@ async function ghImport(onlyNew) {
 function presHtml() {
   const list = Object.entries(EDITING).filter(([uid, e]) => S.user && uid !== S.user.uid && now() - (e.at || 0) < STALE && T[e.k] && T[e.k].rows.get(e.id));
   if (!list.length) return "";
-  return `<div class="preslist">いま編集中：${list.map(([, e]) => `<span class="pres">✎ ${esc(e.name || shortName(e.email))}</span> ${esc(TLABEL[e.k])}「${esc(labelOf(e.k, T[e.k].rows.get(e.id).c || {}))}」`).join("　")}</div>`;
+  return `<div class="preslist">いま編集中：${list.map(([, e]) => `<span class="pres">✎ ${esc(e.name || "メンバー")}</span> ${esc(TLABEL[e.k])}「${esc(labelOf(e.k, T[e.k].rows.get(e.id).c || {}))}」`).join("　")}</div>`;
 }
 function renderEdit(soft) {
   if (!allReady()) { AM.innerHTML = userBar() + statusBar(); return; }
@@ -439,7 +446,7 @@ function customList(k) {
       const who = othersOn("people", r.id);
       return `<button class="pcard" data-adrow="${esc(r.id)}">${face ? `<img src="${esc(face)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b><small>${esc(c["ふりがな"] || "")}</small>
       <span class="ptags">${c["騎士団"] ? `<span>${R.ic(c["騎士団"], "ord")}${esc(c["騎士団"])}</span>` : '<span class="miss">騎士団未設定</span>'}${c["階級"] ? `<span>${R.ic(c["階級"])}${esc(c["階級"])}</span>` : ""}${c["性別"] ? `<span>${esc(c["性別"])}</span>` : ""}${c["誕生日"] ? `<span>🎂${esc(c["誕生日"])}</span>` : ""}</span>
-      <small class="count">スタイル ${us.length}：${esc(us.map(u => u["スタイル"]).join("・"))}</small></span>${who.length ? `<span class="pres">✎ ${esc(who[0].name || shortName(who[0].email))}</span>` : ""}</button>`; }).join("")}</div>`;
+      <small class="count">スタイル ${us.length}：${esc(us.map(u => u["スタイル"]).join("・"))}</small></span>${who.length ? `<span class="pres">✎ ${esc(who[0].name || "メンバー")}</span>` : ""}</button>`; }).join("")}</div>`;
   }
   const cnt = {}; T.chars.rows.forEach(r => { const s = (r.c || {})["スタイル"]; cnt[s] = (cnt[s] || 0) + 1; });
   const list = [...T.styles.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
@@ -514,7 +521,7 @@ async function saveOpts(mut, label) {
       let o = {}; try { o = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
       const base = optDefaults(); OPT_KEYS.forEach(k => { if (!Array.isArray(o[k]) || !o[k].length) o[k] = base[k]; });
       mut(o);
-      tx.set(ref, { json: JSON.stringify(o), at: now(), by: me() });
+      tx.set(ref, { json: JSON.stringify(o), at: now() });
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "options", label }));
     });
   } catch (e) { toast(fbErr(e), 5000); }
@@ -628,7 +635,7 @@ function bannerHtml() {
   let h = "";
   if (ED.id && !ED.isNew) {
     const who = othersOn(ED.k, ED.id);
-    if (who.length) h += `<div class="astatus warn">${esc(who.map(w => w.name || w.email).join("、"))} さんもこの行を開いています。同時に保存した場合は、あとから保存した人に確認が出ます。</div>`;
+    if (who.length) h += `<div class="astatus warn">${esc(who.map(w => w.name || "メンバー").join("、"))} さんもこの行を開いています。同時に保存した場合は、あとから保存した人に確認が出ます。</div>`;
   }
   if (ED.gone) h += `<div class="astatus warn">この行はほかのメンバーによって削除されました。保存すると新しい行として作り直します。</div>`;
   if (ED.remote && !ED.conflict) h += `<div class="astatus warn">${esc(shortName(ED.remote.by))} さんがこの行を更新しました（${esc(ago(ED.remote.t))}）。<button class="btn small" data-ed="merge">相手の変更を取り込む</button></div>`;
@@ -683,7 +690,7 @@ function dupKey(k, cells, selfId) {
   for (const r of T[k].rows.values()) if (r.id !== selfId && keyOfCells(k, r.c || {}) === key) return labelOf(k, r.c || {});
   return null;
 }
-function logDoc(o) { return Object.assign({ at: now(), by: me(), name: meName() }, o); }
+function logDoc(o) { return Object.assign({ at: now(), by: meId(), name: meName() }, o); }
 async function saveRow(force) {
   const k = ED.k;
   if (k === "chars") autofillChar();
@@ -704,7 +711,7 @@ async function saveRow(force) {
       const hdrRef = F.doc(F.db, "tables", k);
       const hs = extra.length ? await tx.get(hdrRef) : null;
       const s = await tx.get(ref);
-      if (hs) { const cur = hs.exists() ? (hs.data().headers || []) : []; tx.set(hdrRef, { headers: cur.concat(extra.filter(x => !cur.includes(x))), t: now(), by: me() }); }
+      if (hs) { const cur = hs.exists() ? (hs.data().headers || []) : []; tx.set(hdrRef, { headers: cur.concat(extra.filter(x => !cur.includes(x))), t: now(), by: meId() }); }
       if (!creating && !force) {
         if (!s.exists()) throw { code: "gone" };
         const cur = s.data();
@@ -712,7 +719,7 @@ async function saveRow(force) {
       }
       const prev = s.exists() ? s.data() : null;
       const o = prev ? prev.o : Math.max(0, ...[...T[k].rows.values()].map(r => r.o || 0)) + 1;
-      tx.set(ref, { c: cells, o, t: now(), by: me(), rev });
+      tx.set(ref, { c: cells, o, t: now(), by: meId(), rev });
       const ch = {};
       if (prev) diffCells(prev.c || {}, cells, hd).forEach(h => { ch[h] = [String((prev.c || {})[h] || ""), cells[h]]; });
       tx.set(F.doc(F.db, "log", rid()), logDoc(prev ? { act: "update", k, rowid: id, label: labelOf(k, cells), ch } : { act: "create", k, rowid: id, label: labelOf(k, cells), row: cells }));
@@ -760,7 +767,7 @@ async function addColumn() {
       const ref = F.doc(F.db, "tables", k); const s = await tx.get(ref);
       const hd = s.exists() ? (s.data().headers || []) : [];
       if (hd.includes(n)) return;
-      tx.set(ref, { headers: hd.concat([n]), t: now(), by: me() });
+      tx.set(ref, { headers: hd.concat([n]), t: now(), by: meId() });
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "columns", k, label: `列「${n}」を追加` }));
     });
     ED.newCol = ""; toast(`列「${n}」を追加しました`);
@@ -827,17 +834,17 @@ async function applyTable(k, inc, mode, act) {
       const old = T[k].rows.get(hit.id);
       const base = mode === "replace" ? {} : (old.c || {});
       const c = cellsFrom(inc.headers, r, base);
-      if (diffCells(old.c || {}, c, hd).length) { ops.push(["set", hit.id, { c, o: mode === "replace" ? i + 1 : old.o, t: now(), by: me(), rev: rid() }]); changed++; }
+      if (diffCells(old.c || {}, c, hd).length) { ops.push(["set", hit.id, { c, o: mode === "replace" ? i + 1 : old.o, t: now(), by: meId(), rev: rid() }]); changed++; }
       else if (mode === "replace" && old.o !== i + 1) ops.push(["set", hit.id, Object.assign({}, old, { o: i + 1, id: undefined })]);
     } else {
-      ops.push(["set", "r" + rid(), { c: cellsFrom(inc.headers, r), o: mode === "replace" ? i + 1 : ++maxO, t: now(), by: me(), rev: rid() }]); added++;
+      ops.push(["set", "r" + rid(), { c: cellsFrom(inc.headers, r), o: mode === "replace" ? i + 1 : ++maxO, t: now(), by: meId(), rev: rid() }]); added++;
     }
   });
   if (mode === "replace") cur.ids.forEach(id => { if (!used.has(id)) { ops.push(["del", id]); removed++; } });
   // commit in chunks
   const hdrRef = F.doc(F.db, "tables", k);
   let b = F.writeBatch(F.db); let n = 0;
-  b.set(hdrRef, { headers: hd, t: now(), by: me() }); n++;
+  b.set(hdrRef, { headers: hd, t: now(), by: meId() }); n++;
   for (const op of ops) {
     const ref = F.doc(F.db, "tables", k, "rows", op[1]);
     if (op[0] === "del") b.delete(ref); else { const d = Object.assign({}, op[2]); delete d.id; b.set(ref, d); }
@@ -865,7 +872,7 @@ function renderIO() {
   <div class="row2"><button class="btn" data-io="ghdata">data/*.json を書き出す</button></div>
   <h3 class="ph" style="margin-top:22px">公開データ</h3>
   <p class="hint" style="margin-top:0">保存すると自動で公開サイトに反映されます。反映されていないときだけ押してください。</p>
-  <div class="row2"><button class="btn" data-io="publish">今すぐ公開データを更新</button>${TABLES.map(t => PUB[t] ? `<span class="count">${TLABEL[t]}：${esc(fmtTime(PUB[t].at))} ${esc(shortName(PUB[t].by))}</span>` : "").join("")}</div>
+  <div class="row2"><button class="btn" data-io="publish">今すぐ公開データを更新</button>${TABLES.map(t => PUB[t] ? `<span class="count">${TLABEL[t]}：${esc(fmtTime(PUB[t].at))}</span>` : "").join("")}</div>
   ${seeded(k) ? `<h3 class="ph" style="margin-top:22px">GitHub のデータを取り込む</h3><p class="hint" style="margin-top:0">GitHub の data/${k}.json を左の読み込み欄に入れて、今のデータとの差分（追加・変更）を表示します。確認してから反映できます。</p>
   <div class="row2"><button class="btn" data-io="loadgh">data/${k}.json を読み込んで差分を見る</button></div>` : ""}</section></div>`;
   AM.innerHTML = h;
@@ -1067,7 +1074,7 @@ async function ghCommit(items, progress) {
     const b = await gh("/git/blobs", { method: "POST", body: JSON.stringify({ content: await b64(f.blob), encoding: "base64" }) });
     f.sha = b.sha; progress && progress(++n, total);
   }
-  const msg = `画像を${items.length === 1 ? "更新" : items.length + "件追加・更新"}：${items.slice(0, 5).map(i => i.key).join("、")}${items.length > 5 ? " ほか" : ""}\n\n管理画面から ${meName()}（${me()}）`;
+  const msg = `画像を${items.length === 1 ? "更新" : items.length + "件追加・更新"}：${items.slice(0, 5).map(i => i.key).join("、")}${items.length > 5 ? " ほか" : ""}\n\n管理画面から ${meName()}`;
   for (let attempt = 0; attempt < 3; attempt++) {
     const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
     const commit = await gh(`/git/commits/${base}`);
@@ -1131,7 +1138,7 @@ async function saveGhToken() {
   const prev = GH; GH = { token, repo, branch: "main" };
   try { await gh(""); await gh("/git/ref/heads/main"); }
   catch (e) { GH = prev; toast(e.status === 401 ? "トークンが正しくないようです" : e.status === 404 ? "リポジトリが見つかりません（トークンの対象リポジトリを確認してください）" : ghErr(e), 6000); return; }
-  try { await F.setDoc(F.doc(F.db, "secrets", "github"), { token, repo, branch: "main", at: now(), by: me() }); toast("GitHub 連携を保存しました"); }
+  try { await F.setDoc(F.doc(F.db, "secrets", "github"), { token, repo, branch: "main", at: now(), by: meId() }); toast("GitHub 連携を保存しました"); }
   catch (e) { GH = prev; toast(fbErr(e) + "（Firestore のルールを最新にしてください）", 7000); }
 }
 async function delGhToken() { try { await F.deleteDoc(F.doc(F.db, "secrets", "github")); toast("GitHub 連携を解除しました"); } catch (e) { toast(fbErr(e)); } }
@@ -1158,7 +1165,7 @@ async function saveCrop(id, val) {
     const ref = F.doc(F.db, "public", "crops"); const s = await tx.get(ref);
     let m = {}; try { m = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
     if (val) m[id] = val; else delete m[id];
-    tx.set(ref, { json: JSON.stringify(m), at: now(), by: me(), count: Object.keys(m).length });
+    tx.set(ref, { json: JSON.stringify(m), at: now(), count: Object.keys(m).length });
     tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "crop", k: CR.kind === "char" ? "chars" : "scripts", label: `サムネイル位置：${CR.label}${val ? "" : "（自動に戻す）"}` }));
   });
 }
@@ -1218,14 +1225,14 @@ async function revertLog(id) {
       const s = await tx.get(r);
       if (l.act === "delete") {
         if (s.exists()) throw { message: "この行はすでにあります" };
-        tx.set(r, { c: l.row, o: l.o || 0, t: now(), by: me(), rev: rid() });
+        tx.set(r, { c: l.row, o: l.o || 0, t: now(), by: meId(), rev: rid() });
       } else if (l.act === "create") {
         if (!s.exists()) throw { message: "この行はすでにありません" };
         tx.delete(r);
       } else {
         if (!s.exists()) throw { message: "この行は削除されています" };
         const c = Object.assign({}, s.data().c || {}); Object.keys(l.ch).forEach(h => { c[h] = l.ch[h][0]; });
-        tx.set(r, Object.assign({}, s.data(), { c, t: now(), by: me(), rev: rid() }));
+        tx.set(r, Object.assign({}, s.data(), { c, t: now(), by: meId(), rev: rid() }));
       }
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "revert", k: l.k, rowid: l.rowid, label: `${l.label}（${fmtTime(l.at)} の${ACT[l.act]}を取り消し）` }));
     });
@@ -1258,7 +1265,7 @@ async function flushTier() {
       const tiers = v.tiers || {};
       batch.forEach(({ op: [fk, id, t] }) => { const P = tiers[fk] || (tiers[fk] = {}); if (t) P[id] = t; else delete P[id]; if (!Object.keys(P).length) delete tiers[fk]; });
       const json = JSON.stringify({ tiers, at: now() });
-      tx.set(ref, { json, at: now(), by: me(), count: Object.keys(tiers).length });
+      tx.set(ref, { json, at: now(), count: Object.keys(tiers).length });
       const name = id => R.CHMAP[id] ? R.CHMAP[id].name : id;
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "tier", label: batch.map(({ op: [fk, id, t], prev }) => `${floorLabel(fk)} ${name(id)}：${prev || "未配置"} → ${t || "未配置"}`).join(" ／ ").slice(0, 600) }));
     });
@@ -1326,9 +1333,9 @@ async function saveNews() {
       const ref = F.doc(F.db, "public", "news"); const s = await tx.get(ref);
       let list = []; try { list = s.exists() && s.data().json ? JSON.parse(s.data().json) : []; } catch (er) { }
       const old = list.find(x => x.id === item.id);
-      item.at = old && !e.renew ? (old.at || now()) : now(); item.by = old ? old.by : me();
+      item.at = old && !e.renew ? (old.at || now()) : now();
       list = list.filter(x => x.id !== item.id).concat([item]);
-      tx.set(ref, { json: JSON.stringify(list), at: now(), by: me(), count: list.length });
+      tx.set(ref, { json: JSON.stringify(list), at: now(), count: list.length });
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "news", label: `${old ? "編集" : "公開"}：${item.title}` }));
     });
     NW.edit = null; toast("お知らせを公開しました"); renderNews();
@@ -1341,7 +1348,7 @@ async function delNews(id) {
       let list = []; try { list = s.exists() && s.data().json ? JSON.parse(s.data().json) : []; } catch (er) { }
       const old = list.find(x => x.id === id); if (!old) return;
       list = list.filter(x => x.id !== id);
-      tx.set(ref, { json: JSON.stringify(list), at: now(), by: me(), count: list.length });
+      tx.set(ref, { json: JSON.stringify(list), at: now(), count: list.length });
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "news", label: `削除：${old.title}` }));
     });
     NW.confirm = null; toast("削除しました"); renderNews();
@@ -1363,14 +1370,14 @@ function renderFb() {
     <footer><small class="count ua" title="${esc(f.ua || "")}">${esc(uaShort(f.ua))}</small><span style="flex:1"></span><button class="btn small" data-fbnote="${esc(f.id)}">メモ</button>${FB.confirm === f.id ? `<span class="danger-q">削除しますか？</span><button class="btn small danger" data-fbdelyes="${esc(f.id)}">削除</button><button class="btn small" data-fbdelno="1">やめる</button>` : `<button class="btn small" data-fbdel="${esc(f.id)}">削除</button>`}</footer></article>`).join("") || '<p class="count">該当するものはありません</p>'}</div>`;
   AM.innerHTML = h;
   AM.querySelectorAll("[data-fbset]").forEach(s => s.addEventListener("change", async () => {
-    try { await F.updateDoc(F.doc(F.db, "feedback", s.dataset.fbset), { status: s.value, by: me(), t: now() }); toast(`「${FSTAT[s.value]}」にしました`); } catch (e) { toast(fbErr(e)); }
+    try { await F.updateDoc(F.doc(F.db, "feedback", s.dataset.fbset), { status: s.value, by: meId(), t: now() }); toast(`「${FSTAT[s.value]}」にしました`); } catch (e) { toast(fbErr(e)); }
   }));
 }
 function uaShort(ua) { ua = ua || ""; const os = /iPhone|iPad/.test(ua) ? "iOS" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac OS/.test(ua) ? "Mac" : ""; const br = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : ""; return [os, br].filter(Boolean).join(" / "); }
 async function fbNote(id) {
   const f = FEEDBACK.find(x => x.id === id); if (!f) return;
   const v = window.prompt("メモ（メンバーだけが見られます）", f.note || ""); if (v == null) return;
-  try { await F.updateDoc(F.doc(F.db, "feedback", id), { note: v.slice(0, 500), noteBy: me() }); } catch (e) { toast(fbErr(e)); }
+  try { await F.updateDoc(F.doc(F.db, "feedback", id), { note: v.slice(0, 500), noteBy: meId() }); } catch (e) { toast(fbErr(e)); }
 }
 
 /* ================= access stats ================= */
@@ -1411,15 +1418,46 @@ const MB = { email: "", confirm: null };
 function renderMembers(soft) {
   if (soft && document.activeElement && document.activeElement.id === "mbemail") return;
   const owner = S.role === "owner";
-  const list = ROLES.slice().sort((a, b) => (a.at || 0) - (b.at || 0));
-  const pres = Object.values(EDITING).filter(e => now() - (e.at || 0) < STALE);
-  let h = userBar() + `<div class="toolbar"><h2><small>MEMBERS</small>メンバー</h2><span class="count">${list.length + 1}人</span></div>
-  <section class="apanel"><div class="mblist"><div class="mbrow"><b>${esc(F.OWNER)}</b><span class="rolebadge">オーナー</span><span style="flex:1"></span></div>
-  ${list.map(m => `<div class="mbrow"><b>${esc(m.email)}</b>${m.name ? `<span class="count">${esc(m.name)}</span>` : ""}<span class="rolebadge ed">編集者</span>${pres.some(p => p.email === m.email) ? `<span class="pres">編集中</span>` : ""}<span style="flex:1"></span><span class="count">${m.at ? esc(fmtTime(m.at)) + " 追加" : ""}</span>${owner ? (MB.confirm === m.email ? `<span class="danger-q">外しますか？</span><button class="btn small danger" data-mbdelyes="${esc(m.email)}">外す</button><button class="btn small" data-mbdelno="1">やめる</button>` : `<button class="btn small" data-mbdel="${esc(m.email)}">外す</button>`) : ""}</div>`).join("")}</div>
-  ${owner ? `<div class="addcol" style="margin-top:14px"><input id="mbemail" type="email" placeholder="招待する人の Gmail アドレス" value="${esc(MB.email)}"><input id="mbname" placeholder="表示名（任意）" style="max-width:180px"><button class="btn primary small" data-a="mbadd">メンバーに追加</button></div>` : `<p class="hint">メンバーの追加・削除はオーナーだけができます。</p>`}
-  <p class="hint">招待された人は、そのメールアドレスの Google アカウントで <b>${esc(location.origin + location.pathname)}#admin</b> を開いて「Google でログイン」すると編集できます。</p></section>`;
+  const pres = Object.entries(EDITING).filter(([, e]) => now() - (e.at || 0) < STALE).map(([uid]) => uid);
+  const named = Object.entries(NAMES).sort((a, b) => (a[1].role === "owner" ? -1 : 0) - (b[1].role === "owner" ? -1 : 0) || (a[1].at || 0) - (b[1].at || 0));
+  let h = userBar() + `<div class="toolbar"><h2><small>MEMBERS</small>メンバー</h2></div>`;
+  if (owner) {
+    const list = ROLES.slice().sort((a, b) => (a.at || 0) - (b.at || 0));
+    h += `<section class="apanel"><h3 class="ph">招待しているメールアドレス（${list.length + 1}）</h3><p class="hint" style="margin:0 0 8px">メールアドレスはオーナーにしか表示されません。</p><div class="mblist"><div class="mbrow"><b>${esc(F.OWNER)}</b><span class="rolebadge">オーナー</span><span style="flex:1"></span></div>
+    ${list.map(m => `<div class="mbrow"><b>${esc(m.email)}</b>${m.name ? `<span class="count">${esc(m.name)}</span>` : ""}<span class="rolebadge ed">編集者</span><span style="flex:1"></span><span class="count">${m.at ? esc(fmtTime(m.at)) + " 追加" : ""}</span>${MB.confirm === m.email ? `<span class="danger-q">外しますか？</span><button class="btn small danger" data-mbdelyes="${esc(m.email)}">外す</button><button class="btn small" data-mbdelno="1">やめる</button>` : `<button class="btn small" data-mbdel="${esc(m.email)}">外す</button>`}</div>`).join("")}</div>
+    <div class="addcol" style="margin-top:14px"><input id="mbemail" type="email" placeholder="招待する人の Gmail アドレス" value="${esc(MB.email)}"><input id="mbname" placeholder="表示名（任意）" style="max-width:180px"><button class="btn primary small" data-a="mbadd">メンバーに追加</button></div>
+    <p class="hint">招待された人は、そのメールアドレスの Google アカウントで <b>${esc(location.origin + location.pathname)}#admin</b> を開いて「Google でログイン」すると編集できます。</p></section>`;
+  }
+  h += `<section class="apanel"><h3 class="ph">ログインしたことのあるメンバー（${named.length}）</h3><div class="mblist">${named.map(([uid, m]) => `<div class="mbrow"><b>${esc(m.name || "メンバー")}</b><span class="rolebadge ${m.role === "owner" ? "" : "ed"}">${m.role === "owner" ? "オーナー" : "編集者"}</span>${pres.includes(uid) ? `<span class="pres">編集中</span>` : ""}<span style="flex:1"></span><span class="count">${m.at ? "最終ログイン " + esc(fmtTime(m.at)) : ""}</span></div>`).join("") || '<p class="count">まだいません</p>'}</div>
+  ${owner ? "" : `<p class="hint">メンバーの追加・削除はオーナーだけができます。メールアドレスはオーナーにだけ表示されます。</p>`}</section>`;
   AM.innerHTML = h;
   const mi = document.getElementById("mbemail"); if (mi) mi.addEventListener("input", () => { MB.email = mi.value; });
+}
+/* ---- 古いデータに残っているメールアドレスを消す（オーナーのログイン時に1回） ---- */
+let SCRUBBED = false;
+async function scrubEmails() {
+  if (SCRUBBED || S.role !== "owner") return; SCRUBBED = true;
+  const has = v => typeof v === "string" && v.includes("@");
+  let n = 0; let b = F.writeBatch(F.db); let c = 0;
+  const push = async (ref, data) => { b.set(ref, data); n++; if (++c >= 400) { await b.commit(); b = F.writeBatch(F.db); c = 0; } };
+  for (const k of TABLES) {
+    for (const r of T[k].rows.values()) if (has(r.by)) { const d = Object.assign({}, r); delete d.id; d.by = ""; await push(F.doc(F.db, "tables", k, "rows", r.id), d); }
+    const hs = await F.getDoc(F.doc(F.db, "tables", k)); if (hs.exists() && has(hs.data().by)) await push(F.doc(F.db, "tables", k), Object.assign({}, hs.data(), { by: "" }));
+  }
+  for (const k of ["crops", "news", "tiers", "options", "chars", "scripts", "babel", "people", "styles"]) {
+    const ps = await F.getDoc(F.doc(F.db, "public", k)); if (!ps.exists()) continue;
+    const d = Object.assign({}, ps.data()); let dirty = false;
+    if (has(d.by)) { delete d.by; dirty = true; }
+    if (k === "news" && d.json) { try { const l = JSON.parse(d.json); if (l.some(x => x.by)) { l.forEach(x => delete x.by); d.json = JSON.stringify(l); dirty = true; } } catch (e) { } }
+    if (dirty) await push(F.doc(F.db, "public", k), d);
+  }
+  const lg = await F.getDocs(F.collection(F.db, "log"));
+  for (const d of lg.docs) { const x = d.data(); if (has(x.by)) await push(F.doc(F.db, "log", d.id), Object.assign({}, x, { by: "" })); }
+  for (const f of FEEDBACK) { if (has(f.by) || has(f.noteBy)) { const x = Object.assign({}, f); delete x.id; if (has(x.by)) x.by = ""; if (has(x.noteBy)) x.noteBy = ""; delete x.at; await F.updateDoc(F.doc(F.db, "feedback", f.id), { by: x.by || "", noteBy: x.noteBy || "" }); n++; } }
+  for (const [uid, e] of Object.entries(EDITING)) if (has(e.email)) { await F.deleteDoc(F.doc(F.db, "editing", uid)).catch(() => { }); n++; }
+  const sec = await F.getDoc(F.doc(F.db, "secrets", "github")).catch(() => null); if (sec && sec.exists() && has(sec.data().by)) await push(F.doc(F.db, "secrets", "github"), Object.assign({}, sec.data(), { by: "" }));
+  if (c) await b.commit();
+  if (n) console.info(`メールアドレスを含む古い記録 ${n} 件を整理しました`);
 }
 async function addMember() {
   const e = (document.getElementById("mbemail").value || "").trim().toLowerCase();
@@ -1428,7 +1466,7 @@ async function addMember() {
   if (e === F.OWNER || ROLES.some(r => r.email === e)) return toast("すでにメンバーです");
   try {
     const b = F.writeBatch(F.db);
-    b.set(F.doc(F.db, "roles", e), { role: "editor", name, at: now(), by: me() });
+    b.set(F.doc(F.db, "roles", e), { role: "editor", name, at: now(), by: "owner" });
     b.set(F.doc(F.db, "log", rid()), logDoc({ act: "members", label: `${e} をメンバーに追加` }));
     await b.commit(); MB.email = ""; toast(`${e} を追加しました`);
   } catch (err) { toast(fbErr(err)); }

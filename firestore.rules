@@ -24,17 +24,23 @@ service cloud.firestore {
       }
     }
 
-    // メンバー（編集者）: 追加・削除はオーナーだけ
+    // メンバー（編集者）: メールアドレスはオーナーだけが見られる（本人は自分の分だけ確認できる）
     match /roles/{e} {
-      allow read: if isEditor();
+      allow read: if isOwner() || (signedIn() && email() == e);
       allow write: if isOwner();
+    }
+
+    // メンバーの表示名（メールアドレスは持たない）。本人だけが書ける
+    match /names/{uid} {
+      allow read: if isEditor();
+      allow write: if isEditor() && request.auth.uid == uid;
     }
 
     // 変更履歴: 自分の名前でだけ追加できる。書き換え不可
     match /log/{id} {
       allow read: if isEditor();
-      allow create: if isEditor() && request.resource.data.by == email();
-      allow delete: if isOwner();
+      allow create: if isEditor() && request.resource.data.by == request.auth.uid;
+      allow update, delete: if isOwner();
     }
 
     // GitHub 連携のトークン（画像アップロード用）: メンバーだけが読める / オーナーだけが登録できる
@@ -47,6 +53,7 @@ service cloud.firestore {
     match /editing/{uid} {
       allow read: if isEditor();
       allow write: if isEditor() && request.auth.uid == uid;
+      allow delete: if isOwner();
     }
 
     // 不具合・ご要望フォーム: 誰でも送信できる（中身は編集者だけが読める）
