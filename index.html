@@ -181,6 +181,7 @@ th{background:linear-gradient(180deg,#123f8f,#0d2f6e);color:#e6f3ff;position:sti
 tbody tr{cursor:pointer}
 tbody tr:nth-child(even){background:rgba(26,134,255,.035)}
 tbody tr:hover{background:rgba(26,134,255,.1)}
+tbody tr:hover td.first{background:linear-gradient(rgba(26,134,255,.1),rgba(26,134,255,.1)),var(--panel2)}
 td.first,th.first{position:sticky;left:0;z-index:1}
 td.first{background:var(--panel2)}
 th.first{z-index:2}
@@ -593,8 +594,9 @@ const place=fk=>S.tiers[fk]||(S.tiers[fk]={});
 
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)));
 function switchTab(t){track("tab",{tab:t});tab=t;sel=null;document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.tab===t)));render();window.scrollTo(0,0);}
-const main=document.getElementById("main");
+let main=document.getElementById("main");
 function render(){
+  if(MODE==="admin"){if(ADMIN_LIST)ADMIN_LIST();return;}
   if(!SITE_LOADED){main.innerHTML=`<div class="empty"><h2>読み込み中…</h2><p>データを読み込んでいます。</p></div>`;return;}
   if(tab==="tier")renderTier();
   else if(tab==="sum")renderSum();
@@ -876,6 +878,7 @@ document.addEventListener("click",e=>{
   const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act]");
   if(!t)return;const ds=t.dataset;
   if(t.hasAttribute("data-close")){t.closest("dialog").close();return;}
+  if(MODE==="admin"){if(t.closest("#admin")&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN){window.RXR_ADMIN.pick(ds);return;}if(!t.closest("#admin"))return;}
   if(t.classList.contains("tile")){sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
   if(ds.moveto!==undefined){if(sel){moveTo(sel,ds.moveto);sel=null;render();}return;}
   if(ds.zone!==undefined){if(sel){moveTo(sel,ds.zone);sel=null;render();}return;}
@@ -968,7 +971,7 @@ function applyMedia(){
   for(const k in SIMG)delete SIMG[k];Object.assign(SIMG,BASE.SIMG);for(const k in SFULL)delete SFULL[k];Object.assign(SFULL,BASE.SFULL);
   HERO=BASE.HERO;setHero();applyCrops();
 }
-let rerenderT=null,ADMIN_RENDER=null;
+let rerenderT=null,ADMIN_RENDER=null,ADMIN_LIST=null;
 function rerender(){clearTimeout(rerenderT);rerenderT=setTimeout(()=>{buildModels();if(MODE==="admin"){if(ADMIN_RENDER)ADMIN_RENDER(true);}else render();},60);}
 function enterAdmin(){location.hash="#admin";}
 function canvasBlob(im,sx,sy,sw,sh,dw,dh,type,q){const c=document.createElement("canvas");c.width=Math.round(dw);c.height=Math.round(dh);const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height);
@@ -1039,7 +1042,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=3");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=4");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1078,7 +1081,9 @@ window.RXR={
   IMG,BANNER,SIMG,SFULL,ICON,BASE,ATTRS,ROLES,RANKS,ORDERS,
   get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,
   rebuild(){buildModels();},renderUser(){render();},
-  setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;},
+  setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},
+  setMain(el,fn){main=el||document.getElementById("main");ADMIN_LIST=fn||null;},
+  renderList(k){({chars:renderChars,scripts:renderScripts,babel:renderBabel})[k]();},
   jstDay,get SITE_LOADED(){return SITE_LOADED;},
   dlg(id){return document.getElementById(id);},
 };

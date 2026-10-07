@@ -45,7 +45,7 @@ function fbErr(e) {
 export async function start(rxr) {
   R = rxr;
   injectStyle();
-  window.RXR_ADMIN = { open, close };
+  window.RXR_ADMIN = { open, close, pick: pickFromList };
   F.onAuthStateChanged(F.auth, async u => {
     stopListeners();
     S.user = u; S.role = null; S.authReady = true;
@@ -63,6 +63,7 @@ function open() {
   document.getElementById("userTabs").hidden = true;
   NAV.hidden = false;
   const ab = document.getElementById("actionbar"); if (ab) ab.classList.add("hidden");
+  headerButton(true);
   renderAll();
   window.scrollTo(0, 0);
 }
@@ -71,12 +72,21 @@ function close() {
   S.open = false;
   clearPresence();
   R.setMode("user");
+  if (DLG && DLG.open) { ED.dirty = false; DLG.close(); }
+  headerButton(false);
   AM.hidden = true; NAV.hidden = true;
   document.getElementById("main").hidden = false;
   document.getElementById("userTabs").hidden = false;
   R.rebuild(); R.renderUser();
   if (location.hash === "#admin" || location.hash === "#") history.replaceState(null, "", location.pathname + location.search);
   window.scrollTo(0, 0);
+}
+// 管理画面ではヘッダーの「不具合・ご要望」を「ユーザー画面へ」に置き換える（タブの押し間違い防止）
+function headerButton(admin) {
+  const fb = document.querySelector(".top .acts [data-feedback]");
+  let b = document.getElementById("toUser");
+  if (!b && fb) { b = document.createElement("button"); b.id = "toUser"; b.className = fb.className; b.textContent = "← ユーザー画面へ"; fb.after(b); b.addEventListener("click", () => { if (ED.dirty && !confirm("保存していない変更があります。破棄してユーザー画面に戻りますか？")) return; ED.dirty = false; location.hash = ""; close(); }); }
+  if (fb) fb.hidden = admin; if (b) b.hidden = !admin;
 }
 async function resolveRole(u) {
   const e = (u.email || "").toLowerCase();
@@ -161,7 +171,7 @@ async function publish(k, force) {
 }
 function pubState(k) {
   if (!seeded(k)) return { cls: "warn", t: "未登録" };
-  if (!PUB[k]) return { cls: "warn", t: "未公開" };
+  if (!PUB[k]) return { cls: "mid", t: "反映中…" };
   if (PUB[k].sig !== sigOf(k)) return { cls: "mid", t: "反映中…" };
   return { cls: "ok", t: "公開中" };
 }
@@ -183,16 +193,14 @@ function othersOn(k, id) {
 /* ================= shell ================= */
 const TABS = [["edit", "データ編集"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
-  if (!S.role) { NAV.innerHTML = `<button role="tab" data-atab="back" aria-selected="false">← ユーザー画面へ</button>`; return; }
+  if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = FEEDBACK.filter(f => f.status === "new").length;
-  NAV.innerHTML = TABS.map(([k, l]) => `<button role="tab" data-atab="${k}" aria-selected="${S.tab === k}">${l}${k === "fb" && nf ? `<span class="nbadge">${nf}</span>` : ""}</button>`).join("") + `<button role="tab" data-atab="back" aria-selected="false">← ユーザー画面へ</button>`;
+  NAV.innerHTML = TABS.map(([k, l]) => `<button role="tab" data-atab="${k}" aria-selected="${S.tab === k}">${l}${k === "fb" && nf ? `<span class="nbadge">${nf}</span>` : ""}</button>`).join("");
 }
 NAV.addEventListener("click", e => {
   const b = e.target.closest("[data-atab]"); if (!b) return;
   const t = b.dataset.atab;
-  if (t === "back") { location.hash = ""; close(); return; }
-  if (S.tab === "edit" && ED.dirty && !ED.leaveOk) { ED.leaveOk = true; toast("保存していない変更があります。もう一度押すと破棄して切り替えます", 3500); return; }
-  if (S.tab === "edit" && t !== "edit") { ED.leaveOk = false; resetEd(); clearPresence(); }
+  if (S.tab === "edit" && t !== "edit") R.setMain(null);
   S.tab = t; renderAll(); window.scrollTo(0, 0);
 });
 function renderAll() { renderNav(); renderAdmin(false); }
@@ -242,7 +250,7 @@ async function login() {
 }
 
 /* ================= data editing ================= */
-const ED = { k: "chars", q: "", id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, newCol: "", remote: null, gone: false, saving: false, conflict: null, leaveOk: false };
+const ED = { k: "babel", q: "", id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, newCol: "", remote: null, gone: false, saving: false, conflict: null, leaveOk: false };
 function resetEd() { Object.assign(ED, { id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, remote: null, gone: false, conflict: null }); }
 function keyOf(k, hd, r) { const g = n => { const i = hd.indexOf(n); return i >= 0 ? String(r[i] || "").trim() : ""; }; return KEYCOLS[k].map(g).join("|"); }
 function keyOfCells(k, c) { return KEYCOLS[k].map(n => String(c[n] || "").trim()).join("|"); }
@@ -262,37 +270,72 @@ function loadRow(k, id) {
   ED.base = Object.assign({}, r.c); ED.draft = Object.assign({}, r.c); ED.baseRev = r.rev;
   ED.dirty = false; ED.confirmDel = false; ED.remote = null; ED.gone = false; ED.conflict = null;
 }
+const EDORDER = ["babel", "chars", "scripts"];
+let DLG = null;
+function edDialog() {
+  if (DLG) return DLG;
+  DLG = document.createElement("dialog"); DLG.id = "dlgEdit"; DLG.className = "wide";
+  DLG.innerHTML = `<div class="dlg" id="edBody"></div>`;
+  document.body.appendChild(DLG);
+  DLG.addEventListener("click", onAdminClick);
+  DLG.addEventListener("cancel", e => { if (ED.dirty && !ED.leaveOk) { e.preventDefault(); ED.leaveOk = true; toast("保存していない変更があります。もう一度 Esc を押すと破棄して閉じます", 3500); } });
+  DLG.addEventListener("close", () => { clearPresence(); resetEd(); ED.leaveOk = false; });
+  return DLG;
+}
+function presHtml() {
+  const list = Object.entries(EDITING).filter(([uid, e]) => S.user && uid !== S.user.uid && now() - (e.at || 0) < STALE && T[e.k] && T[e.k].rows.get(e.id));
+  if (!list.length) return "";
+  return `<div class="preslist">いま編集中：${list.map(([, e]) => `<span class="pres">✎ ${esc(e.name || shortName(e.email))}</span> ${esc(TLABEL[e.k])}「${esc(labelOf(e.k, T[e.k].rows.get(e.id).c || {}))}」`).join("　")}</div>`;
+}
 function renderEdit(soft) {
   if (!allReady()) { AM.innerHTML = userBar() + statusBar(); return; }
   const k = ED.k;
+  const seg = `<div class="seg">${EDORDER.map(t => `<button data-edk="${t}" aria-pressed="${k === t}">${TLABEL[t]}</button>`).join("")}</div>`;
   if (!seeded(k)) {
-    AM.innerHTML = userBar() + statusBar() + `<div class="toolbar"><h2><small>EDIT</small>データ編集</h2>${tableSeg("edk", k)}</div><div class="empty"><h2>${TLABEL[k]}データがまだ登録されていません</h2><p>「読み込み・書き出し」→「初期データを登録」で、今の公開データ（GitHub の data/*.json）を取り込めます。</p><div class="row"><button class="btn primary" data-a="goio">読み込み・書き出しへ</button></div></div>`;
+    R.setMain(null);
+    AM.innerHTML = userBar() + statusBar() + `<div class="toolbar">${seg}</div><div class="empty"><h2>${TLABEL[k]}データがまだ登録されていません</h2><p>「読み込み・書き出し」→「初期データを登録」で、今の公開データ（GitHub の data/*.json）を取り込めます。</p><div class="row2" style="justify-content:center"><button class="btn primary" data-a="goio">読み込み・書き出しへ</button></div></div>`;
     return;
   }
-  const rows = [...T[k].rows.values()].sort((a, b) => (a.o - b.o) || (a.id < b.id ? -1 : 1));
-  let list = rows;
-  if (ED.q) { const q = ED.q.toLowerCase(); list = rows.filter(r => Object.values(r.c || {}).some(v => String(v || "").toLowerCase().includes(q))); }
-  const listHtml = list.map(r => {
-    const who = othersOn(k, r.id);
-    return `<button data-edrow="${esc(r.id)}" aria-current="${ED.id === r.id}">${thumbOf(k, r.c || {})}<span>${esc(labelOf(k, r.c || {}))}</span>${who.length ? `<span class="pres" title="${esc(who.map(w => w.name || w.email).join("、"))}が編集中">✎ ${esc(who[0].name || shortName(who[0].email))}</span>` : ""}</button>`;
-  }).join("") || '<p class="count" style="padding:12px">該当なし</p>';
-  if (soft && document.getElementById("edlist") && (ED.dirty || ED.isNew)) {
-    // keep the form (unsaved typing) — refresh list, status and banners only
-    const el = document.getElementById("edlist"); const st = el.scrollTop; el.innerHTML = listHtml; el.scrollTop = st;
-    const bn = document.getElementById("edbanner"); if (bn) bn.innerHTML = bannerHtml();
-    const sb = document.getElementById("adstatus"); if (sb) sb.innerHTML = statusBar();
-    document.getElementById("edcount").textContent = `${list.length} / ${rows.length}`;
+  const list = document.getElementById("admlist");
+  if (soft && list) {
+    const st = document.getElementById("adstatus"); if (st) st.innerHTML = statusBar();
+    const pr = document.getElementById("edpres"); if (pr) pr.innerHTML = presHtml();
+    const ae = document.activeElement;
+    if (!(ae && ae.closest && ae.closest("#admlist") && /INPUT|TEXTAREA/.test(ae.tagName))) R.renderList(k);
+    if (DLG && DLG.open) refreshForm();
     return;
   }
-  const scroll = document.getElementById("edlist") ? document.getElementById("edlist").scrollTop : 0;
-  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar"><h2><small>EDIT</small>データ編集</h2>${tableSeg("edk", k)}
-  <input class="search" id="edq" placeholder="検索" value="${esc(ED.q)}"><span class="count" id="edcount">${list.length} / ${rows.length}</span><button class="btn small" data-ed="new">＋ 行を追加</button></div>
-  <div class="adm-grid"><div class="adm-list" id="edlist">${listHtml}</div><div class="adm-form" id="edform">${editForm()}</div></div>`;
-  document.getElementById("edlist").scrollTop = scroll;
-  const q = document.getElementById("edq");
-  q.addEventListener("input", () => { ED.q = q.value; const p = q.selectionStart; renderEdit(false); const n = document.getElementById("edq"); n.focus(); n.setSelectionRange(p, p); });
-  AM.querySelectorAll("[data-field]").forEach(el => el.addEventListener("input", () => {
-    ED.draft[el.dataset.field] = el.value; ED.dirty = true;
+  document.getElementById("main").innerHTML = "";   // 同じ id の検索欄が重ならないように
+  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span><button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button></div><div id="edpres">${presHtml()}</div><div id="admlist" class="admlist"></div>`;
+  R.setMain(document.getElementById("admlist"), () => { if (S.tab === "edit") R.renderList(ED.k); });
+  R.renderList(k);
+  if (DLG && DLG.open) refreshForm();
+}
+function openEditor(k, id) {
+  if (!T[k].rows.get(id)) { toast("この行が見つかりません（ほかのメンバーが削除した可能性があります）"); return; }
+  ED.k = k; loadRow(k, id); setPresence(); renderForm();
+}
+function pickFromList(ds) {
+  const k = ED.k; if (!seeded(k)) return;
+  let id = null;
+  if (ds.detail !== undefined && k === "chars") { for (const r of T.chars.rows.values()) if ((r.c || {})["ID"] === ds.detail) { id = r.id; break; } }
+  else if (ds.sdetail !== undefined && k === "scripts") { id = derive("scripts").ids[+ds.sdetail]; }
+  else if (ds.floor !== undefined && k === "babel") { for (const r of T.babel.rows.values()) if (keyOfCells("babel", r.c || {}) === ds.floor) { id = r.id; break; } }
+  if (id) openEditor(k, id);
+}
+function refreshForm() {
+  if (ED.dirty || ED.isNew) { const bn = document.getElementById("edbanner"); if (bn) bn.innerHTML = bannerHtml(); return; }
+  renderForm();
+}
+function renderForm() {
+  const dl = edDialog();
+  const body = document.getElementById("edBody");
+  const sc = dl.open ? dl.scrollTop : 0;
+  body.innerHTML = editForm();
+  if (!dl.open) dl.showModal();
+  dl.scrollTop = sc;
+  body.querySelectorAll("[data-field]").forEach(el => el.addEventListener("input", () => {
+    ED.draft[el.dataset.field] = el.value; ED.dirty = true; ED.leaveOk = false;
     const sb = document.getElementById("edsave"); if (sb) sb.disabled = false;
     el.closest(".field").classList.toggle("changed", (ED.base[el.dataset.field] || "") !== el.value);
   }));
@@ -317,15 +360,23 @@ function bannerHtml() {
   return h;
 }
 function editForm() {
-  if (!ED.id || !ED.draft) return `<div class="empty" style="box-shadow:none"><h2>行を選んでください</h2><p>左の一覧から編集したい行を選ぶか、「行を追加」で新しく作れます。</p></div>`;
+  if (!ED.id || !ED.draft) return "";
   const hd = T[ED.k].headers;
   const r = T[ED.k].rows.get(ED.id);
   const both = ED.conflict ? ED.conflict.both : [];
   const ik = ED.k === "chars" ? "char" : ED.k === "scripts" ? "script" : null;
   const ikey = ik === "char" ? (ED.base["ID"] || "") : ik === "script" ? (ED.base["名前"] || "") : "";
   const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : null;
-  let h = `<div id="edbanner">${bannerHtml()}</div><div class="formhead"><h3 class="fh">${ED.isNew ? "新しい行" : esc(labelOf(ED.k, ED.draft))}</h3>${th && !ED.isNew ? `<img class="formth" src="${esc(th)}" alt="">` : ""}
-  ${ik && !ED.isNew && ikey ? `<span class="imgacts">${R.cropSrc(ik, ikey) ? `<button class="btn small" data-a="edcrop">サムネイル位置を調整</button>` : ""}<label class="btn small filebtn">${th ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label></span>` : ""}</div>`;
+  const full = ik && ikey ? R.cropSrc(ik, ikey) : null;
+  const adj = ik && ikey && R.CROPS["c_" + ik + "_" + R.hashId(ikey)];
+  let h = `<div class="edhead"><h2>${ED.isNew ? `${TLABEL[ED.k]}を追加` : esc(labelOf(ED.k, ED.draft))}</h2><span class="count">${TLABEL[ED.k]}</span><span style="flex:1"></span><button class="btn small" data-ed="close" aria-label="閉じる">✕ 閉じる</button></div><div id="edbanner">${bannerHtml()}</div>`;
+  if (ik) {
+    h += `<section class="edimgs">${ED.isNew || !ikey ? `<p class="hint" style="margin:0">画像は、保存したあとにここから追加できます。</p>` : `
+      <div class="edth">${th ? `<img src="${esc(th)}" alt="">` : `<span class="noimg"></span>`}<small>サムネイル${adj ? "（調整済み）" : ""}</small></div>
+      ${full ? `<div class="edfull"><img src="${esc(full)}" alt=""><small>元の画像</small></div>` : ""}
+      <div class="edimgbtns">${full ? `<button class="btn small" data-a="edcrop">サムネイルの切り抜きを調整</button>` : ""}<label class="btn small filebtn">${full ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label>
+      <p class="hint" style="margin:4px 0 0">${GH ? "画像はサイズを整えて GitHub に保存され、公開サイトには1〜2分で反映されます。" : "画像のアップロードには、オーナーが「画像」タブで GitHub 連携を設定する必要があります。"}</p></div>`}</section>`;
+  }
   if (r && !ED.isNew) h += `<p class="count" style="margin:-6px 0 10px">最終更新：${esc(shortName(r.by))}（${esc(fmtTime(r.t))}）</p>`;
   h += `<div class="fields">` + hd.map((name, i) => {
     const v = ED.draft[name] == null ? "" : String(ED.draft[name]);
@@ -335,7 +386,7 @@ function editForm() {
     return `<div class="field${long ? " long" : ""}${changed ? " changed" : ""}${both.includes(name) ? " clash" : ""}"><label for="${id}">${esc(name)}${key ? ' <small class="count">（識別用）</small>' : ""}</label>${long ? `<textarea id="${id}" data-field="${esc(name)}" rows="${Math.min(10, Math.max(2, Math.ceil(v.length / 42) + (v.match(/\n/g) || []).length))}">${esc(v)}</textarea>` : `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}">`}</div>`;
   }).join("") + `</div>`;
   h += `<div class="addcol"><input id="ednewcol" placeholder="列名を入力して列を追加" value="${esc(ED.newCol)}"><button class="btn small" data-ed="addcol">列を追加</button></div>`;
-  h += `<div class="formfoot">${ED.confirmDel ? `<span class="danger-q">この行を削除しますか？</span><button class="btn small danger" data-ed="delyes">削除する</button><button class="btn small" data-ed="delno">やめる</button>` : (!ED.isNew ? `<button class="btn small" data-ed="del">この行を削除</button>` : "")}<span style="flex:1"></span><button class="btn small" data-ed="cancel">変更を取り消す</button><button class="btn primary" id="edsave" data-ed="save" ${ED.dirty || ED.gone ? "" : "disabled"}>保存して公開</button></div>`;
+  h += `<div class="formfoot">${ED.confirmDel ? `<span class="danger-q">この行を削除しますか？</span><button class="btn small danger" data-ed="delyes">削除する</button><button class="btn small" data-ed="delno">やめる</button>` : (!ED.isNew ? `<button class="btn small" data-ed="del">この行を削除</button>` : "")}<span style="flex:1"></span>${ED.dirty && !ED.isNew ? `<button class="btn small" data-ed="cancel">変更を取り消す</button>` : ""}<button class="btn" data-ed="close">閉じる</button><button class="btn primary" id="edsave" data-ed="save" ${ED.dirty || ED.gone ? "" : "disabled"}>${ED.isNew ? "追加して公開" : "保存して公開"}</button></div>`;
   return h;
 }
 function diffCells(a, b, headers) { return headers.filter(h => String(a[h] || "") !== String(b[h] || "")); }
@@ -388,16 +439,16 @@ async function saveRow(force) {
     ED.saving = false;
     ED.id = id; ED.isNew = false; ED.gone = false; ED.base = Object.assign({}, cells); ED.baseRev = rev; ED.dirty = false; ED.conflict = null; ED.remote = null;
     setPresence();
-    toast("保存しました。数秒で公開サイトに反映されます");
-    renderEdit(false);
+    toast(creating ? "追加しました。数秒で公開サイトに反映されます" : "保存しました。数秒で公開サイトに反映されます");
+    renderForm();
   } catch (e) {
     ED.saving = false;
     if (e && e.code === "conflict") {
       const both = []; const hdr = hd;
       hdr.forEach(h => { const mine = String(ED.draft[h] || ""), base = String(ED.base[h] || ""), th = String((e.other.c || {})[h] || ""); if (mine !== base && th !== base && th !== mine) both.push(h); });
-      ED.conflict = { other: e.other, both }; renderEdit(false); toast("ほかのメンバーの更新と重なりました。内容を確認してください", 5000); return;
+      ED.conflict = { other: e.other, both }; renderForm(); toast("ほかのメンバーの更新と重なりました。内容を確認してください", 5000); return;
     }
-    if (e && e.code === "gone") { ED.gone = true; renderEdit(false); toast("この行はほかのメンバーが削除していました", 5000); return; }
+    if (e && e.code === "gone") { ED.gone = true; renderForm(); toast("この行はほかのメンバーが削除していました", 5000); return; }
     toast(fbErr(e), 6000);
     if (btn) { btn.disabled = false; btn.textContent = "保存して公開"; }
   }
@@ -412,9 +463,9 @@ async function deleteRow() {
       tx.delete(ref);
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "delete", k, rowid: id, label: labelOf(k, cur.c || {}), row: cur.c || {}, o: cur.o }));
     });
-    toast("削除しました"); clearPresence(); resetEd(); renderEdit(false);
+    toast("削除しました"); ED.dirty = false; if (DLG) DLG.close();
   } catch (e) {
-    if (e && e.code === "conflict") { toast("削除する前にほかのメンバーが更新しました。内容を確認してからもう一度削除してください", 6000); loadRow(k, id); renderEdit(false); return; }
+    if (e && e.code === "conflict") { toast("削除する前にほかのメンバーが更新しました。内容を確認してからもう一度削除してください", 6000); loadRow(k, id); renderForm(); return; }
     toast(fbErr(e), 5000);
   }
 }
@@ -436,17 +487,18 @@ async function addColumn() {
 }
 async function edAction(a) {
   const k = ED.k;
-  if (a === "new") { ED.id = "new"; ED.isNew = true; ED.draft = {}; ED.base = {}; ED.baseRev = null; ED.dirty = true; ED.confirmDel = false; ED.conflict = null; ED.remote = null; ED.gone = false; renderEdit(false); return; }
-  if (a === "cancel") { if (ED.isNew) resetEd(); else loadRow(k, ED.id); renderEdit(false); return; }
-  if (a === "del") { ED.confirmDel = true; renderEdit(false); return; }
-  if (a === "delno") { ED.confirmDel = false; renderEdit(false); return; }
+  if (a === "new") { ED.id = "new"; ED.isNew = true; ED.draft = {}; ED.base = {}; ED.baseRev = null; ED.dirty = true; ED.confirmDel = false; ED.conflict = null; ED.remote = null; ED.gone = false; ED.newCol = ""; renderForm(); return; }
+  if (a === "close") { if (ED.dirty && !ED.leaveOk) { ED.leaveOk = true; toast("保存していない変更があります。もう一度押すと破棄して閉じます", 3500); return; } if (DLG) DLG.close(); return; }
+  if (a === "cancel") { loadRow(k, ED.id); renderForm(); return; }
+  if (a === "del") { ED.confirmDel = true; renderForm(); return; }
+  if (a === "delno") { ED.confirmDel = false; renderForm(); return; }
   if (a === "delyes") { deleteRow(); return; }
   if (a === "addcol") { addColumn(); return; }
   if (a === "save") { saveRow(false); return; }
-  if (a === "merge") { if (ED.remote) { const both = mergeRemote(ED.remote); if (both.length) toast(`両方が変えた項目はあなたの内容のままです：${both.join("、")}`, 6000); } renderEdit(false); return; }
+  if (a === "merge") { if (ED.remote) { const both = mergeRemote(ED.remote); if (both.length) toast(`両方が変えた項目はあなたの内容のままです：${both.join("、")}`, 6000); } renderForm(); return; }
   if (a === "mergesave") { const both = mergeRemote(Object.assign({}, ED.conflict.other)); ED.conflict = null; if (both.length) { toast("両方が変えた項目はあなたの内容で保存します", 3000); } saveRow(false); return; }
   if (a === "force") { ED.conflict = null; saveRow(true); return; }
-  if (a === "discard") { loadRow(k, ED.id); renderEdit(false); return; }
+  if (a === "discard") { loadRow(k, ED.id); renderForm(); return; }
 }
 
 /* ================= import / export ================= */
@@ -629,16 +681,9 @@ function renderImg() {
   const tg = targets(IM.k); const has = tg.filter(t => hasImage(IM.k, t.key)); const miss = tg.filter(t => !hasImage(IM.k, t.key));
   let h = userBar() + `<div class="toolbar"><h2><small>IMAGES</small>画像</h2><div class="seg">${Object.keys(IKIND).map(k => `<button data-imk="${k}" aria-pressed="${IM.k === k}">${IKIND[k]}</button>`).join("")}</div>${tg.length > 1 ? `<span class="count">画像あり ${has.length} / ${tg.length}</span>` : ""}</div>`;
   let tail = "";
-  if (IM.k === "char" || IM.k === "script") {
-    const src = tg.filter(x => R.cropSrc(IM.k, x.key)); const q = (IM.cq || "").toLowerCase(); const shown = src.filter(x => !q || x.label.toLowerCase().includes(q) || String(x.key).toLowerCase().includes(q));
-    const adj = t => R.CROPS["c_" + IM.k + "_" + R.hashId(t.key)];
-    tail += `<section class="apanel"><h3 class="ph">サムネイルの位置調整</h3><p class="hint" style="margin-top:0">一覧の正方形サムネイルがずれているものを選んで、切り抜く位置を直せます。保存するとすぐ公開サイトに反映されます。調整済みのものには印が付きます。</p>
-    <input class="search" id="cropq" placeholder="名前で絞り込み" value="${esc(IM.cq || "")}" style="max-width:320px;margin-bottom:10px">
-    <div class="cropgrid">${shown.map(x => { const th = IM.k === "char" ? R.IMG[x.key] : R.SIMG[x.key]; return `<button data-crop="${esc(x.key)}" title="${esc(x.label)}" class="${adj(x) ? "adj" : ""}">${th ? `<img src="${esc(th)}" alt="" loading="lazy">` : `<span class="noimg"></span>`}<span>${esc(x.label)}</span></button>`; }).join("") || '<span class="count">元画像のあるものがありません</span>'}</div></section>`;
-  }
   if (tg.length > 1) tail += `<section class="apanel"><h3 class="ph">画像がないもの（${miss.length}）</h3>${miss.length ? `<div class="misslist">${miss.map(t => `<span>${esc(t.label)}</span>`).join("")}</div>` : `<p class="hint" style="margin:0">すべて画像があります。</p>`}</section>`;
   h += ghPanel() + `<section class="apanel"><h3 class="ph">画像をアップロード</h3>
-  <p class="hint" style="margin-top:0">ここに画像を入れると、${IM.k === "char" ? "ファイル名をキャラID（例：カノン_DEFAULT）やキャラ名と照らし合わせて" : IM.k === "script" ? "ファイル名とスクリプト名の表記ゆれ（全角半角・記号・カタカナひらがな・末尾の番号など）を吸収して" : IM.k === "icon" ? "属性・ロール・階級・騎士団名（英語のファイル名にも対応）と照らし合わせて" : ""}割り当てます。割り当てを確認して${GH ? "「アップロード」を押すと、サイズを整えて GitHub に保存されます（サムネイルは自動で切り抜くので、ずれていたら上の「位置調整」で直してください）。" : "「ZIP にまとめる」で書き出し、GitHub に上書きアップロードしてください。"}</p>
+  <p class="hint" style="margin-top:0">ここに画像を入れると、${IM.k === "char" ? "ファイル名をキャラID（例：カノン_DEFAULT）やキャラ名と照らし合わせて" : IM.k === "script" ? "ファイル名とスクリプト名の表記ゆれ（全角半角・記号・カタカナひらがな・末尾の番号など）を吸収して" : IM.k === "icon" ? "属性・ロール・階級・騎士団名（英語のファイル名にも対応）と照らし合わせて" : ""}割り当てます。割り当てを確認して${GH ? "「アップロード」を押すと、サイズを整えて GitHub に保存されます（サムネイルは自動で切り抜きます。ずれていたら「データ編集」で行を開いて調整してください）。" : "「ZIP にまとめる」で書き出し、GitHub に上書きアップロードしてください。"}</p>
   <label class="drop" id="drop"><input type="file" id="imfiles" accept="image/*" ${IM.k === "hero" ? "" : "multiple"}><span>画像ファイルを選ぶか、ここにドラッグ</span></label>`;
   if (IM.files.length) {
     const cnt = {}; IM.files.forEach(f => { if (f.key) cnt[f.key] = (cnt[f.key] || 0) + 1; });
@@ -751,7 +796,7 @@ async function uploadItems(items, btn, label) {
 async function quickUpload(kind, key, file) {
   if (!GH) { toast(S.role === "owner" ? "先に「画像」タブで GitHub 連携を設定してください" : "GitHub 連携がまだ設定されていません。オーナーに設定してもらってください", 5000); return; }
   toast("画像を変換してアップロードしています…", 20000);
-  try { const it = await processImage(kind, key, file); await uploadItems([it]); toast("画像をアップロードしました。公開サイトには1〜2分で反映されます", 5000); renderEdit(false); }
+  try { const it = await processImage(kind, key, file); await uploadItems([it]); toast("画像をアップロードしました。公開サイトには1〜2分で反映されます", 5000); if (DLG && DLG.open && !ED.dirty) renderForm(); }
   catch (e) { toast(e && e.status ? ghErr(e) : "画像を処理できませんでした", 6000); }
 }
 async function buildImageZip(btn) {
@@ -987,7 +1032,8 @@ async function delMember(e) {
 }
 
 /* ================= events ================= */
-AM.addEventListener("click", e => {
+AM.addEventListener("click", e => onAdminClick(e));
+function onAdminClick(e) {
   const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
@@ -1002,13 +1048,7 @@ AM.addEventListener("click", e => {
   if (ds.a === "ghdelno") { IM.ghconfirm = false; renderImg(); return; }
   if (ds.a === "ghdelyes") { IM.ghconfirm = false; delGhToken(); return; }
   if (ds.a === "edcrop") { const ik = ED.k === "chars" ? "char" : "script"; openCrop(ik, ik === "char" ? ED.base["ID"] : ED.base["名前"]); return; }
-  if (ds.edk) { if (ED.dirty && !ED.leaveOk) { ED.leaveOk = true; toast("保存していない変更があります。もう一度押すと破棄して切り替えます", 3500); return; } ED.leaveOk = false; ED.k = ds.edk; resetEd(); ED.q = ""; clearPresence(); renderEdit(false); return; }
-  if (ds.edrow !== undefined) {
-    if (ED.dirty && !ED.leaveOk && ds.edrow !== ED.id) { ED.leaveOk = true; toast("保存していない変更があります。もう一度押すと破棄して切り替えます", 3500); return; }
-    ED.leaveOk = false; loadRow(ED.k, ds.edrow); setPresence(); renderEdit(false);
-    if (window.innerWidth < 820) { const f = document.getElementById("edform"); if (f) f.scrollIntoView({ block: "start" }); }
-    return;
-  }
+  if (ds.edk) { ED.k = ds.edk; resetEd(); renderEdit(false); return; }
   if (ds.ed) { edAction(ds.ed); return; }
   if (ds.iok) { IO.k = ds.iok; IO.confirm = null; renderIO(); return; }
   if (ds.io) { ioAction(ds.io, t); return; }
@@ -1016,7 +1056,6 @@ AM.addEventListener("click", e => {
   if (ds.im === "clear") { IM.files.forEach(f => URL.revokeObjectURL(f.url)); IM.files = []; renderImg(); return; }
   if (ds.im === "zip") { buildImageZip(t); return; }
   if (ds.im === "upload") { uploadChecked(t); return; }
-  if (ds.crop !== undefined) { openCrop(IM.k, ds.crop); return; }
   if (ds.lgk !== undefined) { LG.k = ds.lgk; renderLog(); return; }
   if (ds.lgopen) { LG.open = LG.open === ds.lgopen ? null : ds.lgopen; renderLog(); return; }
   if (ds.lgrevert) { revertLog(ds.lgrevert); return; }
@@ -1028,7 +1067,7 @@ AM.addEventListener("click", e => {
   if (ds.mbdel) { MB.confirm = ds.mbdel; renderMembers(false); return; }
   if (ds.mbdelno) { MB.confirm = null; renderMembers(false); return; }
   if (ds.mbdelyes) { delMember(ds.mbdelyes); return; }
-});
+}
 window.addEventListener("beforeunload", e => { if (S.open && ED.dirty) { e.preventDefault(); e.returnValue = ""; } });
 
 /* ================= styles (admin only) ================= */
@@ -1088,7 +1127,21 @@ function injectStyle() {
 .filebtn{cursor:pointer}
 .addcol .btn{white-space:nowrap;flex:none}
 .steps{margin:4px 0 8px;padding-left:1.4em;font-size:13.5px;line-height:1.8}
-.formhead{flex-wrap:wrap}
+#dlgEdit{width:min(1080px,calc(100% - 24px))}
+#dlgEdit .dlg{padding:18px 22px 0}
+.edhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.edhead h2{margin:0}
+.edimgs{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;padding:12px 14px;background:var(--field);margin:8px 0 14px;border:1px solid var(--line)}
+.edth,.edfull{display:flex;flex-direction:column;gap:3px}
+.edth img,.edth .noimg{width:104px;height:104px;object-fit:cover;display:block;background:var(--soft)}
+.edfull img{height:150px;max-width:280px;object-fit:contain;display:block;background:var(--soft)}
+.edth small,.edfull small{font-size:11px;color:var(--muted)}
+.edimgbtns{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:360px}
+.dlg .filebtn{display:inline-flex;margin:0;font-weight:700}
+.preslist{font-size:13px;margin:-4px 0 10px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.preslist .pres{margin:0}
+.edtool{margin-bottom:10px}
+#dlgEdit .formfoot{padding-bottom:14px}
 @media (max-width:700px){.loghead{grid-template-columns:6.5em 1fr;}.loghead .lk,.loghead .lb{display:none}}
 `;
   document.head.appendChild(s);
