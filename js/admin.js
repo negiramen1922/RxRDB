@@ -94,15 +94,24 @@ function headerButton(admin) {
 async function resolveRole(u) {
   const e = (u.email || "").toLowerCase();
   if (!u.emailVerified) return null;
-  if (e === F.OWNER) return "owner";
+  S.deny = null;
+  if (e === F.OWNER) {
+    // ルール側もオーナーと認めているか確認（ルールの貼り忘れ・古いルールを検出）
+    try { await F.getDoc(F.doc(F.db, "tables", "chars")); return "owner"; }
+    catch (err) { S.deny = err && err.code === "permission-denied" ? "rules" : "net"; S.denyMsg = err && (err.message || err.code); return null; }
+  }
   try { const s = await F.getDoc(F.doc(F.db, "roles", e)); return s.exists() ? "editor" : null; }
-  catch (err) { return null; }
+  catch (err) { if (err && err.code !== "permission-denied") { S.deny = "net"; S.denyMsg = err.message || err.code; } return null; }
 }
 
 /* ================= live listeners ================= */
 function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); }
 function startListeners() {
-  const on = (ref, fn) => S.unsubs.push(F.onSnapshot(ref, fn, err => { console.warn(err); toast(fbErr(err), 5000); }));
+  const on = (ref, fn) => S.unsubs.push(F.onSnapshot(ref, fn, err => {
+    console.warn(ref.path, err);
+    if (err && err.code === "permission-denied" && !S.deny) { S.deny = "rules"; S.role = null; stopListeners(); renderAll(); return; }
+    toast(fbErr(err), 5000);
+  }));
   TABLES.forEach(k => {
     on(F.doc(F.db, "tables", k), s => { T[k].hdrExists = s.exists(); T[k].headers = s.exists() ? (s.data().headers || []) : []; T[k].hdrReady = true; tableChanged(k); });
     on(F.collection(F.db, "tables", k, "rows"), q => {
@@ -240,6 +249,15 @@ function renderLogin(err) {
 }
 function renderDenied() {
   renderNav();
+  if (S.deny === "rules") {
+    AM.innerHTML = `<div class="empty login"><h2>Firestore のルールが古いままです</h2><p><b>${esc(me())}</b> はオーナーですが、Firebase 側のルールがまだこのアドレスを許可していません。<br>Firebase コンソール → Firestore Database → <b>ルール</b> に、<a href="https://github.com/negiramen1922/RxRDB/blob/main/firestore.rules" target="_blank" rel="noopener">最新の firestore.rules</a> を丸ごと貼り付けて「公開」し、このページを再読み込みしてください。</p>
+    <div class="row"><button class="btn primary" data-a="reload">再読み込み</button><button class="btn" data-a="logout">ログアウト</button></div></div>`;
+    return;
+  }
+  if (S.deny === "net") {
+    AM.innerHTML = `<div class="empty login"><h2>Firestore に接続できません</h2><p>${esc(S.denyMsg || "")}</p><div class="row"><button class="btn primary" data-a="reload">再読み込み</button><button class="btn" data-a="logout">ログアウト</button></div></div>`;
+    return;
+  }
   AM.innerHTML = `<div class="empty login"><h2>編集の権限がありません</h2><p><b>${esc(me())}</b> はまだメンバーに登録されていません。<br>オーナーにこのメールアドレスを伝えて、「メンバー」に追加してもらってください。追加されたらページを再読み込みすると使えます。</p>
   <div class="row"><button class="btn" data-a="copyme">メールアドレスをコピー</button><button class="btn" data-a="logout">ログアウト</button></div></div>`;
 }
@@ -1101,6 +1119,7 @@ function onAdminClick(e) {
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
+  if (ds.a === "reload") { location.reload(); return; }
   if (ds.a === "copyme") { navigator.clipboard.writeText(me()).then(() => toast("コピーしました"), () => { }); return; }
   if (ds.a === "goio") { S.tab = "io"; renderAll(); return; }
   if (ds.a === "statsreload") { loadStats(true); return; }
