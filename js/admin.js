@@ -22,6 +22,7 @@ let ROLES = [];          // [{email, at, by}]
 let FEEDBACK = [];       // [{id, ...}]
 let LOG = [];            // [{id, ...}]
 let STATS = null;        // [{day, pv, uv}]
+let NEWSLIST = [];       // public/news
 let GH = null;           // {token, repo, branch} GitHub 連携（secrets/github）
 
 const esc = s => R.esc(s);
@@ -77,7 +78,7 @@ function close() {
   AM.hidden = true; NAV.hidden = true;
   document.getElementById("main").hidden = false;
   document.getElementById("userTabs").hidden = false;
-  R.rebuild(); R.renderUser();
+  R.rebuild(); R.renderUser(); R.setNews(R.NEWS);
   if (location.hash === "#admin" || location.hash === "#") history.replaceState(null, "", location.pathname + location.search);
   window.scrollTo(0, 0);
 }
@@ -87,6 +88,8 @@ function headerButton(admin) {
   let b = document.getElementById("toUser");
   if (!b && fb) { b = document.createElement("button"); b.id = "toUser"; b.className = fb.className; b.textContent = "← ユーザー画面へ"; fb.after(b); b.addEventListener("click", () => { if (ED.dirty && !confirm("保存していない変更があります。破棄してユーザー画面に戻りますか？")) return; ED.dirty = false; location.hash = ""; close(); }); }
   if (fb) fb.hidden = admin; if (b) b.hidden = !admin;
+  const nb = document.querySelector(".top .acts [data-news]"); if (nb) nb.hidden = admin;
+  const bar = document.getElementById("newsbar"); if (bar && admin) bar.hidden = true;
 }
 async function resolveRole(u) {
   const e = (u.email || "").toLowerCase();
@@ -108,10 +111,11 @@ function startListeners() {
       T[k].rows = m; T[k].rowsReady = true; T[k].pending = q.metadata.hasPendingWrites; tableChanged(k);
     });
   });
-  ["chars", "scripts", "babel", "crops"].forEach(k => on(F.doc(F.db, "public", k), s => {
+  ["chars", "scripts", "babel", "crops", "news"].forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
     if (k === "crops") { try { R.setCrops(d && d.json ? JSON.parse(d.json) : {}); } catch (e) { } }
+    else if (k === "news") { try { NEWSLIST = d && d.json ? JSON.parse(d.json) : []; } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
     else maybePublish(k);
     softRender();
   }));
@@ -154,7 +158,7 @@ function sigOf(k) {
 }
 const pubTimers = {};
 function maybePublish(k) {
-  if (k === "crops" || !seeded(k) || T[k].pending || !(k in PUB)) return;
+  if (!TABLES.includes(k) || !seeded(k) || T[k].pending || !(k in PUB)) return;
   const sig = sigOf(k);
   if (PUB[k] && PUB[k].sig === sig) return;
   clearTimeout(pubTimers[k]);
@@ -191,7 +195,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["news", "お知らせ"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = FEEDBACK.filter(f => f.status === "new").length;
@@ -223,6 +227,7 @@ function renderAdmin(soft) {
   if (S.tab === "edit") renderEdit(soft);
   else if (S.tab === "io") { if (!(soft && IO.text)) renderIO(); }
   else if (S.tab === "img") { if (!(soft && IM.files.length)) renderImg(); }
+  else if (S.tab === "news") { if (!(soft && NW.edit)) renderNews(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
   else if (S.tab === "stats") renderStats(soft);
@@ -612,6 +617,7 @@ async function ioAction(a, btn) {
   if (a === "csv") { download(`rxrdb-${k}.csv`, new Blob([toCSV(curData(k))], { type: "text/csv" })); return; }
   if (a === "ghdata") {
     try { const Z = await loadJSZip(); const z = new Z(); TABLES.forEach(t => { const d = curData(t); if (d.headers.length) z.file(`data/${t}.json`, JSON.stringify({ headers: d.headers, rows: d.rows }, null, 1)); });
+      z.file("data/news.json", JSON.stringify(NEWSLIST, null, 1));
       download(`rxrdb-data-${R.jstDay()}.zip`, await z.generateAsync({ type: "blob" })); toast("data/*.json を書き出しました"); }
     catch (e) { toast("ZIP を作れませんでした。通信状態を確認してください", 5000); } return;
   }
@@ -899,7 +905,7 @@ function openCrop(kind, key) {
 
 /* ================= change log ================= */
 const LG = { k: "", open: null };
-const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", image: "画像" };
+const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", image: "画像", news: "お知らせ" };
 function renderLog() {
   const list = LOG.filter(l => !LG.k || l.k === LG.k);
   let h = userBar() + `<div class="toolbar"><h2><small>HISTORY</small>変更履歴</h2><div class="seg"><button data-lgk="" aria-pressed="${!LG.k}">すべて</button>${TABLES.map(k => `<button data-lgk="${k}" aria-pressed="${LG.k === k}">${TLABEL[k]}</button>`).join("")}</div><span class="count">新しい順に最大150件</span></div>`;
@@ -935,6 +941,63 @@ async function revertLog(id) {
     });
     toast("元に戻しました");
   } catch (e) { toast(e && e.message && !e.code ? e.message : fbErr(e), 5000); }
+}
+
+/* ================= news (ユーザー向けお知らせ) ================= */
+const NW = { edit: null, confirm: null };
+function newsBlank() { return { title: "", body: "", cat: "info", date: R.jstDay(), pin: false, renew: false }; }
+function renderNews() {
+  const list = R.newsSorted(NEWSLIST);
+  let h = userBar() + `<div class="toolbar"><h2><small>NEWS</small>お知らせ</h2><span class="count">${list.length}件</span><span style="flex:1"></span>${NW.edit ? "" : `<button class="btn primary" data-nw="new">＋ お知らせを書く</button>`}</div>
+  <p class="hint" style="margin:-4px 0 12px">サイト上部の「お知らせ」と、新着バナーに表示されます。公開するとすぐ全員に見えます。</p>`;
+  if (NW.edit) {
+    const e = NW.edit;
+    h += `<section class="apanel nwform"><h3 class="ph">${e.id ? "お知らせを編集" : "新しいお知らせ"}</h3>
+    <div class="fields"><div class="field long"><label for="nwTitle">タイトル</label><input id="nwTitle" data-nwf="title" maxlength="100" value="${esc(e.title)}" placeholder="例：Ver.1.2 アップデートのお知らせ"></div>
+    <div class="field"><label for="nwCat">種類</label><select id="nwCat" data-nwf="cat">${Object.entries(R.NCAT).map(([k, l]) => `<option value="${k}" ${e.cat === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    <div class="field"><label for="nwDate">日付</label><input id="nwDate" type="date" data-nwf="date" value="${esc(e.date)}"></div>
+    <div class="field"><label>表示</label><label class="ck2"><input type="checkbox" data-nwf="pin" ${e.pin ? "checked" : ""}> 一番上に固定</label></div>
+    ${e.id ? `<div class="field"><label>新着</label><label class="ck2"><input type="checkbox" data-nwf="renew" ${e.renew ? "checked" : ""}> もう一度 NEW として知らせる</label></div>` : ""}
+    <div class="field long"><label for="nwBody">本文</label><textarea id="nwBody" data-nwf="body" rows="9" maxlength="5000" placeholder="改行はそのまま表示されます。URL は自動でリンクになります。">${esc(e.body)}</textarea></div></div>
+    <p class="note-h" style="margin-top:14px">プレビュー</p><div class="nwprev" id="nwPrev">${R.newsItemHtml(Object.assign({ at: now() }, e), 0, true)}</div>
+    <div class="formfoot"><span style="flex:1"></span><button class="btn" data-nw="cancel">キャンセル</button><button class="btn primary" data-nw="save">${e.id ? "保存して公開" : "公開する"}</button></div></section>`;
+  }
+  h += `<div class="nwlist">${list.map(n => `<div class="nwrow">${R.newsItemHtml(n, Infinity, false)}<div class="nwacts"><button class="btn small" data-nwedit="${esc(n.id)}">編集</button>${NW.confirm === n.id ? `<span class="danger-q">削除しますか？</span><button class="btn small danger" data-nwdelyes="${esc(n.id)}">削除</button><button class="btn small" data-nw="delno">やめる</button>` : `<button class="btn small" data-nwdel="${esc(n.id)}">削除</button>`}</div></div>`).join("") || '<p class="count">まだお知らせはありません。</p>'}</div>`;
+  AM.innerHTML = h;
+  AM.querySelectorAll("[data-nwf]").forEach(el => el.addEventListener("input", () => {
+    NW.edit[el.dataset.nwf] = el.type === "checkbox" ? el.checked : el.value;
+    const pv = document.getElementById("nwPrev"); if (pv) pv.innerHTML = R.newsItemHtml(Object.assign({ at: now() }, NW.edit), 0, true);
+  }));
+}
+async function saveNews() {
+  const e = NW.edit; const title = (e.title || "").trim();
+  if (!title) return toast("タイトルを入力してください");
+  const item = { id: e.id || "n" + rid(), title: title.slice(0, 100), body: (e.body || "").slice(0, 5000), cat: e.cat || "info", date: e.date || R.jstDay(), pin: !!e.pin };
+  try {
+    await F.runTransaction(F.db, async tx => {
+      const ref = F.doc(F.db, "public", "news"); const s = await tx.get(ref);
+      let list = []; try { list = s.exists() && s.data().json ? JSON.parse(s.data().json) : []; } catch (er) { }
+      const old = list.find(x => x.id === item.id);
+      item.at = old && !e.renew ? (old.at || now()) : now(); item.by = old ? old.by : me();
+      list = list.filter(x => x.id !== item.id).concat([item]);
+      tx.set(ref, { json: JSON.stringify(list), at: now(), by: me(), count: list.length });
+      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "news", label: `${old ? "編集" : "公開"}：${item.title}` }));
+    });
+    NW.edit = null; toast("お知らせを公開しました"); renderNews();
+  } catch (er) { toast(fbErr(er), 5000); }
+}
+async function delNews(id) {
+  try {
+    await F.runTransaction(F.db, async tx => {
+      const ref = F.doc(F.db, "public", "news"); const s = await tx.get(ref);
+      let list = []; try { list = s.exists() && s.data().json ? JSON.parse(s.data().json) : []; } catch (er) { }
+      const old = list.find(x => x.id === id); if (!old) return;
+      list = list.filter(x => x.id !== id);
+      tx.set(ref, { json: JSON.stringify(list), at: now(), by: me(), count: list.length });
+      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "news", label: `削除：${old.title}` }));
+    });
+    NW.confirm = null; toast("削除しました"); renderNews();
+  } catch (er) { toast(fbErr(er), 5000); }
 }
 
 /* ================= feedback ================= */
@@ -1034,7 +1097,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno]");
+  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -1067,6 +1130,13 @@ function onAdminClick(e) {
   if (ds.mbdel) { MB.confirm = ds.mbdel; renderMembers(false); return; }
   if (ds.mbdelno) { MB.confirm = null; renderMembers(false); return; }
   if (ds.mbdelyes) { delMember(ds.mbdelyes); return; }
+  if (ds.nw === "new") { NW.edit = newsBlank(); renderNews(); window.scrollTo(0, 0); return; }
+  if (ds.nw === "cancel") { NW.edit = null; renderNews(); return; }
+  if (ds.nw === "save") { saveNews(); return; }
+  if (ds.nw === "delno") { NW.confirm = null; renderNews(); return; }
+  if (ds.nwedit) { const n = NEWSLIST.find(x => x.id === ds.nwedit); if (n) { NW.edit = Object.assign(newsBlank(), n, { renew: false }); renderNews(); window.scrollTo(0, 0); } return; }
+  if (ds.nwdel) { NW.confirm = ds.nwdel; renderNews(); return; }
+  if (ds.nwdelyes) { delNews(ds.nwdelyes); return; }
 }
 window.addEventListener("beforeunload", e => { if (S.open && ED.dirty) { e.preventDefault(); e.returnValue = ""; } });
 
@@ -1142,6 +1212,16 @@ function injectStyle() {
 .preslist .pres{margin:0}
 .edtool{margin-bottom:10px}
 #dlgEdit .formfoot{padding-bottom:14px}
+.nwform select{border:1px solid var(--line2);background:var(--field);padding:5px 8px;font-size:14px;color:var(--ink)}
+.ck2{display:flex!important;align-items:center;gap:6px;font-size:13.5px!important;font-weight:500!important;color:var(--ink)!important;min-height:32px}
+.ck2 input{width:auto!important;flex:none}
+.nwform .formfoot{position:static}
+.nwprev{background:var(--panel2);padding:0 12px;border:1px dashed var(--line2)}
+.nwprev .news{border:0}
+.nwlist{display:flex;flex-direction:column;gap:6px}
+.nwrow{background:var(--panel);box-shadow:var(--shadow);padding:0 12px;display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.nwrow .news{flex:1;min-width:260px;border:0}
+.nwacts{display:flex;gap:6px;align-items:center;padding:9px 0;flex-wrap:wrap}
 @media (max-width:700px){.loghead{grid-template-columns:6.5em 1fr;}.loghead .lk,.loghead .lb{display:none}}
 `;
   document.head.appendChild(s);

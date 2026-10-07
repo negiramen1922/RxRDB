@@ -388,6 +388,29 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
 .sitefoot p{margin:4px 0}
 .sitefoot .links{display:flex;gap:18px;flex-wrap:wrap}
 .sitefoot a{color:var(--accent-ink);font-weight:700}
+.nbadge2{display:inline-block;min-width:17px;margin-left:5px;padding:0 4px;border-radius:9px;background:#ff3f6c;color:#fff;font-size:11px;line-height:17px;text-align:center;font-style:normal}
+.newsbar{max-width:1240px;margin:10px auto 0;padding:0 20px;display:flex;gap:6px}
+.newsbar .nbmain{flex:1;min-width:0;display:flex;gap:10px;align-items:center;text-align:left;border:0;background:var(--panel);box-shadow:var(--shadow);padding:8px 14px;color:var(--ink);font-size:14px;cursor:pointer}
+.newsbar .nbmain b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.newsbar .nbmain:hover{background:var(--soft)}
+.newsbar .nbx{border:0;background:var(--panel);box-shadow:var(--shadow);width:38px;color:var(--muted);cursor:pointer}
+.ncat{flex:none;font-size:11.5px;font-weight:700;color:#fff;background:var(--accent);padding:1px 8px;clip-path:polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%)}
+.cat-update .ncat,.ncat.cat-update{background:#13a87a}
+.cat-important .ncat,.ncat.cat-important{background:#e23d63}
+.ndate{flex:none;font-family:var(--display);color:var(--muted);font-size:13px;letter-spacing:.03em}
+.newshead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.newshead h2{margin:0}
+.news{border-top:1px solid var(--line)}
+.news:last-child{border-bottom:1px solid var(--line)}
+.news summary{display:flex;gap:10px;align-items:center;padding:11px 4px;cursor:pointer;list-style:none;flex-wrap:wrap}
+.news summary::-webkit-details-marker{display:none}
+.news summary::after{content:"＋";margin-left:auto;color:var(--accent);font-weight:700}
+.news[open] summary::after{content:"－"}
+.news summary:hover{background:rgba(26,134,255,.07)}
+.ntitle{font-size:15px;min-width:0}
+.nnew{font-family:var(--display);font-size:11px;font-weight:700;color:#ff3f6c;letter-spacing:.08em}
+.nbody{padding:4px 6px 16px;font-size:14px;line-height:1.8;word-break:break-word}
+.nbody a{color:var(--accent-ink)}
 .fbkinds{display:flex;gap:6px 16px;flex-wrap:wrap;margin-top:8px}
 .dlg .fbkinds label{display:inline-flex;align-items:center;gap:5px;margin:0;font-weight:500}
 .dlg .fbin{width:100%;border:1px solid var(--line2);background:var(--field);padding:8px;font-size:13px;color:var(--ink)}
@@ -414,6 +437,7 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
         <p class="sub">バベル階層別Tier表メーカー</p>
       </div>
       <div class="acts">
+        <button class="btn ghost-dark small" data-news>お知らせ<span class="nbadge2" id="newsCount" hidden></span></button>
         <button class="btn ghost-dark small" data-feedback>不具合・ご要望</button>
       </div>
     </div>
@@ -428,10 +452,11 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
   </nav>
   <nav class="tabs admin" id="adminTabs" role="tablist" hidden></nav>
 </header>
+<div id="newsbar" class="newsbar" hidden></div>
 <main id="main"></main>
 <main id="admin" hidden></main>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<footer class="sitefoot"><p>ファンメイドの非公式ツールです。ゲーム内の画像・テキストの権利は各権利者に帰属します。このサイトはアクセス解析に Google Analytics を使用しています。</p><p class="links"><a href="#" data-feedback>不具合・ご要望を送る</a><a href="#admin">管理者ログイン</a></p></footer>
+<footer class="sitefoot"><p>ファンメイドの非公式ツールです。ゲーム内の画像・テキストの権利は各権利者に帰属します。このサイトはアクセス解析に Google Analytics を使用しています。</p><p class="links"><a href="#" data-news>お知らせ</a><a href="#" data-feedback>不具合・ご要望を送る</a><a href="#admin">管理者ログイン</a></p></footer>
 <div id="actionbar" class="actionbar hidden"></div>
 
 
@@ -455,6 +480,10 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
 
 <dialog id="dlgCrop"><div class="dlg" id="cropBody"></div></dialog>
 <dialog id="dlgDetail"><div class="dlg" id="detailBody"></div></dialog>
+<dialog id="dlgNews"><div class="dlg">
+  <div class="newshead"><h2>お知らせ</h2><span style="flex:1"></span><button class="btn small" data-close>✕ 閉じる</button></div>
+  <div id="newsList"></div>
+</div></dialog>
 <dialog id="dlgFeedback"><div class="dlg">
   <h2>不具合・ご要望</h2>
   <p class="hint" style="margin:0 0 6px">表示のおかしいところ、データの間違い、ほしい機能などを送ってください。いただいた内容は管理メンバーだけが見られます。</p>
@@ -1028,9 +1057,12 @@ async function loadSite(){
   await Promise.all(["chars","scripts","babel"].map(async k=>{
     if(FBC){try{const v=await fsGetJson("public/"+k);if(v&&v.rows){st[k]=v;return;}}catch(e){}}
     st[k]=await get(`data/${k}.json`).catch(()=>null);
-  }).concat(FBC?[fsGetJson("public/crops").then(v=>{crops=v;}).catch(()=>{})]:[]));
+  }).concat(FBC?[fsGetJson("public/crops").then(v=>{crops=v;}).catch(()=>{})]:[]).concat([
+    (FBC?fsGetJson("public/news"):Promise.reject()).catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];})
+  ]));
   Object.entries(st).forEach(([k,v])=>{if(v)LIVE[k]={headers:v.headers,rows:v.rows};});
   if(crops)CROPS=crops;
+  renderNewsBadge();
   const im=await imP;
   if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});if(im.hero)BASE.HERO=im.hero;}
   SITE_LOADED=true;applyMedia();buildModels();render();
@@ -1038,11 +1070,33 @@ async function loadSite(){
   countVisit().catch(()=>{});
   if(location.hash==="#admin")openAdminModule();
 }
+/* ================= お知らせ ================= */
+let NEWS=[];
+const NCAT={info:"お知らせ",update:"アップデート",important:"重要"};
+function newsSorted(list){return (list||NEWS).slice().sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||String(b.date||"").localeCompare(String(a.date||""))||(b.at||0)-(a.at||0));}
+function newsSeen(){try{return +localStorage.getItem("rxr-news-seen")||0;}catch(e){return 0;}}
+function linkify(t){return esc(t).replace(/https?:\/\/[^\s<>"']+/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u}</a>`).replace(/\n/g,"<br>");}
+function fmtDate(d){const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(d||"");return m?`${m[1]}.${m[2]}.${m[3]}`:esc(d||"");}
+function newsItemHtml(n,seen,open){const isNew=(n.at||0)>seen;return `<details class="news cat-${esc(n.cat||"info")}"${open?" open":""}><summary><span class="ncat">${esc(NCAT[n.cat]||NCAT.info)}</span><span class="ndate">${fmtDate(n.date)}</span><b class="ntitle">${n.pin?"📌 ":""}${esc(n.title||"")}</b>${isNew?'<span class="nnew">NEW</span>':""}</summary><div class="nbody">${linkify(n.body||"")}</div></details>`;}
+function renderNewsBadge(){
+  const seen=newsSeen();const unread=NEWS.filter(n=>(n.at||0)>seen).length;
+  const c=document.getElementById("newsCount");if(c){c.hidden=!unread;c.textContent=unread;}
+  const bar=document.getElementById("newsbar");const latest=newsSorted().filter(n=>(n.at||0)>seen)[0];
+  if(bar){if(latest&&MODE!=="admin"){bar.innerHTML=`<button class="nbmain" data-news><span class="ncat cat-${esc(latest.cat||"info")}">${esc(NCAT[latest.cat]||NCAT.info)}</span><span class="ndate">${fmtDate(latest.date)}</span><b>${esc(latest.title||"")}</b>${unread>1?`<span class="count">ほか${unread-1}件</span>`:""}</button><button class="nbx" data-newsx aria-label="閉じる">✕</button>`;bar.hidden=false;}else bar.hidden=true;}
+}
+function openNews(){
+  const seen=newsSeen();const list=newsSorted();
+  document.getElementById("newsList").innerHTML=list.length?list.map((n,i)=>newsItemHtml(n,seen,i===0&&(n.at||0)>seen)).join(""):'<p class="count">お知らせはまだありません。</p>';
+  document.getElementById("dlgNews").showModal();
+  markNewsSeen();
+}
+function markNewsSeen(){const m=Math.max(0,...NEWS.map(n=>n.at||0));try{localStorage.setItem("rxr-news-seen",String(m));}catch(e){}renderNewsBadge();}
+document.addEventListener("click",e=>{const a=e.target.closest("[data-news],[data-newsx]");if(!a)return;e.preventDefault();if(a.hasAttribute("data-newsx"))markNewsSeen();else openNews();});
 let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=4");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=5");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1084,6 +1138,7 @@ window.RXR={
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},
   setMain(el,fn){main=el||document.getElementById("main");ADMIN_LIST=fn||null;},
   renderList(k){({chars:renderChars,scripts:renderScripts,babel:renderBabel})[k]();},
+  get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
   jstDay,get SITE_LOADED(){return SITE_LOADED;},
   dlg(id){return document.getElementById(id);},
 };
