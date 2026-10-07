@@ -615,8 +615,8 @@ function renderIO() {
   <h3 class="ph" style="margin-top:22px">公開データ</h3>
   <p class="hint" style="margin-top:0">保存すると自動で公開サイトに反映されます。反映されていないときだけ押してください。</p>
   <div class="row2"><button class="btn" data-io="publish">今すぐ公開データを更新</button>${TABLES.map(t => PUB[t] ? `<span class="count">${TLABEL[t]}：${esc(fmtTime(PUB[t].at))} ${esc(shortName(PUB[t].by))}</span>` : "").join("")}</div>
-  ${seeded(k) ? `<h3 class="ph" style="margin-top:22px">GitHub のデータで置き換える</h3><p class="hint" style="margin-top:0">${TLABEL[k]}データを GitHub の data/${k}.json の内容で丸ごと置き換えます（バックアップから戻すとき用）。</p>
-  <div class="row2">${IO.confirm === "restore" ? `<span class="danger-q">今の${TLABEL[k]}データは上書きされます。よろしいですか？</span><button class="btn small danger" data-io="restoreyes">置き換える</button><button class="btn small" data-io="no">やめる</button>` : `<button class="btn" data-io="restore">data/${k}.json で置き換える</button>`}</div>` : ""}</section></div>`;
+  ${seeded(k) ? `<h3 class="ph" style="margin-top:22px">GitHub のデータを取り込む</h3><p class="hint" style="margin-top:0">GitHub の data/${k}.json を左の読み込み欄に入れて、今のデータとの差分（追加・変更）を表示します。確認してから反映できます。</p>
+  <div class="row2"><button class="btn" data-io="loadgh">data/${k}.json を読み込んで差分を見る</button></div>` : ""}</section></div>`;
   AM.innerHTML = h;
   const ta = document.getElementById("iotext"); ta.addEventListener("input", () => { IO.text = ta.value; IO.hr = -1; document.getElementById("iopv").innerHTML = ioPreview(); });
   document.getElementById("iohr").addEventListener("change", e => { IO.hr = Math.max(0, (+e.target.value || 1) - 1); document.getElementById("iopv").innerHTML = ioPreview(); });
@@ -661,6 +661,7 @@ async function ioAction(a, btn) {
   }
   if (a === "publish") { try { for (const t of TABLES) await publish(t, true); toast("公開データを更新しました"); } catch (e) { toast(fbErr(e), 5000); } return; }
   if (a === "no") { IO.confirm = null; renderIO(); return; }
+  if (a === "loadgh") { try { const d = await staticJson(`data/${k}.json`); IO.text = toTSV(d); IO.hr = 0; IO.confirm = null; renderIO(); window.scrollTo(0, 0); toast(`data/${k}.json（${d.rows.length}件）を読み込みました。差分を確認してください`, 5000); } catch (e) { toast("data/" + k + ".json を読み込めませんでした"); } return; }
   if (a === "restore" || a === "replace") { IO.confirm = a; if (a === "replace") document.getElementById("iopv").innerHTML = ioPreview(); else renderIO(); return; }
   IO.busy = true; if (btn) { btn.disabled = true; btn.textContent = "保存中…"; }
   try {
