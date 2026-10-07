@@ -737,8 +737,8 @@ function editForm() {
     h += `<section class="edimgs">${ED.isNew || !ikey ? `<p class="hint" style="margin:0">画像は、保存したあとにここから追加できます。</p>` : `
       <div class="edth">${th ? `<img src="${esc(th)}" alt="">` : `<span class="noimg"></span>`}<small>サムネイル${adj ? "（調整済み）" : ""}</small></div>
       ${full ? `<div class="edfull"><img src="${esc(full)}" alt=""><small>元の画像</small></div>` : ""}
-      <div class="edimgbtns">${ik === "event" ? '<b class="count">テーマイラスト</b>' : ""}${full ? `<button class="btn small" data-a="edcrop">サムネイルの切り抜きを調整</button>` : ""}<label class="btn small filebtn">${full ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label>${GH && (th || full) ? (IMGDEL === ik + "|" + ikey ? `<span class="danger-q">この画像を削除しますか？公開サイトからも消えます</span><button class="btn small danger" data-a="edimgdelyes" ${IMGDEL_BUSY ? "disabled" : ""}>${IMGDEL_BUSY ? "削除中…" : "削除する"}</button><button class="btn small" data-a="edimgdelno" ${IMGDEL_BUSY ? "disabled" : ""}>やめる</button>` : `<button class="btn small" data-a="edimgdel">画像を削除</button>`) : ""}
-      <p class="hint" style="margin:4px 0 0">${GH ? "画像はサイズを整えて GitHub に保存され、公開サイトには1〜2分で反映されます。" : "画像のアップロードには、オーナーが「画像」タブで GitHub 連携を設定する必要があります。"}</p></div>`}</section>`;
+      ${QUP && QUP.id === ik + "|" + ikey ? `<div class="edimgbtns">${progHtml()}</div>` : `<div class="edimgbtns">${ik === "event" ? '<b class="count">テーマイラスト</b>' : ""}${full ? `<button class="btn small" data-a="edcrop">サムネイルの切り抜きを調整</button>` : ""}<label class="btn small filebtn">${full ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label>${GH && (th || full) ? (IMGDEL === ik + "|" + ikey ? `<span class="danger-q">この画像を削除しますか？公開サイトからも消えます</span><button class="btn small danger" data-a="edimgdelyes" ${IMGDEL_BUSY ? "disabled" : ""}>${IMGDEL_BUSY ? "削除中…" : "削除する"}</button><button class="btn small" data-a="edimgdelno" ${IMGDEL_BUSY ? "disabled" : ""}>やめる</button>` : `<button class="btn small" data-a="edimgdel">画像を削除</button>`) : ""}
+      <p class="hint" style="margin:4px 0 0">${GH ? "画像はサイズを整えて GitHub に保存され、公開サイトには1〜2分で反映されます。" : "画像のアップロードには、オーナーが「画像」タブで GitHub 連携を設定する必要があります。"}</p></div>`}`}</section>`;
   }
   if (r && !ED.isNew) h += `<p class="count" style="margin:-6px 0 10px">最終更新：${esc(shortName(r.by))}（${esc(fmtTime(r.t))}）</p>`;
   h += formFields(both) + linkInfo();
@@ -1166,6 +1166,16 @@ async function ghCommit(items, progress) {
     catch (e) { if (e.status === 422 && attempt < 2) continue; throw e; }
   }
 }
+/* ---- 編集画面に出す、アップロード・削除の進み具合 ---- */
+let QUP = null; // {id:"kind|key", text, pct}
+function progHtml() { return `<div class="edprog" id="edprog"><span class="spin"></span><b id="edprogt">${esc(QUP.text)}</b><span class="bar"><i id="edprogb" style="width:${QUP.pct}%"></i></span><small>数秒〜十数秒かかります（画面を閉じても処理は続きます）</small></div>`; }
+function setProg(text, pct) {
+  if (!QUP) return; QUP.text = text; QUP.pct = pct;
+  const t = document.getElementById("edprogt"), b = document.getElementById("edprogb");
+  if (t && b) { t.textContent = text; b.style.width = pct + "%"; } else if (DLG && DLG.open) renderForm();
+}
+function startProg(kind, key, text, pct) { QUP = { id: kind + "|" + key, text, pct }; if (DLG && DLG.open) renderForm(); }
+function endProg() { QUP = null; if (DLG && DLG.open) renderForm(); }
 /* ---- 画像の削除: images.json から外し、ほかから使われていないファイルも消す（1コミット） ---- */
 const IMG_SECS = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"], seal: ["sealfull", "seals"] };
 let IMGDEL = null, IMGDEL_BUSY = false;
@@ -1193,20 +1203,21 @@ async function ghRemove(kind, key) {
 }
 async function removeImage(kind, key) {
   if (!GH || !key) return;
-  IMGDEL_BUSY = true; renderForm();
+  IMGDEL_BUSY = true; IMGDEL = null; startProg(kind, key, "GitHub から画像を削除しています…", 40);
   try {
     const c = await ghRemove(kind, key);
+    setProg("削除を記録しています…", 90);
     await F.setDoc(F.doc(F.db, "log", rid()), logDoc({ act: "image", k: kind === "char" ? "chars" : kind === "script" ? "scripts" : "", label: `画像を削除：${key}`, commit: c && c.sha }));
     IMG_SECS[kind].forEach(sec => { const m = R.BASE[MEDIA_MAP[sec]]; if (m) delete m[key]; });
     R.applyMedia(); R.rebuild();
     toast(c ? "画像を削除しました。公開サイトには1〜2分で反映されます" : "この画像はすでに削除されていました", 5000);
   } catch (e) { toast(e && e.status ? ghErr(e) : "画像を削除できませんでした：" + (e && e.message || ""), 7000); }
   IMGDEL = null; IMGDEL_BUSY = false;
-  if (DLG && DLG.open) renderForm();
+  endProg();
 }
-async function uploadItems(items, btn, label) {
+async function uploadItems(items, btn, label, onProg) {
   const old = btn ? btn.textContent : "";
-  const prog = (a, b) => { if (btn) btn.textContent = `${label || "アップロード中"}… ${a}/${b}`; };
+  const prog = (a, b) => { if (btn) btn.textContent = `${label || "アップロード中"}… ${a}/${b}`; if (onProg) onProg(a, b); };
   const c = await ghCommit(items, prog);
   await F.setDoc(F.doc(F.db, "log", rid()), logDoc({ act: "image", k: items[0].kind === "char" ? "chars" : items[0].kind === "script" ? "scripts" : "", label: `画像：${items.map(i => i.key).join("、").slice(0, 300)}`, commit: c && c.sha }));
   showLocal(items);
@@ -1215,9 +1226,15 @@ async function uploadItems(items, btn, label) {
 }
 async function quickUpload(kind, key, file) {
   if (!GH) { toast(S.role === "owner" ? "先に「画像」タブで GitHub 連携を設定してください" : "GitHub 連携がまだ設定されていません。オーナーに設定してもらってください", 5000); return; }
-  toast("画像を変換してアップロードしています…", 20000);
-  try { const it = await processImage(kind, key, file); await uploadItems([it]); toast("画像をアップロードしました。公開サイトには1〜2分で反映されます", 5000); if (DLG && DLG.open && !ED.dirty) renderForm(); }
+  startProg(kind, key, "画像を変換しています…", 8);
+  try {
+    const it = await processImage(kind, key, file);
+    setProg("GitHub にアップロードしています…", 20);
+    await uploadItems([it], null, "", (a, b) => setProg(a < b ? `GitHub にアップロードしています… ${a}/${b}` : "GitHub に保存しています…", a < b ? 20 + Math.round(60 * a / b) : 88));
+    toast("画像をアップロードしました。公開サイトには1〜2分で反映されます", 5000);
+  }
   catch (e) { toast(e && e.status ? ghErr(e) : "画像を処理できませんでした", 6000); }
+  endProg();
 }
 async function buildImageZip(btn) {
   const todo = IM.files.filter(f => f.on && f.key);
@@ -1752,6 +1769,12 @@ function injectStyle() {
 .edth img,.edth .noimg{width:104px;height:104px;object-fit:cover;display:block;background:var(--soft)}
 .edfull img{height:150px;max-width:280px;object-fit:contain;display:block;background:var(--soft)}
 .edth small,.edfull small{font-size:11px;color:var(--muted)}
+.edprog{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;min-width:240px;padding:10px 12px;border:1px solid var(--accent);background:rgba(26,134,255,.08)}
+.edprog .spin{width:18px;height:18px;border:3px solid rgba(26,134,255,.25);border-top-color:var(--accent);border-radius:50%;animation:edspin .8s linear infinite}
+.edprog .bar{grid-column:1/-1;display:block;height:6px;background:rgba(26,134,255,.18);margin:0}
+.edprog .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2,#19d3ff));transition:width .3s}
+.edprog small{grid-column:1/-1;color:var(--muted);font-size:11.5px}
+@keyframes edspin{to{transform:rotate(360deg)}}
 .edimgbtns{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:360px}
 .dlg .filebtn{display:inline-flex;margin:0;font-weight:700}
 .preslist{font-size:13px;margin:-4px 0 10px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
