@@ -22,7 +22,9 @@ let ROLES = [];          // [{email, at, by}]
 let FEEDBACK = [];       // [{id, ...}]
 let LOG = [];            // [{id, ...}]
 let STATS = null;        // [{day, pv, uv}]
-let NEWSLIST = [];       // public/news
+let NEWSLIST = [];
+let TIERPUB = {};        // public/tiers の中身（サーバー側）
+const TIERPEND = [];     // 送信中の配置変更（画面には先に反映）       // public/news
 let GH = null;           // {token, repo, branch} GitHub 連携（secrets/github）
 
 const esc = s => R.esc(s);
@@ -74,6 +76,7 @@ function close() {
   clearPresence();
   R.setMode("user");
   if (DLG && DLG.open) { ED.dirty = false; DLG.close(); }
+  R.setTierEdit(false);
   headerButton(false);
   AM.hidden = true; NAV.hidden = true;
   document.getElementById("main").hidden = false;
@@ -120,10 +123,11 @@ function startListeners() {
       T[k].rows = m; T[k].rowsReady = true; T[k].pending = q.metadata.hasPendingWrites; tableChanged(k);
     });
   });
-  ["chars", "scripts", "babel", "crops", "news"].forEach(k => on(F.doc(F.db, "public", k), s => {
+  ["chars", "scripts", "babel", "crops", "news", "tiers"].forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
     if (k === "crops") { try { R.setCrops(d && d.json ? JSON.parse(d.json) : {}); } catch (e) { } }
+    else if (k === "tiers") { let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
     else if (k === "news") { try { NEWSLIST = d && d.json ? JSON.parse(d.json) : []; } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
     else maybePublish(k);
     softRender();
@@ -204,7 +208,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["news", "お知らせ"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["news", "お知らせ"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = FEEDBACK.filter(f => f.status === "new").length;
@@ -213,7 +217,7 @@ function renderNav() {
 NAV.addEventListener("click", e => {
   const b = e.target.closest("[data-atab]"); if (!b) return;
   const t = b.dataset.atab;
-  if (S.tab === "edit" && t !== "edit") R.setMain(null);
+  if ((S.tab === "edit" || S.tab === "tier") && t !== S.tab) { R.setMain(null); R.setTierEdit(false); }
   S.tab = t; renderAll(); window.scrollTo(0, 0);
 });
 function renderAll() { renderNav(); renderAdmin(false); }
@@ -236,6 +240,7 @@ function renderAdmin(soft) {
   if (S.tab === "edit") renderEdit(soft);
   else if (S.tab === "io") { if (!(soft && IO.text)) renderIO(); }
   else if (S.tab === "img") { if (!(soft && IM.files.length)) renderImg(); }
+  else if (S.tab === "tier") renderTierTab(soft);
   else if (S.tab === "news") { if (!(soft && NW.edit)) renderNews(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
@@ -339,12 +344,14 @@ function openEditor(k, id) {
   ED.k = k; loadRow(k, id); setPresence(); renderForm();
 }
 function pickFromList(ds) {
-  const k = ED.k; if (!seeded(k)) return;
+  if (S.tab !== "edit") return false;
+  const k = ED.k; if (!seeded(k)) return true;
   let id = null;
   if (ds.detail !== undefined && k === "chars") { for (const r of T.chars.rows.values()) if ((r.c || {})["ID"] === ds.detail) { id = r.id; break; } }
   else if (ds.sdetail !== undefined && k === "scripts") { id = derive("scripts").ids[+ds.sdetail]; }
   else if (ds.floor !== undefined && k === "babel") { for (const r of T.babel.rows.values()) if (keyOfCells("babel", r.c || {}) === ds.floor) { id = r.id; break; } }
   if (id) openEditor(k, id);
+  return true;
 }
 function refreshForm() {
   if (ED.dirty || ED.isNew) { const bn = document.getElementById("edbanner"); if (bn) bn.innerHTML = bannerHtml(); return; }
@@ -636,6 +643,7 @@ async function ioAction(a, btn) {
   if (a === "ghdata") {
     try { const Z = await loadJSZip(); const z = new Z(); TABLES.forEach(t => { const d = curData(t); if (d.headers.length) z.file(`data/${t}.json`, JSON.stringify({ headers: d.headers, rows: d.rows }, null, 1)); });
       z.file("data/news.json", JSON.stringify(NEWSLIST, null, 1));
+      z.file("data/tiers.json", JSON.stringify({ tiers: TIERPUB, at: now() }, null, 1));
       download(`rxrdb-data-${R.jstDay()}.zip`, await z.generateAsync({ type: "blob" })); toast("data/*.json を書き出しました"); }
     catch (e) { toast("ZIP を作れませんでした。通信状態を確認してください", 5000); } return;
   }
@@ -923,7 +931,7 @@ function openCrop(kind, key) {
 
 /* ================= change log ================= */
 const LG = { k: "", open: null };
-const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", image: "画像", news: "お知らせ" };
+const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", image: "画像", news: "お知らせ", tier: "Tier表" };
 function renderLog() {
   const list = LOG.filter(l => !LG.k || l.k === LG.k);
   let h = userBar() + `<div class="toolbar"><h2><small>HISTORY</small>変更履歴</h2><div class="seg"><button data-lgk="" aria-pressed="${!LG.k}">すべて</button>${TABLES.map(k => `<button data-lgk="${k}" aria-pressed="${LG.k === k}">${TLABEL[k]}</button>`).join("")}</div><span class="count">新しい順に最大150件</span></div>`;
@@ -960,6 +968,64 @@ async function revertLog(id) {
     toast("元に戻しました");
   } catch (e) { toast(e && e.message && !e.code ? e.message : fbErr(e), 5000); }
 }
+
+/* ================= official tier (運営のTier表) ================= */
+function applyOfficial(at) {
+  const o = JSON.parse(JSON.stringify(TIERPUB));
+  TIERPEND.forEach(([fk, id, t]) => { const P = o[fk] || (o[fk] = {}); if (t) P[id] = t; else delete P[id]; });
+  R.setOfficial(o, at);
+}
+function floorLabel(fk) { const [t, f] = String(fk).split("|"); return `${t} ${f}F`; }
+const TIERQ = { busy: false, q: [] };
+function onTierMove(fk, id, tier, prev) {
+  const op = [fk, id, tier]; TIERPEND.push(op);
+  TIERQ.q.push({ op, prev });
+  flushTier();
+}
+// 連続で動かしても1回のトランザクションにまとめて送る
+async function flushTier() {
+  if (TIERQ.busy || !TIERQ.q.length) return;
+  TIERQ.busy = true;
+  const batch = TIERQ.q.splice(0);
+  try {
+    await F.runTransaction(F.db, async tx => {
+      const ref = F.doc(F.db, "public", "tiers"); const s = await tx.get(ref);
+      let v = {}; try { v = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
+      const tiers = v.tiers || {};
+      batch.forEach(({ op: [fk, id, t] }) => { const P = tiers[fk] || (tiers[fk] = {}); if (t) P[id] = t; else delete P[id]; if (!Object.keys(P).length) delete tiers[fk]; });
+      const json = JSON.stringify({ tiers, at: now() });
+      tx.set(ref, { json, at: now(), by: me(), count: Object.keys(tiers).length });
+      const name = id => R.CHMAP[id] ? R.CHMAP[id].name : id;
+      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "tier", label: batch.map(({ op: [fk, id, t], prev }) => `${floorLabel(fk)} ${name(id)}：${prev || "未配置"} → ${t || "未配置"}`).join(" ／ ").slice(0, 600) }));
+    });
+  } catch (e) {
+    toast("Tier表を保存できませんでした：" + fbErr(e), 6000);
+  }
+  batch.forEach(({ op }) => { const i = TIERPEND.indexOf(op); if (i >= 0) TIERPEND.splice(i, 1); });
+  TIERQ.busy = false;
+  if (TIERQ.q.length) flushTier(); else { applyOfficial(); if (S.tab === "tier") softRender(); }
+}
+const TT = { confirm: null };
+function renderTierTab(soft) {
+  if (soft && document.getElementById("admtier")) {
+    if (document.querySelector("#admtier .dragging") || (document.activeElement && document.activeElement.id === "poolQ")) return;
+    R.renderTier(); const ti = document.getElementById("tierinfo"); if (ti) ti.innerHTML = tierInfo(); return;
+  }
+  document.getElementById("main").innerHTML = "";
+  AM.innerHTML = userBar() + `<div id="tierinfo">${tierInfo()}</div><div id="admtier"></div>`;
+  R.setTierEdit(true, onTierMove);
+  R.setMain(document.getElementById("admtier"), () => { if (S.tab === "tier") { R.renderTier(); const ti = document.getElementById("tierinfo"); if (ti) ti.innerHTML = tierInfo(); } });
+  R.renderTier();
+}
+function tierInfo() {
+  const f = R.curFloor; const fk = f ? f.key : "";
+  const local = R.LOCAL_TIERS; const nLocal = Object.values(local).reduce((a, p) => a + Object.keys(p || {}).length, 0);
+  const n = Object.keys(R.OFFICIAL[fk] || {}).length;
+  return `<div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（数秒で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
+  <span class="tieracts">${n ? (TT.confirm === fk ? `<span class="danger-q">${esc(floorLabel(fk))}の配置${n}件をすべて外しますか？</span><button class="btn small danger" data-a="tierclearyes">外す</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierclear">この階層の配置をすべて外す</button>`) : ""}
+  ${nLocal ? (TT.confirm === "import" ? `<span class="danger-q">このブラウザの配置${nLocal}件で、同じキャラの公開中の配置を上書きします。</span><button class="btn small primary" data-a="tierimportyes">取り込む</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierimport">このブラウザに保存していた配置（${nLocal}件）を取り込む</button>`) : ""}</span></div>`;
+}
+function tierBulk(ops) { ops.forEach(([fk, id, t]) => { const P = R.OFFICIAL[fk] || (R.OFFICIAL[fk] = {}); const prev = P[id] || ""; if (prev === t) return; if (t) P[id] = t; else delete P[id]; onTierMove(fk, id, t, prev); }); }
 
 /* ================= news (ユーザー向けお知らせ) ================= */
 const NW = { edit: null, confirm: null };
@@ -1120,6 +1186,11 @@ function onAdminClick(e) {
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
   if (ds.a === "reload") { location.reload(); return; }
+  if (ds.a === "tierclear") { TT.confirm = R.curFloor.key; renderTierTab(true); return; }
+  if (ds.a === "tierimport") { TT.confirm = "import"; renderTierTab(true); return; }
+  if (ds.a === "tierclearno") { TT.confirm = null; renderTierTab(true); return; }
+  if (ds.a === "tierclearyes") { const fk = R.curFloor.key; TT.confirm = null; tierBulk(Object.keys(R.OFFICIAL[fk] || {}).map(id => [fk, id, ""])); renderTierTab(true); toast("この階層の配置を外しました"); return; }
+  if (ds.a === "tierimportyes") { TT.confirm = null; const ops = []; Object.entries(R.LOCAL_TIERS).forEach(([fk, P]) => Object.entries(P || {}).forEach(([id, t]) => { if (t) ops.push([fk, id, t]); })); tierBulk(ops); renderTierTab(true); toast(`${ops.length}件の配置を取り込みました`); return; }
   if (ds.a === "copyme") { navigator.clipboard.writeText(me()).then(() => toast("コピーしました"), () => { }); return; }
   if (ds.a === "goio") { S.tab = "io"; renderAll(); return; }
   if (ds.a === "statsreload") { loadStats(true); return; }
@@ -1234,6 +1305,8 @@ function injectStyle() {
 .nwform select{border:1px solid var(--line2);background:var(--field);padding:5px 8px;font-size:14px;color:var(--ink)}
 .ck2{display:flex!important;align-items:center;gap:6px;font-size:13.5px!important;font-weight:500!important;color:var(--ink)!important;min-height:32px}
 .ck2 input{width:auto!important;flex:none}
+.tierbar{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center}
+.tieracts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-left:auto}
 .nwform .formfoot{position:static}
 .nwprev{background:var(--panel2);padding:0 12px;border:1px dashed var(--line2)}
 .nwprev .news{border:0}

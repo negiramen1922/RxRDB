@@ -139,6 +139,8 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .board{overflow:hidden}
 .trow{display:grid;grid-template-columns:76px 1fr;border-top:1px solid var(--line);min-height:68px}
 .trow:first-child{border-top:0}
+.offnote{margin:0 0 10px;padding:8px 14px;background:var(--panel);box-shadow:var(--shadow);border-left:4px solid var(--accent);font-size:13.5px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center}
+.offnote .count{margin-left:auto}
 .tcrit{margin:0 0 10px;background:var(--panel);box-shadow:var(--shadow)}
 .tcrit summary{cursor:pointer;padding:7px 14px;font-weight:700;font-size:13.5px;color:var(--accent-ink);letter-spacing:.08em}
 .tcrit dl{margin:0;padding:2px 14px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 18px}
@@ -619,7 +621,10 @@ let tab="tier",sel=null;
 const pool={q:"",attr:null,role:null,sort:"fit"};
 const tstate={chars:{q:"",sort:-1,dir:1,attr:null,role:null,all:false},scripts:{q:"",sort:-1,dir:1,rar:null,role:null},babel:{q:""}};
 const curFloor=()=>FLOORS.find(f=>f.key===S.curFloor)||null;
-const place=fk=>S.tiers[fk]||(S.tiers[fk]={});
+/* 公式Tier（運営が管理画面で作成し public/tiers で公開） */
+let OFFICIAL={},OFFICIAL_AT=0,TIER_EDIT=false,TIER_HOOK=null;
+const EMPTY_P=Object.freeze({});
+const place=fk=>OFFICIAL[fk]||EMPTY_P;
 
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)));
 function switchTab(t){track("tab",{tab:t});tab=t;sel=null;document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.tab===t)));render();window.scrollTo(0,0);}
@@ -662,12 +667,15 @@ function renderTier(){
   if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;main.innerHTML=h;return;}
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
   h+=`<details class="tcrit"${S.critClosed?"":" open"}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(TDESC[t])}</dd></div>`).join("")}</dl></details>`;
+  const placed=Object.keys(P).length;
+  if(!TIER_EDIT)h+=`<p class="offnote">${placed?`このTier表は運営メンバーが作成しています。キャラを押すと詳細が見られます。${OFFICIAL_AT?`<span class="count">最終更新 ${fmtDay(OFFICIAL_AT)}</span>`:""}`:`この階層のTier表は準備中です。もうしばらくお待ちください。`}</p>`;
   h+=`<div class="board">`;
   TIERS.forEach((t,i)=>{
     const inT=CH.filter(c=>P[c.id]===t).sort((a,b)=>fits[b.id]-fits[a.id]);
     h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(TDESC[t])}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(c=>tile(c,f,fits)).join(""):`<span class="zhint">${esc(TDESC[t])}</span>`}</div></div>`;
   });
   h+=`</div>`;
+  if(!TIER_EDIT){h+=`</section></div>`;main.innerHTML=h;const m=document.getElementById("memo");m.addEventListener("input",()=>{S.notes[f.key]=m.value;save();});return;}
   let list=CH.filter(c=>!TIERS.includes(P[c.id]));
   if(pool.q){const q=pool.q.toLowerCase();list=list.filter(c=>(c.name+c.id).toLowerCase().includes(q));}
   if(pool.attr)list=list.filter(c=>c.attr===pool.attr);
@@ -690,17 +698,22 @@ function renderTier(){
   if(pq)pq.addEventListener("input",()=>{pool.q=pq.value;const p=pq.selectionStart;renderTier();const nq=document.getElementById("poolQ");nq.focus();nq.setSelectionRange(p,p);});
   bindDrag();
 }
+function fmtDay(t){const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;}
 function tile(c,f,fits){
   const s=fits?fits[c.id]:0;const rec=f&&f.recs.includes(c.id);
   const img=IMG[c.id];
-  return `<button class="tile" draggable="true" data-id="${esc(c.id)}" aria-pressed="${sel===c.id}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)} / ${esc(c.attr)} ${esc(c.role)} ${esc(c.rank)}">${img?`<img src="${img}" alt="">`:""}<span class="nm">${esc(c.name)}</span>${ICON[c.role]?ic(c.role):`<span class="rl">${esc(ROLE_SHORT[c.role]||"")}</span>`}${s?`<span class="ft ${s>0?"p":"n"}">${s>0?"▲":"▼"}${Math.abs(s)}</span>`:""}${rec?'<span class="rec">★</span>':""}</button>`;
+  return `<button class="tile" draggable="${TIER_EDIT}" data-id="${esc(c.id)}" aria-pressed="${sel===c.id}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)} / ${esc(c.attr)} ${esc(c.role)} ${esc(c.rank)}">${img?`<img src="${img}" alt="">`:""}<span class="nm">${esc(c.name)}</span>${ICON[c.role]?ic(c.role):`<span class="rl">${esc(ROLE_SHORT[c.role]||"")}</span>`}${s?`<span class="ft ${s>0?"p":"n"}">${s>0?"▲":"▼"}${Math.abs(s)}</span>`:""}${rec?'<span class="rec">★</span>':""}</button>`;
 }
 function ptile(c){
   const img=IMG[c.id];
   return `<button class="tile pic" draggable="true" data-id="${esc(c.id)}" aria-pressed="${sel===c.id}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}" aria-label="${esc(c.name)}">${img?`<img src="${img}" alt="">`:`<span class="nm">${esc(c.name)}</span>`}</button>`;
 }
 function attrColor(a){return a==="破壊"?"var(--a-break)":a==="衝撃"?"var(--a-impact)":a==="爆発"?"var(--a-blast)":"var(--line)";}
-function moveTo(id,tier){const P=place(S.curFloor);if(tier)P[id]=tier;else delete P[id];save();}
+function moveTo(id,tier){
+  if(!TIER_EDIT)return;const fk=S.curFloor;const P=OFFICIAL[fk]||(OFFICIAL[fk]={});const prev=P[id]||"";
+  if((tier||"")===prev)return;if(tier)P[id]=tier;else delete P[id];
+  if(TIER_HOOK)TIER_HOOK(fk,id,tier||"",prev);
+}
 function bindDrag(){
   main.querySelectorAll(".tile").forEach(t=>{
     t.addEventListener("dragstart",e=>{e.dataTransfer.setData("text/plain",t.dataset.id);t.classList.add("dragging");});
@@ -714,7 +727,7 @@ function bindDrag(){
 }
 function renderActionBar(){
   const bar=document.getElementById("actionbar");
-  if(tab!=="tier"||!sel||!CHMAP[sel]){bar.classList.add("hidden");bar.innerHTML="";return;}
+  if(!TIER_EDIT||!sel||!CHMAP[sel]){bar.classList.add("hidden");bar.innerHTML="";return;}
   const cur=place(S.curFloor)[sel];
   bar.innerHTML=`<b>${esc(CHMAP[sel].name)}</b>`+TIERS.map((t,i)=>`<button class="tb" style="background:${TCOL[i]};${cur===t?"outline:2px solid #fff;outline-offset:-3px":""}" data-moveto="${t}">${t}</button>`).join("")+
   `<button class="btn small ghost-dark" data-moveto="">未配置へ</button><button class="btn small ghost-dark" data-detail="${esc(sel)}">詳細</button><button class="btn small ghost-dark" data-act="unsel" aria-label="選択解除">✕</button>`;
@@ -729,7 +742,7 @@ function renderSum(){
   const rows=CH.map(c=>{const ts=fl.map(f=>place(f.key)[c.id]);const v=ts.map(sc).filter(x=>x!=null);return{c,ts,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null,cnt:v.length};})
     .filter(r=>r.cnt).sort((a,b)=>b.avg-a.avg||b.cnt-a.cnt);
   let h=`<div class="toolbar"><h2><small>SUMMARY</small>全階層まとめ</h2>${typeSeg()}<span class="count">SSS=7 … D=1 で平均。評価した階層だけで計算します。</span></div>`;
-  if(!rows.length){main.innerHTML=h+`<div class="empty"><h2>まだ配置がありません</h2><p>「階層別Tier表」でキャラを配置すると、ここに${esc(S.curType)}の全階層の評価が並びます。</p></div>`;return;}
+  if(!rows.length){main.innerHTML=h+`<div class="empty"><h2>Tier表は準備中です</h2><p>運営が${esc(S.curType)}のTier表を公開すると、ここに全階層の評価がまとめて並びます。</p></div>`;return;}
   h+=`<div class="tscroll"><table><thead><tr><th class="first">キャラ</th><th>属性</th><th>ロール</th><th>平均</th>${fl.map(f=>`<th title="${esc(f.boss)}">${esc(f.floor)}</th>`).join("")}</tr></thead><tbody>`;
   rows.forEach(r=>{h+=`<tr data-detail="${esc(r.c.id)}"><td class="first">${IMG[r.c.id]?`<img src="${IMG[r.c.id]}" alt="" style="width:24px;height:24px;border-radius:5px;vertical-align:middle;margin-right:6px">`:""}<b>${esc(r.c.name)}</b></td><td>${ic(r.c.attr)} <span class="attr ${esc(r.c.attr)}">${esc(r.c.attr)}</span></td><td>${ic(r.c.role)} ${esc(r.c.role)}</td><td>${r.avg.toFixed(2)}</td>${r.ts.map(t=>`<td>${t?badge(t):'<span class="dash">—</span>'}</td>`).join("")}</tr>`;});
   main.innerHTML=h+`</tbody></table></div>`;
@@ -907,8 +920,8 @@ document.addEventListener("click",e=>{
   const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act]");
   if(!t)return;const ds=t.dataset;
   if(t.hasAttribute("data-close")){t.closest("dialog").close();return;}
-  if(MODE==="admin"){if(t.closest("#admin")&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN){window.RXR_ADMIN.pick(ds);return;}if(!t.closest("#admin"))return;}
-  if(t.classList.contains("tile")){sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
+  if(MODE==="admin"){const inA=t.closest("#admin");if(!inA&&!t.closest("#actionbar"))return;if(inA&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN&&window.RXR_ADMIN.pick(ds))return;}
+  if(t.classList.contains("tile")){if(!TIER_EDIT){openChar(ds.id);return;}sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
   if(ds.moveto!==undefined){if(sel){moveTo(sel,ds.moveto);sel=null;render();}return;}
   if(ds.zone!==undefined){if(sel){moveTo(sel,ds.zone);sel=null;render();}return;}
   if(ds.rank){const[tg,stat,id]=ds.rank.split("|");const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();RK.t=tg;RK.stat=stat;RK.dir=RKDEF[tg].find(x=>x[0]===stat)?.[2]||"desc";RK.focus=id;RK.attr=null;RK.role=null;RK.rar=null;switchTab("rank");
@@ -921,7 +934,7 @@ document.addEventListener("click",e=>{
   if(ds.detail!==undefined){openChar(ds.detail);return;}
   if(ds.floor){track("floor",{floor:ds.floor});S.curFloor=ds.floor;sel=null;save();if(ds.go)switchTab("tier");else render();return;}
   if(ds.type){S.curType=ds.type;const fl=FLOORS.filter(f=>f.type===ds.type);S.curFloor=fl.length?fl[fl.length-1].key:null;sel=null;save();render();return;}
-  if(ds.pick){if(CHMAP[ds.pick]){sel=ds.pick;pool.q="";render();const el=main.querySelector(`.tile[data-id="${CSS.escape(ds.pick)}"]`);if(el)el.scrollIntoView({block:"center",behavior:"smooth"});}return;}
+  if(ds.pick){if(!TIER_EDIT){if(CHMAP[ds.pick])openChar(ds.pick);return;}if(CHMAP[ds.pick]){sel=ds.pick;pool.q="";render();const el=main.querySelector(`.tile[data-id="${CSS.escape(ds.pick)}"]`);if(el)el.scrollIntoView({block:"center",behavior:"smooth"});}return;}
   if(ds.psort){pool.sort=ds.psort;renderTier();return;}
   if(ds.pattr){pool.attr=pool.attr===ds.pattr?null:ds.pattr;renderTier();return;}
   if(ds.prole){pool.role=pool.role===ds.prole?null:ds.prole;renderTier();return;}
@@ -1058,7 +1071,8 @@ async function loadSite(){
     if(FBC){try{const v=await fsGetJson("public/"+k);if(v&&v.rows){st[k]=v;return;}}catch(e){}}
     st[k]=await get(`data/${k}.json`).catch(()=>null);
   }).concat(FBC?[fsGetJson("public/crops").then(v=>{crops=v;}).catch(()=>{})]:[]).concat([
-    (FBC?fsGetJson("public/news"):Promise.reject()).catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];})
+    (FBC?fsGetJson("public/news"):Promise.reject()).catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
+    (FBC?fsGetJson("public/tiers"):Promise.reject()).catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_AT=v.at||0;}}).catch(()=>{})
   ]));
   Object.entries(st).forEach(([k,v])=>{if(v)LIVE[k]={headers:v.headers,rows:v.rows};});
   if(crops)CROPS=crops;
@@ -1096,7 +1110,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=6");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=7");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1138,6 +1152,9 @@ window.RXR={
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},
   setMain(el,fn){main=el||document.getElementById("main");ADMIN_LIST=fn||null;},
   renderList(k){({chars:renderChars,scripts:renderScripts,babel:renderBabel})[k]();},
+  get OFFICIAL(){return OFFICIAL;},setOfficial(v,at){OFFICIAL=v||{};if(at)OFFICIAL_AT=at;},get LOCAL_TIERS(){return S.tiers||{};},
+  setTierEdit(on,hook){TIER_EDIT=!!on;TIER_HOOK=hook||null;sel=null;renderActionBar();},renderTier(){renderTier();renderActionBar();},
+  get curFloor(){return curFloor();},
   get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
   jstDay,get SITE_LOADED(){return SITE_LOADED;},
   dlg(id){return document.getElementById(id);},
