@@ -32,7 +32,7 @@ const SCHEMA = {
   babel: [
     { g: "基本", f: [["バベル種類", "opt:バベル種類"], ["階層", "num"], ["ボス", "bossref"], ["推奨属性", "opt:属性"]] },
     { g: "解析データ", note: "1行に1つの効果。【特性】【味方】【敵】などの見出し行で区切ります。「上昇」「低下」などから自動で ▲▼ を判定します。", f: [["解析データ", "big"]] },
-    { g: "おすすめ・コメント", f: [["おすすめキャラID", "charpick"], ["ポイント", "long"], ["コメント", "long"]] },
+    { g: "おすすめ・コメント", f: [["おすすめキャラID", "charpick"], ["攻略のコツ", "long"], ["コメント", "long"]] },
   ],
   people: [
     { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["性別", "opt:性別"], ["誕生日", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["CV", "text"]] },
@@ -56,6 +56,8 @@ const SCHEMA = {
     { g: "基本", note: "略称は「カノン 聖典」のようにキャラ名を自動で作るとき、よみはひらがなを作るときに使います。", f: [["スタイル", "text"], ["略称", "text"], ["よみ", "text"], ["メモ", "long"]] },
   ],
 };
+// 列名の変更（古い列名 → 新しい列名）。Firestore に古い列名が残っていれば、管理画面を開いたときに自動で付け替える
+const RENAMES = { babel: { "ポイント": "攻略のコツ" } };
 const PH = { "誕生日": "例：4月1日", "CV": "声優", "階層": "例：110", "略称": "例：聖典", "よみ": "例：せいてん" };
 const STALE = 5 * 60e3;
 
@@ -93,7 +95,7 @@ const ago = t => { const s = (now() - t) / 1000; if (s < 60) return "たった�
 function fbErr(e) {
   const c = e && e.code || "";
   if (c === "permission-denied" || c === "permission_denied") return "保存できませんでした（権限エラー）。Firestore のルールが最新か確認してください。直らなければログインし直してください";
-  if (c === "resource-exhausted") return "今日の無料枠の上限に達したか、書き込みが混み合っています。時間をおいてもう一度試してください";
+  if (c === "resource-exhausted") return "Firestore の今日の無料枠（読み取り5万回/日）を使い切ったため保存できません。日本時間の16時（冬時間は17時）にリセットされます";
   if (c === "unavailable") return "サーバーにつながりません。通信状態を確認してください";
   return "失敗しました：" + (e && (e.message || c) || "不明なエラー");
 }
@@ -184,7 +186,7 @@ async function resolveRole(u) {
 /* ================= live listeners ================= */
 function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); }
 function startListeners() {
-  const on = (ref, fn) => S.unsubs.push(F.onSnapshot(ref, fn, err => {
+  const on = (ref, fn, opt) => S.unsubs.push(F.onSnapshot(ref, opt || {}, fn, err => {
     console.warn(ref.path, err);
     if (err && err.code === "permission-denied" && !S.deny) { S.deny = "rules"; S.role = null; stopListeners(); renderAll(); return; }
     toast(fbErr(err), 5000);
@@ -195,11 +197,12 @@ function startListeners() {
       if (q.metadata.fromCache && !T[k].rowsReady) return;
       const m = new Map(); q.docs.forEach(d => m.set(d.id, Object.assign({ id: d.id }, d.data())));
       T[k].rows = m; T[k].rowsReady = true; T[k].pending = q.metadata.hasPendingWrites; tableChanged(k);
-    });
+    }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
   });
   TABLES.concat(["crops", "news", "tiers", "options"]).forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
+    if (BUNDLE_KEYS.includes(k)) { PUBRAW[k] = d && typeof d.json === "string" ? d.json : null; scheduleBundle(); }
     if (k === "crops") { try { R.setCrops(d && d.json ? JSON.parse(d.json) : {}); } catch (e) { } }
     else if (k === "tiers") { let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
     else if (k === "options") { try { OPTS = d && d.json ? JSON.parse(d.json) : null; } catch (e) { OPTS = null; } if (OPTS) R.setOptions(OPTS); softRender(); return; }
@@ -207,6 +210,7 @@ function startListeners() {
     else maybePublish(k);
     softRender();
   }));
+  on(F.doc(F.db, "public", "all"), s => { ALLSIG = s.exists() ? (s.data().sig || "") : ""; scheduleBundle(); });
   on(F.collection(F.db, "editing"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); EDITING = o; softRender(); });
   if (S.role === "owner") on(F.collection(F.db, "roles"), q => { ROLES = q.docs.map(d => Object.assign({ email: d.id }, d.data())); softRender(); });
   else ROLES = [];
@@ -240,8 +244,39 @@ function tableChanged(k) {
       else ED.remote = r;
     }
   }
+  if (RENAMES[k]) migrateColumns(k);
   maybePublish(k);
   softRender();
+}
+// RENAMES の古い列名を Firestore 上で新しい列名に付け替える（誰かが管理画面を開いたときに一度だけ走る）
+const MIGRATED = {};
+async function migrateColumns(k) {
+  const m = RENAMES[k]; if (!m || !seeded(k) || T[k].pending) return;
+  const rows = [...T[k].rows.values()];
+  const olds = Object.keys(m).filter(o => T[k].headers.includes(o) || rows.some(r => r.c && o in r.c)); if (!olds.length) return;
+  if (MIGRATED[k] === true || (MIGRATED[k] && now() - MIGRATED[k] < 60e3)) return;   // 実行中 / 失敗して1分以内
+  MIGRATED[k] = true;
+  try {
+    const hd = []; T[k].headers.forEach(h => { const x = olds.includes(h) ? m[h] : h; if (!hd.includes(x)) hd.push(x); });
+    let b = F.writeBatch(F.db), n = 0;
+    const hdrCh = T[k].headers.some(h => olds.includes(h));
+    if (hdrCh) { b.set(F.doc(F.db, "tables", k), { headers: hd, t: now(), by: meId() }); n++; }
+    for (const r of rows) {
+      const c = Object.assign({}, r.c || {}); let ch = false;
+      olds.forEach(o => { if (o in c) { if (!String(c[m[o]] || "")) c[m[o]] = c[o]; delete c[o]; ch = true; } });
+      if (!ch) continue;
+      b.set(F.doc(F.db, "tables", k, "rows", r.id), { c, o: r.o || 0, t: r.t || now(), by: r.by || "", rev: rid() });
+      if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; }
+    }
+    if (hdrCh) b.set(F.doc(F.db, "log", rid()), logDoc({ act: "columns", k, label: olds.map(o => `列「${o}」を「${m[o]}」に変更`).join("、") }));
+    await b.commit();
+    MIGRATED[k] = 0;
+  } catch (e) { console.warn("migrate", e); MIGRATED[k] = now(); }
+}
+// 読み込み・取り込みのデータに古い列名があれば、新しい列名に読み替える
+function renameHeaders(k, d) {
+  const m = RENAMES[k]; if (!m || !d || !d.headers) return d;
+  return Object.assign({}, d, { headers: d.headers.map(h => m[h] && !d.headers.includes(m[h]) ? m[h] : h) });
 }
 
 /* ================= publish (Firestore rows → public/{k}) ================= */
@@ -267,7 +302,7 @@ function maybePublish(k) {
   const sig = sigOf(k);
   if (PUB[k] && PUB[k].sig === sig && !String(PUB[k].by || "").includes("@")) return;
   clearTimeout(pubTimers[k]);
-  pubTimers[k] = setTimeout(() => publish(k).catch(e => console.warn(e)), 1200 + Math.random() * 1500);
+  pubTimers[k] = setTimeout(() => publish(k).catch(e => { console.warn(e); toast(`${TLABEL[k]}を公開サイトに反映できませんでした：` + fbErr(e), 8000); }), 1200 + Math.random() * 1500);
 }
 async function publish(k, force) {
   if (!seeded(k)) return;
@@ -277,11 +312,41 @@ async function publish(k, force) {
   const json = JSON.stringify({ headers: d.headers, rows: d.rows });
   if (json.length > 1000000) { toast(`${TLABEL[k]}データが大きすぎて公開できません（1MB超）`, 6000); return; }
   await F.setDoc(F.doc(F.db, "public", k), { json, sig, at: now(), count: d.rows.length });
+  if (BUNDLE_KEYS.includes(k)) { PUBRAW[k] = json; await writeBundle(); }
+}
+/* ---- public/all：公開サイトが読む データ一式（1回の読み取りで済ませ、Firestore の無料枠を節約する） ----
+   public/{chars,scripts,babel,seals,crops,options,news,tiers} の json をまとめたもの。どれかが変わるたびに作り直す */
+const BUNDLE_KEYS = ["chars", "scripts", "babel", "seals", "crops", "options", "news", "tiers"];
+const PUBRAW = {};       // k -> public/{k} の json（文字列）。ドキュメントがなければ null
+let ALLSIG;              // public/all の sig（undefined = まだ読んでいない）
+const BUNDLE = { t: null, pending: false, busy: false, failed: false };
+function bundleSig() { return R.hashId(BUNDLE_KEYS.map(k => PUBRAW[k] == null ? "-" : PUBRAW[k].length + "." + R.hashId(PUBRAW[k])).join("|")); }
+const bundleReady = () => ALLSIG !== undefined && BUNDLE_KEYS.every(k => k in PUBRAW);
+function scheduleBundle() {
+  if (!bundleReady() || bundleSig() === ALLSIG) { BUNDLE.pending = false; return; }
+  BUNDLE.pending = true;
+  clearTimeout(BUNDLE.t);
+  BUNDLE.t = setTimeout(() => writeBundle().catch(e => { console.warn(e); toast("公開サイトへの反映に失敗しました：" + fbErr(e), 8000); }), 600 + Math.random() * 600);
+}
+async function writeBundle() {
+  if (!bundleReady()) return;
+  if (BUNDLE.busy) { scheduleBundle(); return; }
+  const sig = bundleSig(); if (sig === ALLSIG) { BUNDLE.pending = false; return; }
+  clearTimeout(BUNDLE.t); BUNDLE.busy = true;
+  try {
+    let json = "{" + BUNDLE_KEYS.filter(k => PUBRAW[k] != null).map(k => JSON.stringify(k) + ":" + PUBRAW[k]).join(",") + "}";
+    // 1MB を超えるときは空にして、公開サイトには個別のドキュメントを読ませる
+    if (new TextEncoder().encode(json).length > 1000000) json = "";
+    await F.setDoc(F.doc(F.db, "public", "all"), { json, sig, at: now() });
+    ALLSIG = sig; BUNDLE.failed = false;
+  } catch (e) { BUNDLE.failed = true; throw e; } finally { BUNDLE.busy = false; }
+  scheduleBundle();
 }
 function pubState(k) {
   if (!seeded(k)) return { cls: "warn", t: "未登録" };
   if (!PUB[k]) return { cls: "mid", t: "反映中…" };
   if (PUB[k].sig !== sigOf(k)) return { cls: "mid", t: "反映中…" };
+  if (BUNDLE_KEYS.includes(k) && BUNDLE.pending) return { cls: "mid", t: "反映中…" };
   return { cls: "ok", t: "公開中" };
 }
 
@@ -716,7 +781,7 @@ function formFields(both) {
     h += `<section class="fgroup"><h3 class="fgh">${esc(g.g)}</h3>${g.note ? `<p class="hint fgnote">${esc(g.note)}</p>` : ""}<div class="fields2${nums >= 4 ? " numgrid" : ""}">${g.f.map(([n, t]) => fieldHtml(n, t, i++, both)).join("")}</div></section>`;
   });
   const others = hd.filter(n => !inSchema.has(n));
-  if (others.length) h += `<section class="fgroup"><h3 class="fgh">その他の列</h3><div class="fields2">${others.map(n => fieldHtml(n, /効果|解析|ポイント|コメント|プロフィール|メモ/.test(n) ? "long" : "text", i++, both)).join("")}</div></section>`;
+  if (others.length) h += `<section class="fgroup"><h3 class="fgh">その他の列</h3><div class="fields2">${others.map(n => fieldHtml(n, /効果|解析|コツ|ポイント|コメント|プロフィール|メモ/.test(n) ? "long" : "text", i++, both)).join("")}</div></section>`;
   // datalists
   const cond = uniq(R.ATTRS, opts("騎士団"), opts("階級"), rowsOf("styles").map(c => c["スタイル"]), rowsOf("people").map(c => c["名前"]), ["女性", "男性"]);
   h += `<datalist id="dl_cond">${cond.map(x => `<option value="${esc(x)}">`).join("")}</datalist>`;
@@ -788,6 +853,8 @@ function logDoc(o) { return Object.assign({ at: now(), by: meId(), name: meName(
 async function saveRow(force) {
   const k = ED.k;
   if (k === "chars") autofillChar();
+  const rn = RENAMES[k] || {};   // 編集中に列名が付け替わったときは、新しい列名で保存する
+  Object.keys(rn).forEach(o => { if (o in ED.draft && !T[k].headers.includes(o)) { if (!String(ED.draft[rn[o]] || "")) ED.draft[rn[o]] = ED.draft[o]; delete ED.draft[o]; } });
   const extra = Object.keys(ED.draft).filter(h => !T[k].headers.includes(h) && String(ED.draft[h] || "") !== "");
   const hd = T[k].headers.concat(extra);
   const cells = {}; hd.forEach(h => { cells[h] = String(ED.draft[h] == null ? "" : ED.draft[h]); });
@@ -898,6 +965,7 @@ async function seedAll() {
 /* ================= import / export ================= */
 const IO = { k: "chars", text: "", hr: -1, confirm: null, busy: false };
 function diffTables(k, cur, inc) {
+  inc = renameHeaders(k, inc);
   const map = d => { const m = new Map(); d.rows.forEach(r => { const key = keyOf(k, d.headers, r); if (key.replace(/\|/g, "")) m.set(key, r); }); return m; };
   const A = map(cur), B = map(inc); const added = [], changed = [], removed = [];
   const val = (d, r, h) => { const i = d.headers.indexOf(h); return i >= 0 ? String(r[i] || "").trim() : ""; };
@@ -914,6 +982,7 @@ function ioParsed() {
 function curData(k) { return seeded(k) ? derive(k) : { headers: [], rows: [], ids: [] }; }
 // write a full table to Firestore rows (merge: keep rows not in inc / replace: delete them)
 async function applyTable(k, inc, mode, act) {
+  inc = renameHeaders(k, inc);
   const cur = curData(k);
   const hd = mode === "replace" ? inc.headers.slice() : cur.headers.concat(inc.headers.filter(h => !cur.headers.includes(h)));
   const curByKey = new Map(); cur.rows.forEach((r, i) => { const key = keyOf(k, cur.headers, r); if (key.replace(/\|/g, "") && !curByKey.has(key)) curByKey.set(key, { id: cur.ids[i], row: r }); });
@@ -1609,6 +1678,8 @@ function renderMembers(soft) {
 let SCRUBBED = false;
 async function scrubEmails() {
   if (SCRUBBED || S.role !== "owner") return; SCRUBBED = true;
+  // 古いデータの整理は一度済めば十分。毎回やると変更履歴を全件読むので、無料枠（読み取り）を大きく使ってしまう
+  try { if (localStorage.getItem("rxr-scrubbed") === "1") return; } catch (e) { }
   const has = v => typeof v === "string" && v.includes("@");
   let n = 0; let b = F.writeBatch(F.db); let c = 0;
   const push = async (ref, data) => { b.set(ref, data); n++; if (++c >= 400) { await b.commit(); b = F.writeBatch(F.db); c = 0; } };
@@ -1623,13 +1694,13 @@ async function scrubEmails() {
     if (k === "news" && d.json) { try { const l = JSON.parse(d.json); if (l.some(x => x.by)) { l.forEach(x => delete x.by); d.json = JSON.stringify(l); dirty = true; } } catch (e) { } }
     if (dirty) await push(F.doc(F.db, "public", k), d);
   }
-  const lg = await F.getDocs(F.collection(F.db, "log"));
-  for (const d of lg.docs) { const x = d.data(); if (has(x.by)) await push(F.doc(F.db, "log", d.id), Object.assign({}, x, { by: "" })); }
+  for (const x of LOG) { if (has(x.by)) { const d = Object.assign({}, x); delete d.id; d.by = ""; await push(F.doc(F.db, "log", x.id), d); } }
   for (const f of FEEDBACK) { if (has(f.by) || has(f.noteBy)) { const x = Object.assign({}, f); delete x.id; if (has(x.by)) x.by = ""; if (has(x.noteBy)) x.noteBy = ""; delete x.at; await F.updateDoc(F.doc(F.db, "feedback", f.id), { by: x.by || "", noteBy: x.noteBy || "" }); n++; } }
   for (const [uid, e] of Object.entries(EDITING)) if (has(e.email)) { await F.deleteDoc(F.doc(F.db, "editing", uid)).catch(() => { }); n++; }
   const sec = await F.getDoc(F.doc(F.db, "secrets", "github")).catch(() => null); if (sec && sec.exists() && has(sec.data().by)) await push(F.doc(F.db, "secrets", "github"), Object.assign({}, sec.data(), { by: "" }));
   if (c) await b.commit();
   if (n) console.info(`メールアドレスを含む古い記録 ${n} 件を整理しました`);
+  try { localStorage.setItem("rxr-scrubbed", "1"); } catch (e) { }
 }
 async function addMember() {
   const e = (document.getElementById("mbemail").value || "").trim().toLowerCase();
@@ -1730,7 +1801,7 @@ function onAdminClick(e) {
   if (ds.nwdel) { NW.confirm = ds.nwdel; renderNews(); return; }
   if (ds.nwdelyes) { delNews(ds.nwdelyes); return; }
 }
-window.addEventListener("beforeunload", e => { if (S.open && ED.dirty) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", e => { if (S.open && (ED.dirty || BUNDLE.busy || (BUNDLE.pending && !BUNDLE.failed))) { e.preventDefault(); e.returnValue = ""; } });
 
 /* ================= styles (admin only) ================= */
 function injectStyle() {

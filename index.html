@@ -659,7 +659,7 @@ function buildModels(){
   const SI={name:si("名前"),role:si("ロール"),rar:si("レアリティ"),date:si("実装日"),c2:si("条件2"),c3:si("条件3")};
   SC=sd.rows.map((r,i)=>{const v=k=>SI[k]>=0?(r[SI[k]]||"").trim():"";return{i,row:r,name:v("name")||r[0],role:v("role"),rar:v("rar"),date:parseDate(v("date")),conds:[v("c2"),v("c3")].filter(Boolean)};});
   const b=data("babel");const bi=n=>colOf(b,[n]);
-  const B={type:bi("バベル種類"),floor:bi("階層"),boss:bi("ボス"),attr:bi("推奨属性"),eff:bi("解析データ"),point:bi("ポイント"),rec:bi("おすすめキャラID"),comment:bi("コメント")};
+  const B={type:bi("バベル種類"),floor:bi("階層"),boss:bi("ボス"),attr:bi("推奨属性"),eff:bi("解析データ"),point:colOf(b,["攻略のコツ","ポイント"]),rec:bi("おすすめキャラID"),comment:bi("コメント")};
   FLOORS=[];TYPES=[];
   b.rows.forEach(r=>{
     const v=k=>B[k]>=0?(r[B[k]]||"").trim():"";
@@ -801,7 +801,7 @@ function renderTier(){
   <div class="fgrid"><div><p class="note-h">解析データ</p><ul class="effects">${f.lines.map(l=>`<li class="${l.sec?"sec":l.pol>0?"pos":l.pol<0?"neg":""}">${esc(l.text)}</li>`).join("")||'<li class="sec">なし</li>'}</ul></div><div>`;
   }
   if(f.recs.length)h+=`<p class="note-h">おすすめキャラ</p><div class="recs">${f.recs.map(id=>`<button data-pick="${esc(id)}">★ ${esc(CHMAP[id]?CHMAP[id].name:id)}</button>`).join("")}</div>`;
-  if(f.point)h+=`<p class="note-h">ポイント</p><p class="note-b">${esc(f.point)}</p>`;
+  if(f.point)h+=`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`;
   if(f.comment)h+=`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`;
   h+=`<p class="note-h">自分用メモ</p><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など">${esc(S.notes[f.key]||"")}</textarea></div></div></div>`;
   if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;main.innerHTML=h;return;}
@@ -1221,13 +1221,18 @@ async function loadSite(){
   const get=p=>fetch(p,{cache:"no-cache"}).then(r=>{if(!r.ok)throw new Error(p);return r.json();});
   const imP=get("data/images.json").catch(()=>null);
   const st={};let crops=null;
+  /* public/all（管理画面が作る、公開データ一式）を1回で読む。Firestore の読み取り回数（無料枠）を節約するため。
+     読めなければ public/{k} を個別に読み、それも駄目なら data/*.json */
+  let all=null;if(FBC){try{all=await fsGetJson("public/all");}catch(e){}}
+  const part=k=>all?(all[k]!=null?Promise.resolve(all[k]):Promise.reject(new Error("none"))):FBC?fsGetJson("public/"+k):Promise.reject(new Error("no firebase"));
   await Promise.all(["chars","scripts","babel","seals"].map(async k=>{
-    if(FBC){try{const v=await fsGetJson("public/"+k);if(v&&v.rows){st[k]=v;return;}}catch(e){}}
+    try{const v=await part(k);if(v&&v.rows){st[k]=v;return;}}catch(e){}
     st[k]=await get(`data/${k}.json`).catch(()=>null);
-  }).concat(FBC?[fsGetJson("public/crops").then(v=>{crops=v;}).catch(()=>{})]:[]).concat([
-    (FBC?fsGetJson("public/options"):Promise.reject()).then(setOptions).catch(()=>{}),
-    (FBC?fsGetJson("public/news"):Promise.reject()).catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
-    (FBC?fsGetJson("public/tiers"):Promise.reject()).catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_AT=v.at||0;}}).catch(()=>{})
+  }).concat([
+    part("crops").then(v=>{crops=v;}).catch(()=>{}),
+    part("options").then(setOptions).catch(()=>{}),
+    part("news").catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
+    part("tiers").catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_AT=v.at||0;}}).catch(()=>{})
   ]));
   Object.entries(st).forEach(([k,v])=>{if(v)LIVE[k]={headers:v.headers,rows:v.rows};});
   if(crops)CROPS=crops;
@@ -1413,7 +1418,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=18");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=19");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
