@@ -22,6 +22,7 @@ let ROLES = [];          // [{email, at, by}]
 let FEEDBACK = [];       // [{id, ...}]
 let LOG = [];            // [{id, ...}]
 let STATS = null;        // [{day, pv, uv}]
+let GH = null;           // {token, repo, branch} GitHub 連携（secrets/github）
 
 const esc = s => R.esc(s);
 const toast = (m, ms) => R.toast(m, ms);
@@ -111,6 +112,7 @@ function startListeners() {
     renderNav(); softRender();
   });
   on(F.query(F.collection(F.db, "log"), F.orderBy("at", "desc"), F.limit(150)), q => { LOG = q.docs.map(d => Object.assign({ id: d.id }, d.data())); softRender(); });
+  S.unsubs.push(F.onSnapshot(F.doc(F.db, "secrets", "github"), s => { GH = s.exists() && s.data().token ? s.data() : null; softRender(); }, () => { GH = null; }));
   S.heartbeat = setInterval(() => { if (ED.id && document.visibilityState === "visible") setPresence(); }, 120e3);
 }
 function derive(k) {
@@ -295,6 +297,7 @@ function renderEdit(soft) {
     el.closest(".field").classList.toggle("changed", (ED.base[el.dataset.field] || "") !== el.value);
   }));
   const nc = document.getElementById("ednewcol"); if (nc) nc.addEventListener("input", () => { ED.newCol = nc.value; });
+  const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const ik = ED.k === "chars" ? "char" : "script"; quickUpload(ik, ik === "char" ? ED.base["ID"] : ED.base["名前"], f); });
 }
 function tableSeg(attr, cur) { return `<div class="seg">${TABLES.map(k => `<button data-${attr}="${k}" aria-pressed="${cur === k}">${TLABEL[k]}</button>`).join("")}</div>`; }
 function bannerHtml() {
@@ -318,7 +321,11 @@ function editForm() {
   const hd = T[ED.k].headers;
   const r = T[ED.k].rows.get(ED.id);
   const both = ED.conflict ? ED.conflict.both : [];
-  let h = `<div id="edbanner">${bannerHtml()}</div><div class="formhead"><h3 class="fh">${ED.isNew ? "新しい行" : esc(labelOf(ED.k, ED.draft))}</h3>${ED.k === "chars" && !ED.isNew && R.IMG[ED.draft["ID"]] ? `<img class="formth" src="${esc(R.IMG[ED.draft["ID"]])}" alt="">` : ""}</div>`;
+  const ik = ED.k === "chars" ? "char" : ED.k === "scripts" ? "script" : null;
+  const ikey = ik === "char" ? (ED.base["ID"] || "") : ik === "script" ? (ED.base["名前"] || "") : "";
+  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : null;
+  let h = `<div id="edbanner">${bannerHtml()}</div><div class="formhead"><h3 class="fh">${ED.isNew ? "新しい行" : esc(labelOf(ED.k, ED.draft))}</h3>${th && !ED.isNew ? `<img class="formth" src="${esc(th)}" alt="">` : ""}
+  ${ik && !ED.isNew && ikey ? `<span class="imgacts">${R.cropSrc(ik, ikey) ? `<button class="btn small" data-a="edcrop">サムネイル位置を調整</button>` : ""}<label class="btn small filebtn">${th ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label></span>` : ""}</div>`;
   if (r && !ED.isNew) h += `<p class="count" style="margin:-6px 0 10px">最終更新：${esc(shortName(r.by))}（${esc(fmtTime(r.t))}）</p>`;
   h += `<div class="fields">` + hd.map((name, i) => {
     const v = ED.draft[name] == null ? "" : String(ED.draft[name]);
@@ -621,29 +628,31 @@ function matchAll() {
 function renderImg() {
   const tg = targets(IM.k); const has = tg.filter(t => hasImage(IM.k, t.key)); const miss = tg.filter(t => !hasImage(IM.k, t.key));
   let h = userBar() + `<div class="toolbar"><h2><small>IMAGES</small>画像</h2><div class="seg">${Object.keys(IKIND).map(k => `<button data-imk="${k}" aria-pressed="${IM.k === k}">${IKIND[k]}</button>`).join("")}</div>${tg.length > 1 ? `<span class="count">画像あり ${has.length} / ${tg.length}</span>` : ""}</div>`;
+  let tail = "";
   if (IM.k === "char" || IM.k === "script") {
     const src = tg.filter(x => R.cropSrc(IM.k, x.key)); const q = (IM.cq || "").toLowerCase(); const shown = src.filter(x => !q || x.label.toLowerCase().includes(q) || String(x.key).toLowerCase().includes(q));
     const adj = t => R.CROPS["c_" + IM.k + "_" + R.hashId(t.key)];
-    h += `<section class="apanel"><h3 class="ph">サムネイルの位置調整</h3><p class="hint" style="margin-top:0">一覧の正方形サムネイルがずれているものを選んで、切り抜く位置を直せます。保存するとすぐ公開サイトに反映されます。調整済みのものには印が付きます。</p>
+    tail += `<section class="apanel"><h3 class="ph">サムネイルの位置調整</h3><p class="hint" style="margin-top:0">一覧の正方形サムネイルがずれているものを選んで、切り抜く位置を直せます。保存するとすぐ公開サイトに反映されます。調整済みのものには印が付きます。</p>
     <input class="search" id="cropq" placeholder="名前で絞り込み" value="${esc(IM.cq || "")}" style="max-width:320px;margin-bottom:10px">
     <div class="cropgrid">${shown.map(x => { const th = IM.k === "char" ? R.IMG[x.key] : R.SIMG[x.key]; return `<button data-crop="${esc(x.key)}" title="${esc(x.label)}" class="${adj(x) ? "adj" : ""}">${th ? `<img src="${esc(th)}" alt="" loading="lazy">` : `<span class="noimg"></span>`}<span>${esc(x.label)}</span></button>`; }).join("") || '<span class="count">元画像のあるものがありません</span>'}</div></section>`;
   }
-  if (tg.length > 1) h += `<section class="apanel"><h3 class="ph">画像がないもの（${miss.length}）</h3>${miss.length ? `<div class="misslist">${miss.map(t => `<span>${esc(t.label)}</span>`).join("")}</div>` : `<p class="hint" style="margin:0">すべて画像があります。</p>`}</section>`;
-  h += `<section class="apanel"><h3 class="ph">画像を追加する（GitHub 用に変換）</h3>
-  <p class="hint" style="margin-top:0">画像そのものは GitHub のリポジトリに置いています。ここに画像を入れると、${IM.k === "char" ? "ファイル名をキャラID（例：カノン_DEFAULT）やキャラ名と照らし合わせて" : IM.k === "script" ? "ファイル名とスクリプト名の表記ゆれ（全角半角・記号・カタカナひらがな・末尾の番号など）を吸収して" : IM.k === "icon" ? "属性・ロール・階級・騎士団名（英語のファイル名にも対応）と照らし合わせて" : ""}割り当て、サイズを整えた画像と新しい data/images.json を ZIP にまとめます。ZIP を展開して GitHub に上書きアップロード（または Claude Code に渡して push）すると公開されます。</p>
+  if (tg.length > 1) tail += `<section class="apanel"><h3 class="ph">画像がないもの（${miss.length}）</h3>${miss.length ? `<div class="misslist">${miss.map(t => `<span>${esc(t.label)}</span>`).join("")}</div>` : `<p class="hint" style="margin:0">すべて画像があります。</p>`}</section>`;
+  h += ghPanel() + `<section class="apanel"><h3 class="ph">画像をアップロード</h3>
+  <p class="hint" style="margin-top:0">ここに画像を入れると、${IM.k === "char" ? "ファイル名をキャラID（例：カノン_DEFAULT）やキャラ名と照らし合わせて" : IM.k === "script" ? "ファイル名とスクリプト名の表記ゆれ（全角半角・記号・カタカナひらがな・末尾の番号など）を吸収して" : IM.k === "icon" ? "属性・ロール・階級・騎士団名（英語のファイル名にも対応）と照らし合わせて" : ""}割り当てます。割り当てを確認して${GH ? "「アップロード」を押すと、サイズを整えて GitHub に保存されます（サムネイルは自動で切り抜くので、ずれていたら上の「位置調整」で直してください）。" : "「ZIP にまとめる」で書き出し、GitHub に上書きアップロードしてください。"}</p>
   <label class="drop" id="drop"><input type="file" id="imfiles" accept="image/*" ${IM.k === "hero" ? "" : "multiple"}><span>画像ファイルを選ぶか、ここにドラッグ</span></label>`;
   if (IM.files.length) {
     const cnt = {}; IM.files.forEach(f => { if (f.key) cnt[f.key] = (cnt[f.key] || 0) + 1; });
-    const on = IM.files.filter(f => f.on && f.key).length;
+    const on = IM.files.filter(f => f.on && f.key && f.status !== "done").length;
     h += `<div class="mtbl"><div class="mrow mh"><span></span><span>ファイル</span><span>割り当て先</span><span>判定</span></div>${IM.files.map((f, i) => {
-      const st = !f.key ? `<span class="mb bad">未割り当て</span>` : f.manual ? `<span class="mb ok">手動</span>` : f.score >= 0.97 ? `<span class="mb ok">一致</span>` : f.score >= 0.6 ? `<span class="mb mid">近い ${Math.round(f.score * 100)}%</span>` : `<span class="mb bad">要確認 ${Math.round(f.score * 100)}%</span>`;
+      const st = f.status === "done" ? `<span class="mb ok">アップロード済み</span>` : !f.key ? `<span class="mb bad">未割り当て</span>` : f.manual ? `<span class="mb ok">手動</span>` : f.score >= 0.97 ? `<span class="mb ok">一致</span>` : f.score >= 0.6 ? `<span class="mb mid">近い ${Math.round(f.score * 100)}%</span>` : `<span class="mb bad">要確認 ${Math.round(f.score * 100)}%</span>`;
       const warn = f.key && cnt[f.key] > 1 ? `<small class="err">同じ割り当て先が複数あります</small>` : f.key && hasImage(IM.k, f.key) ? `<small class="count">今の画像を置き換えます</small>` : "";
       return `<div class="mrow"><label class="ck"><input type="checkbox" data-imon="${i}" ${f.on ? "checked" : ""} ${!f.key ? "disabled" : ""}><img src="${f.url}" alt=""></label><span class="fname">${esc(f.name)}</span>
       <span><select data-imkey="${i}"><option value="">（割り当てない）</option><optgroup label="候補">${f.cands.map(c => `<option value="${esc(c.key)}" ${c.key === f.key ? "selected" : ""}>${esc(c.label)}（${Math.round(c.s * 100)}%）</option>`).join("")}</optgroup><optgroup label="すべて">${tg.map(t => `<option value="${esc(t.key)}" ${!f.cands.some(c => c.key === f.key) && t.key === f.key ? "selected" : ""}>${esc(t.label)}${hasImage(IM.k, t.key) ? "" : "　※画像なし"}</option>`).join("")}</optgroup></select>${warn}</span><span>${st}</span></div>`;
     }).join("")}</div>
-    <div class="row2"><button class="btn primary" data-im="zip" ${on && !IM.busy ? "" : "disabled"}>チェックした ${on} 件を ZIP にまとめる</button><button class="btn" data-im="clear">一覧をクリア</button><span class="count">「近い」「要確認」は割り当て先を確認してからチェックを入れてください。</span></div>`;
+    <div class="row2">${GH ? `<button class="btn primary" data-im="upload" ${on && !IM.busy ? "" : "disabled"}>チェックした ${on} 件をアップロード</button>` : ""}<button class="btn ${GH ? "" : "primary"}" data-im="zip" ${on && !IM.busy ? "" : "disabled"}>チェックした ${on} 件を ZIP にまとめる</button><button class="btn" data-im="clear">一覧をクリア</button><span class="count">「近い」「要確認」は割り当て先を確認してからチェックを入れてください。</span></div>`;
   }
   h += `</section>`;
+  h += tail;
   AM.innerHTML = h;
   const inp = document.getElementById("imfiles"); inp.addEventListener("change", () => addFiles(inp.files));
   const cq = document.getElementById("cropq"); if (cq) cq.addEventListener("input", () => { IM.cq = cq.value; const p = cq.selectionStart; renderImg(); const n = document.getElementById("cropq"); n.focus(); n.setSelectionRange(p, p); });
@@ -660,36 +669,144 @@ function addFiles(list) {
 }
 function loadImg(file) { return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(file); }); }
 const safeName = s => String(s).replace(/[\\/:*?"<>|#%\s]/g, "_");
+// 画像を Web 用に変換 → [{path, blob}] と images.json への書き込み内容を返す
+async function processImage(kind, key, file) {
+  const im = await loadImg(file); const W = im.naturalWidth, H = im.naturalHeight; const fit = mw => { const s = Math.min(1, mw / W); return [W * s, H * s]; };
+  const nm = safeName(key); const files = []; const set = {}; const local = {};
+  if (kind === "icon") { const s = Math.min(1, 96 / Math.max(W, H)); const p = `images/icons/${nm}.png`; const b = await R.canvasBlob(im, 0, 0, W, H, W * s, H * s, "image/png"); files.push({ path: p, blob: b }); set.icons = p; local.icons = b; }
+  else if (kind === "hero") { const [dw, dh] = fit(1800); const b = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82); files.push({ path: "images/hero.webp", blob: b }); set.hero = "images/hero.webp"; local.hero = b; }
+  else {
+    const dir = kind === "char" ? "images/chars" : "images/scripts"; const [dw, dh] = fit(kind === "char" ? 1200 : 720);
+    const full = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82);
+    let side, sx, sy;
+    if (W > H * 1.2) { side = H * 0.46; sx = W / 2 - side / 2; sy = H * 0.08; } else { side = Math.min(W, H) * 0.9; sx = (W - side) / 2; sy = Math.min(H - side, H * 0.04); }
+    const thumb = await R.canvasBlob(im, sx, sy, side, side, 176, 176, "image/webp", .85);
+    files.push({ path: `${dir}/${nm}.webp`, blob: full }, { path: `${dir}/thumb/${nm}.webp`, blob: thumb });
+    if (kind === "char") { set.banners = `${dir}/${nm}.webp`; set.thumbs = `${dir}/thumb/${nm}.webp`; local.banners = full; local.thumbs = thumb; }
+    else { set.sfull = `${dir}/${nm}.webp`; set.sthumbs = `${dir}/thumb/${nm}.webp`; local.sfull = full; local.sthumbs = thumb; }
+  }
+  return { kind, key, name: file.name, files, set, local };
+}
+// すでに images.json に登録がある画像は、同じファイル名に上書きする（古いファイルを残さない）
+function reusePaths(json, items) {
+  items.forEach(it => Object.entries(it.set).forEach(([sec, p]) => {
+    const old = sec === "hero" ? json.hero : (json[sec] || {})[it.key];
+    if (!old || old === p || old.split(".").pop() !== p.split(".").pop() || !/^images\//.test(old)) return;
+    it.files.forEach(f => { if (f.path === p) f.path = old; }); it.set[sec] = old;
+  }));
+}
+function applyImagesJson(json, items) {
+  items.forEach(it => Object.entries(it.set).forEach(([sec, p]) => { if (sec === "hero") json.hero = p; else { json[sec] = json[sec] || {}; json[sec][it.key] = p; } }));
+  return json;
+}
+// アップロード直後は GitHub Pages の反映（1分ほど）を待たずに、手元の画像で表示する
+function showLocal(items) {
+  const MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL" };
+  items.forEach(it => Object.entries(it.local).forEach(([sec, b]) => { const u = URL.createObjectURL(b); if (sec === "hero") R.BASE.HERO = u; else R.BASE[MAP[sec]][it.key] = u; }));
+  R.applyMedia(); R.rebuild();
+}
+/* ---- GitHub への直接アップロード（オーナーが secrets/github にトークンを登録） ---- */
+async function gh(path, opt) {
+  opt = opt || {};
+  const r = await fetch("https://api.github.com/repos/" + GH.repo + path, Object.assign({}, opt, { headers: Object.assign({ Authorization: "Bearer " + GH.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, opt.body ? { "Content-Type": "application/json" } : {}) }));
+  if (!r.ok) { const e = new Error("GitHub " + r.status); e.status = r.status; try { e.detail = (await r.json()).message; } catch (_) { } throw e; }
+  return r.status === 204 ? null : r.json();
+}
+async function b64(blob) { const u = new Uint8Array(await blob.arrayBuffer()); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+const unb64 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), c => c.charCodeAt(0)));
+function ghErr(e) {
+  if (e && e.status === 401) return "GitHub のトークンが無効か期限切れです。オーナーが「画像」タブで登録し直してください";
+  if (e && (e.status === 403 || e.status === 404)) return "GitHub に書き込む権限がありません（トークンの対象リポジトリと Contents の Read and write を確認してください）";
+  return "GitHub へのアップロードに失敗しました：" + (e && (e.detail || e.message) || "");
+}
+async function ghCommit(items, progress) {
+  const br = GH.branch || "main";
+  let n = 0; const total = items.reduce((a, it) => a + it.files.length, 0);
+  for (const it of items) for (const f of it.files) {
+    const b = await gh("/git/blobs", { method: "POST", body: JSON.stringify({ content: await b64(f.blob), encoding: "base64" }) });
+    f.sha = b.sha; progress && progress(++n, total);
+  }
+  const msg = `画像を${items.length === 1 ? "更新" : items.length + "件追加・更新"}：${items.slice(0, 5).map(i => i.key).join("、")}${items.length > 5 ? " ほか" : ""}\n\n管理画面から ${meName()}（${me()}）`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
+    const commit = await gh(`/git/commits/${base}`);
+    let json = {}; try { json = JSON.parse(unb64((await gh(`/contents/data/images.json?ref=${base}`)).content)); } catch (e) { if (e.status !== 404) throw e; }
+    reusePaths(json, items); applyImagesJson(json, items);
+    const tree = []; items.forEach(it => it.files.forEach(f => tree.push({ path: f.path, mode: "100644", type: "blob", sha: f.sha })));
+    const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree: tree.concat([{ path: "data/images.json", mode: "100644", type: "blob", content: JSON.stringify(json, null, 1) + "\n" }]) }) });
+    const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: msg, tree: t.sha, parents: [base] }) });
+    try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return c; }
+    catch (e) { if (e.status === 422 && attempt < 2) continue; throw e; }
+  }
+}
+async function uploadItems(items, btn, label) {
+  const old = btn ? btn.textContent : "";
+  const prog = (a, b) => { if (btn) btn.textContent = `${label || "アップロード中"}… ${a}/${b}`; };
+  const c = await ghCommit(items, prog);
+  await F.setDoc(F.doc(F.db, "log", rid()), logDoc({ act: "image", k: items[0].kind === "char" ? "chars" : items[0].kind === "script" ? "scripts" : "", label: `画像：${items.map(i => i.key).join("、").slice(0, 300)}`, commit: c && c.sha }));
+  showLocal(items);
+  if (btn) btn.textContent = old;
+  return c;
+}
+async function quickUpload(kind, key, file) {
+  if (!GH) { toast(S.role === "owner" ? "先に「画像」タブで GitHub 連携を設定してください" : "GitHub 連携がまだ設定されていません。オーナーに設定してもらってください", 5000); return; }
+  toast("画像を変換してアップロードしています…", 20000);
+  try { const it = await processImage(kind, key, file); await uploadItems([it]); toast("画像をアップロードしました。公開サイトには1〜2分で反映されます", 5000); renderEdit(false); }
+  catch (e) { toast(e && e.status ? ghErr(e) : "画像を処理できませんでした", 6000); }
+}
 async function buildImageZip(btn) {
   const todo = IM.files.filter(f => f.on && f.key);
   IM.busy = true; btn.disabled = true; btn.textContent = "変換中…";
   try {
     const Z = await loadJSZip(); const z = new Z();
-    const im0 = await staticJson("data/images.json").catch(() => ({}));
-    const out = Object.assign({ thumbs: {}, banners: {}, icons: {}, sthumbs: {}, sfull: {}, hero: "" }, im0);
-    let n = 0;
-    for (const f of todo) {
-      const im = await loadImg(f.file); const W = im.naturalWidth, H = im.naturalHeight; const fit = mw => { const s = Math.min(1, mw / W); return [W * s, H * s]; };
-      const nm = safeName(f.key);
-      if (IM.k === "icon") { const s = Math.min(1, 96 / Math.max(W, H)); const p = `images/icons/${nm}.png`; z.file(p, await R.canvasBlob(im, 0, 0, W, H, W * s, H * s, "image/png")); out.icons[f.key] = p; }
-      else if (IM.k === "hero") { const [dw, dh] = fit(1800); z.file("images/hero.webp", await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82)); out.hero = "images/hero.webp"; }
-      else {
-        const dir = IM.k === "char" ? "images/chars" : "images/scripts"; const [dw, dh] = fit(IM.k === "char" ? 1200 : 720);
-        z.file(`${dir}/${nm}.webp`, await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82));
-        let side, sx, sy;
-        if (W > H * 1.2) { side = H * 0.46; sx = W / 2 - side / 2; sy = H * 0.08; } else { side = Math.min(W, H) * 0.9; sx = (W - side) / 2; sy = Math.min(H - side, H * 0.04); }
-        z.file(`${dir}/thumb/${nm}.webp`, await R.canvasBlob(im, sx, sy, side, side, 176, 176, "image/webp", .85));
-        if (IM.k === "char") { out.banners[f.key] = `${dir}/${nm}.webp`; out.thumbs[f.key] = `${dir}/thumb/${nm}.webp`; }
-        else { out.sfull[f.key] = `${dir}/${nm}.webp`; out.sthumbs[f.key] = `${dir}/thumb/${nm}.webp`; }
-      }
-      n++; btn.textContent = `変換中… ${n}/${todo.length}`;
-    }
-    z.file("data/images.json", JSON.stringify(out, null, 1));
+    const json = await staticJson("data/images.json").catch(() => ({}));
+    const items = [];
+    for (const f of todo) { items.push(await processImage(IM.k, f.key, f.file)); btn.textContent = `変換中… ${items.length}/${todo.length}`; }
+    reusePaths(json, items); items.forEach(it => it.files.forEach(x => z.file(x.path, x.blob)));
+    z.file("data/images.json", JSON.stringify(applyImagesJson(json, items), null, 1));
     z.file("README.txt", `RxRDB 画像追加 ${R.jstDay()}\n\nこの ZIP の中身（images/ と data/images.json）を、リポジトリ negiramen1922/RxRDB のルートに上書きしてください。\nGitHub の画面なら「Add file → Upload files」にフォルダごとドラッグして Commit すると公開されます。\n\n${todo.map(f => `${f.name} → ${f.key}`).join("\n")}\n`);
     download(`rxrdb-images-${R.jstDay()}.zip`, await z.generateAsync({ type: "blob" }));
-    toast(`${n}件の画像を ZIP にまとめました`, 4000);
+    toast(`${items.length}件の画像を ZIP にまとめました`, 4000);
   } catch (e) { toast("ZIP を作れませんでした：" + (e && e.message || ""), 5000); }
   IM.busy = false; renderImg();
+}
+async function uploadChecked(btn) {
+  const todo = IM.files.filter(f => f.on && f.key && f.status !== "done");
+  if (!todo.length || !GH) return;
+  IM.busy = true; btn.disabled = true;
+  try {
+    const items = [];
+    for (const f of todo) { btn.textContent = `変換中… ${items.length + 1}/${todo.length}`; items.push(await processImage(IM.k, f.key, f.file)); }
+    await uploadItems(items, btn);
+    todo.forEach(f => { f.status = "done"; f.on = false; });
+    toast(`${items.length}件の画像をアップロードしました。公開サイトには1〜2分で反映されます`, 6000);
+  } catch (e) { toast(e && e.status ? ghErr(e) : "画像を処理できませんでした：" + (e && e.message || ""), 7000); }
+  IM.busy = false; renderImg();
+}
+async function saveGhToken() {
+  const token = (document.getElementById("ghtoken").value || "").trim();
+  const repo = (document.getElementById("ghrepo").value || "").trim() || "negiramen1922/RxRDB";
+  if (!token) return toast("トークンを貼り付けてください");
+  const prev = GH; GH = { token, repo, branch: "main" };
+  try { await gh(""); await gh("/git/ref/heads/main"); }
+  catch (e) { GH = prev; toast(e.status === 401 ? "トークンが正しくないようです" : e.status === 404 ? "リポジトリが見つかりません（トークンの対象リポジトリを確認してください）" : ghErr(e), 6000); return; }
+  try { await F.setDoc(F.doc(F.db, "secrets", "github"), { token, repo, branch: "main", at: now(), by: me() }); toast("GitHub 連携を保存しました"); }
+  catch (e) { GH = prev; toast(fbErr(e) + "（Firestore のルールを最新にしてください）", 7000); }
+}
+async function delGhToken() { try { await F.deleteDoc(F.doc(F.db, "secrets", "github")); toast("GitHub 連携を解除しました"); } catch (e) { toast(fbErr(e)); } }
+function ghPanel() {
+  if (GH) return `<div class="astatus ok">GitHub 連携：<b>${esc(GH.repo)}</b> に直接アップロードできます。アップロードした画像は公開サイトに1〜2分で反映されます。${S.role === "owner" ? ` <button class="btn small" data-a="ghedit">トークンを変更</button>${IM.ghconfirm ? `<span class="danger-q">解除しますか？</span><button class="btn small danger" data-a="ghdelyes">解除</button><button class="btn small" data-a="ghdelno">やめる</button>` : `<button class="btn small" data-a="ghdel">連携を解除</button>`}` : ""}</div>${S.role === "owner" && IM.ghedit ? ghForm() : ""}`;
+  if (S.role !== "owner") return `<div class="astatus warn">オーナーが GitHub 連携を設定すると、ここから画像を直接アップロードできます。今は「ZIP にまとめる」で書き出して GitHub に上げてください。</div>`;
+  return `<section class="apanel seed"><h3 class="ph">GitHub 連携（画像の直接アップロード）</h3>${ghForm()}</section>`;
+}
+function ghForm() {
+  return `<ol class="steps"><li>GitHub 右上のアイコン → <b>Settings</b> → 左下 <b>Developer settings</b> → <b>Personal access tokens</b> → <b>Fine-grained tokens</b> → <b>Generate new token</b></li>
+  <li>Token name は「RxRDB 画像」など、Expiration は1年（期限が来たらここで登録し直し）</li>
+  <li><b>Repository access</b> → <b>Only select repositories</b> → <b>RxRDB</b> を選ぶ</li>
+  <li><b>Permissions</b> → Repository permissions → <b>Contents</b> を <b>Read and write</b> にして作成</li>
+  <li>表示されたトークン（github_pat_…）を下に貼って保存</li></ol>
+  <p class="hint">トークンは Firestore に保存され、メンバー全員がアップロードに使えます（メンバー以外は読めません）。RxRDB 以外のリポジトリには使えないよう、必ず「Only select repositories」で作ってください。</p>
+  <div class="addcol"><input id="ghtoken" type="password" placeholder="github_pat_…" autocomplete="off"><input id="ghrepo" value="${esc(GH ? GH.repo : "negiramen1922/RxRDB")}" style="max-width:220px"><button class="btn primary small" data-a="ghsave">確認して保存</button></div>`;
 }
 
 /* thumbnail crop editor (saved to public/crops, applied on the public site) */
@@ -737,7 +854,7 @@ function openCrop(kind, key) {
 
 /* ================= change log ================= */
 const LG = { k: "", open: null };
-const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー" };
+const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", image: "画像" };
 function renderLog() {
   const list = LOG.filter(l => !LG.k || l.k === LG.k);
   let h = userBar() + `<div class="toolbar"><h2><small>HISTORY</small>変更履歴</h2><div class="seg"><button data-lgk="" aria-pressed="${!LG.k}">すべて</button>${TABLES.map(k => `<button data-lgk="${k}" aria-pressed="${LG.k === k}">${TLABEL[k]}</button>`).join("")}</div><span class="count">新しい順に最大150件</span></div>`;
@@ -879,6 +996,12 @@ AM.addEventListener("click", e => {
   if (ds.a === "goio") { S.tab = "io"; renderAll(); return; }
   if (ds.a === "statsreload") { loadStats(true); return; }
   if (ds.a === "mbadd") { addMember(); return; }
+  if (ds.a === "ghsave") { saveGhToken().then(() => { IM.ghedit = false; renderImg(); }); return; }
+  if (ds.a === "ghedit") { IM.ghedit = !IM.ghedit; renderImg(); return; }
+  if (ds.a === "ghdel") { IM.ghconfirm = true; renderImg(); return; }
+  if (ds.a === "ghdelno") { IM.ghconfirm = false; renderImg(); return; }
+  if (ds.a === "ghdelyes") { IM.ghconfirm = false; delGhToken(); return; }
+  if (ds.a === "edcrop") { const ik = ED.k === "chars" ? "char" : "script"; openCrop(ik, ik === "char" ? ED.base["ID"] : ED.base["名前"]); return; }
   if (ds.edk) { if (ED.dirty && !ED.leaveOk) { ED.leaveOk = true; toast("保存していない変更があります。もう一度押すと破棄して切り替えます", 3500); return; } ED.leaveOk = false; ED.k = ds.edk; resetEd(); ED.q = ""; clearPresence(); renderEdit(false); return; }
   if (ds.edrow !== undefined) {
     if (ED.dirty && !ED.leaveOk && ds.edrow !== ED.id) { ED.leaveOk = true; toast("保存していない変更があります。もう一度押すと破棄して切り替えます", 3500); return; }
@@ -892,6 +1015,7 @@ AM.addEventListener("click", e => {
   if (ds.imk) { IM.k = ds.imk; IM.files.forEach(f => URL.revokeObjectURL(f.url)); IM.files = []; renderImg(); return; }
   if (ds.im === "clear") { IM.files.forEach(f => URL.revokeObjectURL(f.url)); IM.files = []; renderImg(); return; }
   if (ds.im === "zip") { buildImageZip(t); return; }
+  if (ds.im === "upload") { uploadChecked(t); return; }
   if (ds.crop !== undefined) { openCrop(IM.k, ds.crop); return; }
   if (ds.lgk !== undefined) { LG.k = ds.lgk; renderLog(); return; }
   if (ds.lgopen) { LG.open = LG.open === ds.lgopen ? null : ds.lgopen; renderLog(); return; }
@@ -960,6 +1084,11 @@ function injectStyle() {
 .mbrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 4px;border-bottom:1px solid var(--line);font-size:14px}
 #admin .seg{flex-wrap:wrap}#admin .seg button{white-space:nowrap}
 .apanel.seed{border-left:4px solid #f0a020}
+.imgacts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.filebtn{cursor:pointer}
+.addcol .btn{white-space:nowrap;flex:none}
+.steps{margin:4px 0 8px;padding-left:1.4em;font-size:13.5px;line-height:1.8}
+.formhead{flex-wrap:wrap}
 @media (max-width:700px){.loghead{grid-template-columns:6.5em 1fr;}.loghead .lk,.loghead .lb{display:none}}
 `;
   document.head.appendChild(s);

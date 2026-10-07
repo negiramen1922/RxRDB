@@ -1030,7 +1030,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=3");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1067,7 +1067,7 @@ window.RXR={
   get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
   get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
   IMG,BANNER,SIMG,SFULL,ICON,BASE,ATTRS,ROLES,RANKS,ORDERS,
-  get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},cropSrc,canvasBlob,
+  get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,
   rebuild(){buildModels();},renderUser(){render();},
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;},
   jstDay,get SITE_LOADED(){return SITE_LOADED;},

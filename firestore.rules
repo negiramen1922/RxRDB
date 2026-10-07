@@ -5,7 +5,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
     function email() { return request.auth.token.email; }
-    function isOwner() { return signedIn() && email() == "bedrock1922@gmail.com"; }
+    function isOwner() { return signedIn() && email() == "negiramen23@gmail.com"; }
     function isEditor() {
       return isOwner() || (signedIn() && exists(/databases/$(database)/documents/roles/$(email())));
     }
@@ -35,6 +35,12 @@ service cloud.firestore {
       allow read: if isEditor();
       allow create: if isEditor() && request.resource.data.by == email();
       allow delete: if isOwner();
+    }
+
+    // GitHub 連携のトークン（画像アップロード用）: メンバーだけが読める / オーナーだけが登録できる
+    match /secrets/{d} {
+      allow read: if isEditor();
+      allow write: if isOwner();
     }
 
     // 「いま編集中」の表示

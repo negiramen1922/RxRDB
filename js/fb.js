@@ -12,7 +12,7 @@ export const firebaseConfig = {
   appId: "1:259834284152:web:78a601e30e6da654b4058d"
 };
 // オーナー（メンバーの追加・削除ができる人）。firestore.rules と同じにすること
-export const OWNER = "bedrock1922@gmail.com";
+export const OWNER = "negiramen23@gmail.com";
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
