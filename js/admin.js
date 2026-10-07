@@ -82,7 +82,8 @@ const toast = (m, ms) => R.toast(m, ms);
 const now = () => Date.now();
 const rid = () => now().toString(36) + Math.random().toString(36).slice(2, 10);
 const me = () => S.user ? (S.user.email || "").toLowerCase() : "";
-const meName = () => S.user ? (S.user.displayName || "メンバー") : "";
+// 表示名: Google のアカウント名は使わない。本人が決めた名前 → オーナーが招待時に付けた名前 → 「メンバー」/「オーナー」
+const meName = () => S.user ? (S.dname || (S.role === "owner" ? "オーナー" : "メンバー")) : "";
 const meId = () => S.user ? S.user.uid : "";
 let NAMES = {};          // uid -> {name}（メンバーの表示名。メールアドレスは持たない）
 // 表示名：uid → 名前。古いデータのメールアドレスはオーナーにだけ見せる
@@ -149,6 +150,24 @@ function headerButton(admin) {
   const nb = document.querySelector(".top .acts [data-news]"); if (nb) nb.hidden = admin;
   const bar = document.getElementById("newsbar"); if (bar && admin) bar.hidden = true;
 }
+/* ---- 表示名（本人が決める。ほかのメンバーにはこの名前だけが見える） ---- */
+async function initName() {
+  const ref = F.doc(F.db, "names", meId());
+  const cur = await F.getDoc(ref).catch(() => null);
+  const d = cur && cur.exists() ? cur.data() : null;
+  const custom = !!(d && d.custom && d.name);
+  S.dname = custom ? d.name : (S.roleName || "");
+  S.nameSet = custom;
+  await F.setDoc(ref, { name: meName(), custom, role: S.role, at: now() });
+  softRender();
+}
+async function saveName() {
+  const el = document.getElementById("myname"); const v = (el ? el.value : "").trim().slice(0, 30);
+  if (!v) return toast("表示名を入力してください");
+  if (v.includes("@")) return toast("メールアドレスは表示名にできません");
+  try { await F.setDoc(F.doc(F.db, "names", meId()), { name: v, custom: true, role: S.role, at: now() }); S.dname = v; S.nameSet = true; S.nameEdit = false; toast("表示名を保存しました"); renderAll(); }
+  catch (e) { toast(fbErr(e)); }
+}
 async function resolveRole(u) {
   const e = (u.email || "").toLowerCase();
   if (!u.emailVerified) return null;
@@ -158,7 +177,7 @@ async function resolveRole(u) {
     try { await F.getDoc(F.doc(F.db, "tables", "chars")); return "owner"; }
     catch (err) { S.deny = err && err.code === "permission-denied" ? "rules" : "net"; S.denyMsg = err && (err.message || err.code); return null; }
   }
-  try { const s = await F.getDoc(F.doc(F.db, "roles", e)); return s.exists() ? "editor" : null; }
+  try { const s = await F.getDoc(F.doc(F.db, "roles", e)); S.roleName = s.exists() ? (s.data().name || "") : ""; return s.exists() ? "editor" : null; }
   catch (err) { if (err && err.code !== "permission-denied") { S.deny = "net"; S.denyMsg = err.message || err.code; } return null; }
 }
 
@@ -192,7 +211,7 @@ function startListeners() {
   if (S.role === "owner") on(F.collection(F.db, "roles"), q => { ROLES = q.docs.map(d => Object.assign({ email: d.id }, d.data())); softRender(); });
   else ROLES = [];
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
-  F.setDoc(F.doc(F.db, "names", meId()), { name: meName(), role: S.role, at: now() }).then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
+  initName().then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
   on(F.query(F.collection(F.db, "feedback"), F.orderBy("at", "desc"), F.limit(300)), q => {
     FEEDBACK = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: x.at && x.at.toMillis ? x.at.toMillis() : (x.at || 0) }); });
@@ -295,9 +314,9 @@ NAV.addEventListener("click", e => {
 });
 function renderAll() { renderNav(); renderAdmin(false); }
 let softT = null;
-function softRender() { if (!S.open) return; clearTimeout(softT); softT = setTimeout(() => renderAdmin(true), 80); }
+function softRender() { if (!S.open) return; if (document.activeElement && document.activeElement.id === "myname") return; clearTimeout(softT); softT = setTimeout(() => renderAdmin(true), 80); }
 function userBar() {
-  return rulesWarn() + `<div class="whoami">${S.user.photoURL ? `<img src="${esc(S.user.photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}<span><b>${esc(meName())}</b> <small>${esc(me())}</small></span><span class="rolebadge">${S.role === "owner" ? "オーナー" : "編集者"}</span><button class="btn small" data-a="logout">ログアウト</button></div>`;
+  return rulesWarn() + `<div class="whoami">${S.user.photoURL ? `<img src="${esc(S.user.photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}<span><b>${esc(meName())}</b> <small>${esc(me())}</small></span><span class="rolebadge">${S.role === "owner" ? "オーナー" : "編集者"}</span><button class="btn small" data-a="nameedit">表示名を変更</button><button class="btn small" data-a="logout">ログアウト</button></div>${S.nameEdit || (S.role && S.nameSet === false) ? `<div class="astatus ${S.nameSet ? "" : "warn"}">${S.nameSet ? "" : "<b>表示名を決めてください。</b>変更履歴やメンバー一覧には、Google のアカウント名ではなくこの名前が表示されます。"}<div class="addcol" style="margin-top:6px"><input id="myname" maxlength="30" placeholder="表示名（例：ねぎ）" value="${esc(S.dname || "")}"><button class="btn primary small" data-a="namesave">保存</button>${S.nameSet ? `<button class="btn small" data-a="nameedit">やめる</button>` : ""}</div></div>` : ""}`;
 }
 function rulesWarn() { return S.rulesOld ? `<div class="astatus warn conflict"><b>Firestore のルールが古いままのため、保存ができません。</b>Firebase コンソール → Firestore Database → ルール に、<a href="https://github.com/negiramen1922/RxRDB/blob/main/firestore.rules" target="_blank" rel="noopener">最新の firestore.rules</a> を丸ごと貼り付けて「公開」し、このページを再読み込みしてください。</div>` : ""; }
 function statusBar() {
@@ -1347,7 +1366,7 @@ function renderLog() {
     const chs = l.ch ? Object.keys(l.ch) : [];
     const canRevert = !!l.rowid && ((l.act === "update" && chs.length) || l.act === "delete" || l.act === "create");
     const open = LG.open === l.id;
-    return `<div class="logrow${open ? " open" : ""}"><button class="loghead" data-lgopen="${esc(l.id)}"><span class="lt">${esc(fmtTime(l.at))}</span><span class="la a-${esc(l.act)}">${esc(ACT[l.act] || l.act)}</span><span class="lk">${esc(TLABEL[l.k] || "")}</span><span class="ll">${esc(l.label || "")}${chs.length ? `<small class="count"> ${esc(chs.slice(0, 4).join("・"))}${chs.length > 4 ? " ほか" : ""}</small>` : ""}</span><span class="lb">${esc(l.name || shortName(l.by))}</span></button>
+    return `<div class="logrow${open ? " open" : ""}"><button class="loghead" data-lgopen="${esc(l.id)}"><span class="lt">${esc(fmtTime(l.at))}</span><span class="la a-${esc(l.act)}">${esc(ACT[l.act] || l.act)}</span><span class="lk">${esc(TLABEL[l.k] || "")}</span><span class="ll">${esc(l.label || "")}${chs.length ? `<small class="count"> ${esc(chs.slice(0, 4).join("・"))}${chs.length > 4 ? " ほか" : ""}</small>` : ""}</span><span class="lb">${esc((NAMES[l.by] && NAMES[l.by].name) || (l.by ? shortName(l.by) : l.name) || "メンバー")}</span></button>
     ${open ? `<div class="logbody">${chs.length ? `<table class="chtbl"><tr><th>項目</th><th>変更前</th><th>変更後</th></tr>${chs.map(c => `<tr><th>${esc(c)}</th><td>${esc(l.ch[c][0])}</td><td>${esc(l.ch[c][1])}</td></tr>`).join("")}</table>` : ""}${l.row && !chs.length ? `<p class="count">${esc(Object.entries(l.row).filter(([, v]) => v).slice(0, 8).map(([k, v]) => `${k}：${String(v).slice(0, 40)}`).join(" ／ "))}</p>` : ""}
     ${canRevert ? `<div class="row2"><button class="btn small" data-lgrevert="${esc(l.id)}">${l.act === "delete" ? "この行を復元する" : l.act === "create" ? "この追加を取り消す（行を削除）" : "この変更を元に戻す"}</button></div>` : ""}</div>` : ""}</div>`;
   }).join("") || '<p class="count">まだ履歴がありません</p>'}</div>`;
@@ -1567,9 +1586,9 @@ function renderStats(soft) {
 }
 
 /* ================= members ================= */
-const MB = { email: "", confirm: null };
+const MB = { email: "", confirm: null, nameEdit: null };
 function renderMembers(soft) {
-  if (soft && document.activeElement && document.activeElement.id === "mbemail") return;
+  if (soft && document.activeElement && (document.activeElement.id === "mbemail" || document.activeElement.id === "mbrename")) return;
   const owner = S.role === "owner";
   const pres = Object.entries(EDITING).filter(([, e]) => now() - (e.at || 0) < STALE).map(([uid]) => uid);
   const named = Object.entries(NAMES).sort((a, b) => (a[1].role === "owner" ? -1 : 0) - (b[1].role === "owner" ? -1 : 0) || (a[1].at || 0) - (b[1].at || 0));
@@ -1577,7 +1596,7 @@ function renderMembers(soft) {
   if (owner) {
     const list = ROLES.slice().sort((a, b) => (a.at || 0) - (b.at || 0));
     h += `<section class="apanel"><h3 class="ph">招待しているメールアドレス（${list.length + 1}）</h3><p class="hint" style="margin:0 0 8px">メールアドレスはオーナーにしか表示されません。</p><div class="mblist"><div class="mbrow"><b>${esc(F.OWNER)}</b><span class="rolebadge">オーナー</span><span style="flex:1"></span></div>
-    ${list.map(m => `<div class="mbrow"><b>${esc(m.email)}</b>${m.name ? `<span class="count">${esc(m.name)}</span>` : ""}<span class="rolebadge ed">編集者</span><span style="flex:1"></span><span class="count">${m.at ? esc(fmtTime(m.at)) + " 追加" : ""}</span>${MB.confirm === m.email ? `<span class="danger-q">外しますか？</span><button class="btn small danger" data-mbdelyes="${esc(m.email)}">外す</button><button class="btn small" data-mbdelno="1">やめる</button>` : `<button class="btn small" data-mbdel="${esc(m.email)}">外す</button>`}</div>`).join("")}</div>
+    ${list.map(m => `<div class="mbrow"><b>${esc(m.email)}</b>${MB.nameEdit === m.email ? `<input id="mbrename" maxlength="30" value="${esc(m.name || "")}" placeholder="表示名" style="max-width:160px"><button class="btn small primary" data-mbnamesave="${esc(m.email)}">保存</button>` : `<span class="count">${m.name ? esc(m.name) : "表示名なし"}</span><button class="btn small" data-mbname="${esc(m.email)}">表示名</button>`}<span class="rolebadge ed">編集者</span><span style="flex:1"></span><span class="count">${m.at ? esc(fmtTime(m.at)) + " 追加" : ""}</span>${MB.confirm === m.email ? `<span class="danger-q">外しますか？</span><button class="btn small danger" data-mbdelyes="${esc(m.email)}">外す</button><button class="btn small" data-mbdelno="1">やめる</button>` : `<button class="btn small" data-mbdel="${esc(m.email)}">外す</button>`}</div>`).join("")}</div>
     <div class="addcol" style="margin-top:14px"><input id="mbemail" type="email" placeholder="招待する人の Gmail アドレス" value="${esc(MB.email)}"><input id="mbname" placeholder="表示名（任意）" style="max-width:180px"><button class="btn primary small" data-a="mbadd">メンバーに追加</button></div>
     <p class="hint">招待された人は、そのメールアドレスの Google アカウントで <b>${esc(location.origin + location.pathname)}#admin</b> を開いて「Google でログイン」すると編集できます。</p></section>`;
   }
@@ -1624,6 +1643,12 @@ async function addMember() {
     await b.commit(); MB.email = ""; toast(`${e} を追加しました`);
   } catch (err) { toast(fbErr(err)); }
 }
+async function setRoleName(e) {
+  const el = document.getElementById("mbrename"); const v = (el ? el.value : "").trim().slice(0, 30);
+  if (v.includes("@")) return toast("メールアドレスは表示名にできません");
+  try { await F.updateDoc(F.doc(F.db, "roles", e), { name: v }); MB.nameEdit = null; toast("表示名を保存しました（本人が自分で決めた名前があれば、そちらが優先されます）", 5000); }
+  catch (err) { toast(fbErr(err)); }
+}
 async function delMember(e) {
   try {
     const b = F.writeBatch(F.db);
@@ -1636,7 +1661,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -1665,6 +1690,10 @@ function onAdminClick(e) {
   if (ds.a === "goio") { S.tab = "io"; renderAll(); return; }
   if (ds.a === "statsreload") { loadStats(true); return; }
   if (ds.a === "mbadd") { addMember(); return; }
+  if (ds.a === "nameedit") { S.nameEdit = !S.nameEdit; renderAll(); return; }
+  if (ds.a === "namesave") { saveName(); return; }
+  if (ds.mbname) { MB.nameEdit = MB.nameEdit === ds.mbname ? null : ds.mbname; renderMembers(); return; }
+  if (ds.mbnamesave) { setRoleName(ds.mbnamesave); return; }
   if (ds.a === "ghsave") { saveGhToken().then(() => { IM.ghedit = false; renderImg(); }); return; }
   if (ds.a === "ghedit") { IM.ghedit = !IM.ghedit; renderImg(); return; }
   if (ds.a === "ghdel") { IM.ghconfirm = true; renderImg(); return; }
