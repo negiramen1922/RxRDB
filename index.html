@@ -139,6 +139,13 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .board{overflow:hidden}
 .trow{display:grid;grid-template-columns:76px 1fr;border-top:1px solid var(--line);min-height:68px}
 .trow:first-child{border-top:0}
+.tcrit{margin:0 0 10px;background:var(--panel);box-shadow:var(--shadow)}
+.tcrit summary{cursor:pointer;padding:7px 14px;font-weight:700;font-size:13.5px;color:var(--accent-ink);letter-spacing:.08em}
+.tcrit dl{margin:0;padding:2px 14px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 18px}
+.tcrit dl div{display:flex;gap:10px;align-items:baseline}
+.tcrit dt{flex:none;width:3.4em;text-align:center;color:#fff;font-family:var(--display);font-weight:700;font-style:italic;font-size:14px;clip-path:polygon(0 0,100% 0,calc(100% - 6px) 100%,0 100%);text-shadow:0 1px 0 rgba(0,0,0,.25)}
+.tcrit dd{margin:0;font-size:13px;line-height:1.5}
+.zhint{align-self:center;color:var(--muted);font-size:12.5px;opacity:.75;padding:0 6px;pointer-events:none}
 .tlabel{display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:30px;color:#fff;border:0;text-shadow:0 2px 0 rgba(0,0,0,.25),0 0 12px rgba(255,255,255,.4);clip-path:polygon(0 0,100% 0,calc(100% - 12px) 100%,0 100%);font-style:italic;letter-spacing:.02em}
 .zone{display:flex;flex-wrap:wrap;gap:6px;padding:9px 10px;align-content:flex-start}
 .zone.armed{background:repeating-linear-gradient(135deg,transparent 0 9px,rgba(26,134,255,.09) 9px 11px);cursor:copy}
@@ -406,7 +413,6 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
         <p class="sub">バベル階層別Tier表メーカー</p>
       </div>
       <div class="acts">
-        <button class="btn ghost-dark small" id="openExport">共有・バックアップ</button>
         <button class="btn ghost-dark small" data-feedback>不具合・ご要望</button>
       </div>
     </div>
@@ -478,6 +484,7 @@ const BASE={SIMG:ASSETS.sthumbs||{},SFULL:ASSETS.sfull||{},IMG:ASSETS.thumbs||{}
 const ic=(k,cls)=>ICON[k]?`<img class="ic ${cls||""}" src="${ICON[k]}" alt="${esc(k)}" title="${esc(k)}">`:"";
 const KEY="babel-tier-v2";
 const TIERS=["SSS","SS","S","A","B","C","D"];
+const TDESC={SSS:"いたら絶対に入れるべき。この子がいればクリアできる必須キャラ",SS:"誰か1人いればクリアがかなり楽になる。2人いれば十分",S:"いたら入れたほうが良い。SSS・SSがいないときの代わりにも",A:"かなりステージに向いている",B:"使えるけれど、本当にキャラがいないときくらい",C:"使わなくて良い",D:"もはや縛り"};
 const TCOL=["linear-gradient(120deg,#7b5cff,#ff3fb4 40%,#ffb33a 75%,#fff27a)","linear-gradient(120deg,#ff3f8e,#ff9d3a 55%,#ffe04a)","linear-gradient(120deg,#ff4d5e,#ff8a3c)","linear-gradient(120deg,#ffa62b,#ffd23f)","linear-gradient(120deg,#13b98a,#5be0b5)","linear-gradient(120deg,#1a7bff,#4cc8ff)","linear-gradient(120deg,#6b7a92,#a3b1c6)"];
 const ATTRS=["破壊","衝撃","爆発"];
 const ROLES=["アタッカー","シューター","ブレイカー","ヒーラー","トリックスター","サポーター"];
@@ -623,10 +630,11 @@ function renderTier(){
   h+=`<p class="note-h">自分用メモ</p><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など">${esc(S.notes[f.key]||"")}</textarea></div></div></div>`;
   if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;main.innerHTML=h;return;}
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
+  h+=`<details class="tcrit"${S.critClosed?"":" open"}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(TDESC[t])}</dd></div>`).join("")}</dl></details>`;
   h+=`<div class="board">`;
   TIERS.forEach((t,i)=>{
     const inT=CH.filter(c=>P[c.id]===t).sort((a,b)=>fits[b.id]-fits[a.id]);
-    h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.map(c=>tile(c,f,fits)).join("")}</div></div>`;
+    h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(TDESC[t])}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(c=>tile(c,f,fits)).join(""):`<span class="zhint">${esc(TDESC[t])}</span>`}</div></div>`;
   });
   h+=`</div>`;
   let list=CH.filter(c=>!TIERS.includes(P[c.id]));
@@ -898,6 +906,7 @@ document.addEventListener("click",e=>{
   else if(a==="allcols"){tstate.chars.all=!tstate.chars.all;renderChars();}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sel){sel=null;render();}});
+document.addEventListener("toggle",e=>{if(e.target.classList&&e.target.classList.contains("tcrit")){S.critClosed=!e.target.open;save();}},true);
 document.addEventListener("dblclick",e=>{const t=e.target.closest(".tile");if(t)openChar(t.dataset.id);});
 
 /* ---------- import ---------- */
@@ -916,7 +925,7 @@ function parseDelimited(text){
 function setChips(id,k){document.querySelectorAll("#"+id+" .chip").forEach(c=>c.setAttribute("aria-pressed",String(c.dataset.k===k)));}
 /* ---------- export ---------- */
 let expKind="floor";const dlgE=document.getElementById("dlgExport");
-document.getElementById("openExport").addEventListener("click",()=>{updExport();dlgE.showModal();});
+document.getElementById("openExport")?.addEventListener("click",()=>{updExport();dlgE.showModal();});
 document.querySelectorAll("#expKind .chip").forEach(c=>c.addEventListener("click",()=>{expKind=c.dataset.k;setChips("expKind",expKind);updExport();}));
 function floorText(f){
   const P=place(f.key);let s=`【${f.type} ${f.floor}F ${f.boss}${f.attr?"／推奨"+f.attr:""}】\n`;
