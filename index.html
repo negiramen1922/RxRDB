@@ -766,7 +766,7 @@ function emptyBlock(kind){
 /* ---------- tier view ---------- */
 function renderTier(){
   const seal=SEALCTX();
-  if(seal&&!SEALS.length){main.innerHTML=`<div class="empty"><h2>封印戦のデータがまだありません</h2><p>${MODE==="admin"?"「データ編集」→「封印戦」から追加できます。":"運営がデータを登録すると、ここに表示されます。"}</p></div>`;return;}
+  if(seal&&!SEALS.length){main.innerHTML=`<div class="empty"><h2>封印戦のデータがまだありません</h2><p>${MODE==="admin"?"上の「＋ 封印戦を追加」から登録できます。":"運営がデータを登録すると、ここに表示されます。"}</p></div>`;return;}
   if(!seal&&!FLOORS.some(x=>!x.seal)){main.innerHTML=emptyBlock("babel");return;}
   const f=curFloor();const P=place(f.key);
   let h=viewSeg();
@@ -1398,7 +1398,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=17");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=18");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }

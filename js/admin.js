@@ -360,6 +360,8 @@ function labelOf(k, c) {
   if (k === "babel") return `${c["バベル種類"] || ""} ${c["階層"] || ""}F ${c["ボス"] || ""}`.trim();
   if (k === "chars") return c["キャラ名"] || c["ID"] || "(名前なし)";
   if (k === "styles") return c["スタイル"] || "(名前なし)";
+  if (k === "seals") return c["封印戦名"] || "(名前なし)";
+  if (k === "events") return c["イベント名"] || "(名前なし)";
   return c["名前"] || "(名前なし)";
 }
 function thumbOf(k, c) {
@@ -1369,9 +1371,24 @@ function tierInfo() {
   const local = R.LOCAL_TIERS; const nLocal = Object.values(local).reduce((a, p) => a + Object.keys(p || {}).length, 0);
   const n = Object.keys(R.OFFICIAL[fk] || {}).length;
   const ctx = R.TIER_CTX;
-  return `<div class="toolbar"><div class="seg"><button data-tierctx="babel" aria-pressed="${ctx !== "seal"}">バベル</button><button data-tierctx="seal" aria-pressed="${ctx === "seal"}">封印戦</button></div></div><div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（数秒で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
+  const what = ctx === "seal" ? "封印戦" : "階層";
+  return `<div class="toolbar"><div class="seg"><button data-tierctx="babel" aria-pressed="${ctx !== "seal"}">バベル</button><button data-tierctx="seal" aria-pressed="${ctx === "seal"}">封印戦</button></div><span style="flex:1"></span>${f ? `<button class="btn small" data-a="tieredit">この${what}のデータを編集</button>` : ""}<button class="btn primary small" data-a="tieradd">＋ ${what}を追加</button></div><div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（数秒で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
   <span class="tieracts">${n ? (TT.confirm === fk ? `<span class="danger-q">${esc(floorLabel(fk))}の配置${n}件をすべて外しますか？</span><button class="btn small danger" data-a="tierclearyes">外す</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierclear">この階層の配置をすべて外す</button>`) : ""}
   ${nLocal ? (TT.confirm === "import" ? `<span class="danger-q">このブラウザの配置${nLocal}件で、同じキャラの公開中の配置を上書きします。</span><button class="btn small primary" data-a="tierimportyes">取り込む</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierimport">このブラウザに保存していた配置（${nLocal}件）を取り込む</button>`) : ""}</span></div>`;
+}
+// Tier表タブから、バベルの階層・封印戦のデータを追加／編集する
+async function tierAdd() {
+  const k = R.TIER_CTX === "seal" ? "seals" : "babel";
+  if (!seeded(k)) { await seedAll(); for (let i = 0; i < 30 && !seeded(k); i++) await new Promise(r => setTimeout(r, 100)); if (!seeded(k)) { toast("表の準備ができませんでした。もう一度押してください"); return; } }
+  ED.k = k; resetEd(); edAction("new");
+  if (k === "babel") { const f = R.curFloor; if (f && !f.seal) { ED.draft["バベル種類"] = f.type; renderForm(); } }
+}
+function tierEdit() {
+  const f = R.curFloor; if (!f) return; const k = f.seal ? "seals" : "babel";
+  let id = null;
+  T[k].rows.forEach(r => { const c = r.c || {}; if (f.seal ? c["封印戦名"] === f.floor : keyOfCells("babel", c) === f.key) id = r.id; });
+  if (!id) { toast("元のデータが見つかりません"); return; }
+  openEditor(k, id);
 }
 function tierBulk(ops) { ops.forEach(([fk, id, t]) => { const P = R.OFFICIAL[fk] || (R.OFFICIAL[fk] = {}); const prev = P[id] || ""; if (prev === t) return; if (t) P[id] = t; else delete P[id]; onTierMove(fk, id, t, prev); }); }
 
@@ -1573,6 +1590,8 @@ function onAdminClick(e) {
   if (ds.dladd) { const inp = document.querySelector(`#edBody .dlin[data-dlfield="${CSS.escape(ds.dladd)}"]`); const v = inp && fromDate(inp.value); if (!v) { toast("日付を選んでください"); return; } const cur = splitList(ED.draft[ds.dladd]); if (!cur.includes(v)) cur.push(v); cur.sort((a, b) => toDate(a).localeCompare(toDate(b))); ED.draft[ds.dladd] = cur.join("、"); ED.dirty = true; renderForm(); return; }
   if (ds.dlrm) { const [f, x] = ds.dlrm.split("|"); ED.draft[f] = splitList(ED.draft[f]).filter(y => y !== x).join("、"); ED.dirty = true; renderForm(); return; }
   if (ds.a === "sealtier") { const name = ED.base["封印戦名"]; if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("seal"); R.setCurSeal("封印戦|" + name); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
+  if (ds.a === "tieradd") { tierAdd(); return; }
+  if (ds.a === "tieredit") { tierEdit(); return; }
   if (ds.tierctx) { R.setTierCtx(ds.tierctx); renderTierTab(false); return; }
   if (ds.cprm) { const [f, x] = ds.cprm.split("|"); const isC = f !== "登場ボス"; ED.draft[f] = (isC ? String(ED.draft[f] || "").split(/[,、，\s]+/).filter(Boolean) : splitList(ED.draft[f])).filter(y => y !== x).join(isC ? "," : "、"); ED.dirty = true; renderForm(); return; }
   if (ds.optadd) { const inp = AM.querySelector(`[data-optin="${CSS.escape(ds.optadd)}"]`); const v = (inp && inp.value || "").trim(); if (!v) return; const key = ds.optadd; saveOpts(o => { if (!o[key].includes(v)) o[key].push(v); }, `選択肢「${key}」に ${v} を追加`); return; }
