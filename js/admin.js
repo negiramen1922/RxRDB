@@ -362,6 +362,38 @@ function edDialog() {
   DLG.addEventListener("close", () => { clearPresence(); resetEd(); ED.leaveOk = false; });
   return DLG;
 }
+/* ---- GitHub の data/*.json にあって、まだ取り込んでいない行を知らせる ---- */
+const GHNEW = {};   // k -> {file, added:[keys], changed:n, at}
+async function checkGhNew(k) {
+  if (!TABLES.includes(k) || !seeded(k)) return;
+  if (GHNEW[k] && now() - GHNEW[k].at < 60e3) return;
+  GHNEW[k] = { at: now(), added: [], changed: 0, busy: true };
+  try {
+    const d = await staticJson(`data/${k}.json`);
+    const df = diffTables(k, curData(k), d);
+    GHNEW[k] = { at: now(), file: d, added: df.added, changed: df.changed.length };
+  } catch (e) { GHNEW[k] = { at: now(), added: [], changed: 0 }; }
+  const gn = document.getElementById("ghnew"); if (gn && ED.k === k) gn.innerHTML = ghNewHtml(k);
+}
+function ghNewHtml(k) {
+  if (!TABLES.includes(k) || !seeded(k)) return "";
+  const g = GHNEW[k]; if (!g) { checkGhNew(k); return ""; }
+  if (!g.added || !g.added.length) return "";
+  return `<div class="astatus warn ghnewbar"><b>GitHub の data/${k}.json に、まだ取り込んでいない${TLABEL[k]}が ${g.added.length} 件あります</b><span class="count">${esc(g.added.slice(0, 6).join("、"))}${g.added.length > 6 ? " ほか" : ""}${g.changed ? `（内容が違う行も ${g.changed} 件）` : ""}</span>
+  <span class="row2"><button class="btn small primary" data-a="ghimport" ${g.busy ? "disabled" : ""}>${g.busy ? "取り込み中…" : `${g.added.length}件を追加${g.changed ? `・${g.changed}件を更新` : ""}する`}</button><button class="btn small" data-a="ghimportnew" ${g.busy ? "disabled" : ""}>追加だけする</button></span></div>`;
+}
+async function ghImport(onlyNew) {
+  const k = ED.k; const g = GHNEW[k]; if (!g || !g.file) return;
+  g.busy = true; document.getElementById("ghnew").innerHTML = ghNewHtml(k);
+  try {
+    let inc = g.file;
+    if (onlyNew) { const add = new Set(g.added); inc = { headers: g.file.headers, rows: g.file.rows.filter(r => add.has(keyOf(k, g.file.headers, r))) }; }
+    const r = await applyTable(k, inc, "merge", "import");
+    toast(`${TLABEL[k]}を取り込みました（追加${r.added}・更新${r.changed}）`, 6000);
+    delete GHNEW[k];
+  } catch (e) { g.busy = false; toast(fbErr(e), 8000); }
+  const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(k);
+}
 function presHtml() {
   const list = Object.entries(EDITING).filter(([uid, e]) => S.user && uid !== S.user.uid && now() - (e.at || 0) < STALE && T[e.k] && T[e.k].rows.get(e.id));
   if (!list.length) return "";
@@ -382,13 +414,14 @@ function renderEdit(soft) {
   if (soft && list) {
     const st = document.getElementById("adstatus"); if (st) st.innerHTML = statusBar();
     const pr = document.getElementById("edpres"); if (pr) pr.innerHTML = presHtml();
+    const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(k);
     const ae = document.activeElement;
     if (!(ae && ae.closest && ae.closest("#admlist") && /INPUT|TEXTAREA/.test(ae.tagName))) { if (custom) list.innerHTML = customList(k); else R.renderList(k); }
     if (DLG && DLG.open) refreshForm();
     return;
   }
   document.getElementById("main").innerHTML = "";   // 同じ id の検索欄が重ならないように
-  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
+  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
   if (custom) { R.setMain(null); bindCustomList(); }
   else { R.setMain(document.getElementById("admlist"), () => { if (S.tab === "edit") R.renderList(ED.k); }); R.renderList(k); }
   if (DLG && DLG.open) refreshForm();
@@ -1418,6 +1451,8 @@ function onAdminClick(e) {
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
   if (ds.a === "reload") { location.reload(); return; }
   if (ds.a === "seed") { seedAll(); return; }
+  if (ds.a === "ghimport") { ghImport(false); return; }
+  if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
   if (ds.a === "cpadd") { charpickAdd(); return; }
   if (ds.cprm) { ED.draft["おすすめキャラID"] = String(ED.draft["おすすめキャラID"] || "").split(/[,、，\s]+/).filter(x => x && x !== ds.cprm).join(","); ED.dirty = true; renderForm(); return; }
@@ -1541,6 +1576,7 @@ function injectStyle() {
 .edtool{margin-bottom:10px}
 #dlgEdit .formfoot{padding-bottom:14px}
 .seedbox{max-width:760px;margin:20px auto}
+.ghnewbar{display:flex;flex-direction:column;gap:6px}
 .edseg{flex-wrap:wrap;align-items:center}
 .segsep{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;margin:0 4px 0 10px;padding-left:10px;border-left:2px solid var(--line2)}
 .fgroup{margin:0 0 14px;padding:12px 14px 14px;background:var(--field);border:1px solid var(--line)}
