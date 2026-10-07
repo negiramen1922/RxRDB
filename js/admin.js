@@ -732,7 +732,7 @@ function editForm() {
   const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : ik === "boss" ? R.BOSS[ikey] : ik === "event" ? R.EVT[ikey] : null;
   const full = ik && ikey ? R.cropSrc(ik, ikey) : null;
   const adj = ik && ikey && R.CROPS["c_" + ik + "_" + R.hashId(ikey)];
-  let h = `<div class="edhead"><h2>${ED.isNew ? `${TLABEL[ED.k]}を追加` : esc(labelOf(ED.k, ED.draft))}</h2><span class="count">${TLABEL[ED.k]}</span><span style="flex:1"></span><button class="btn small" data-ed="close" aria-label="閉じる">✕ 閉じる</button></div><div id="edbanner">${bannerHtml()}</div>`;
+  let h = `<div class="edhead"><h2>${ED.isNew ? `${TLABEL[ED.k]}を追加` : esc(labelOf(ED.k, ED.draft))}</h2><span class="count">${TLABEL[ED.k]}</span></div><div id="edbanner">${bannerHtml()}</div>`;
   if (ik) {
     h += `<section class="edimgs">${ED.isNew || !ikey ? `<p class="hint" style="margin:0">画像は、保存したあとにここから追加できます。</p>` : `
       <div class="edth">${th ? `<img src="${esc(th)}" alt="">` : `<span class="noimg"></span>`}<small>サムネイル${adj ? "（調整済み）" : ""}</small></div>
