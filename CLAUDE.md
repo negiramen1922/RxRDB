@@ -16,12 +16,17 @@
 - `images/` … Web用に縮小した画像（元画像は RxRDBbot/images）。サムネイルは 176px 正方形 webp。
 
 ## Firebase（プロジェクト my-log-vh3o3b / 表示名 RxRbabelDB、Spark プラン）
-- データの正本は Firestore。`tables/{chars|scripts|babel}`（headers）＋ `tables/{k}/rows/{id}`（`c`=列名→値, `o`=並び順, `t`, `by`, `rev`）。
-- 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、公開サイトはそれを読む。サムネイル位置は `public/crops`、公式Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID:Tier}}, at}`。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
+- データの正本は Firestore。`tables/{chars|scripts|babel|people|styles}`（headers）＋ `tables/{k}/rows/{id}`（`c`=列名→値, `o`=並び順, `t`, `by`, `rev`）。
+- 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、公開サイトはそれを読む。サムネイル位置は `public/crops`、プルダウンの選択肢は `public/options`（`json`={騎士団:[...],階級:[...],ロール:[...],...}）、公式Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID:Tier}}, at}`。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
 - 同時編集: 行ごとに `rev` を比べて衝突を検出（トランザクション）。`editing/{uid}` で「編集中」を表示。`log` に変更履歴（元に戻せる）。
 - `feedback`（誰でも作成のみ）、`stats/{YYYY-MM-DD}`（pv/uv を +1 だけ）、`roles/{email}`（編集者。追加・削除はオーナーのみ）。
 - 無料枠: 読み取り 5万/日、書き込み 2万/日。画像は Firebase に置かない（Storage は有料プラン）。
 - ローカル確認では Firebase に届かないので、テストは gstatic と firestore.googleapis.com をモックして行う。
+
+## マスター
+- `people`（キャラクター: 名前・ふりがな・性別・誕生日・騎士団・階級・CV・プロフィール）と `styles`（スタイル・略称・よみ）。予備は data/people.json・data/styles.json。
+- 公開用のキャラ表（public/chars）を作るとき、騎士団・階級・性別は people から合流させる（js/admin.js の publicData）。
+- 新しいキャラ（スタイル別）は キャラ＋スタイルを選ぶと ID（`キャラ_スタイル`）・キャラ名（キャラ＋略称）・ひらがな（ふりがな＋よみ）・No が自動で入る。入力フォームの項目構成は js/admin.js の SCHEMA。
 
 ## 更新の流れ
 - データ入力は公開サイトの管理画面（`/#admin`）で行う。即時に公開サイトへ反映される。

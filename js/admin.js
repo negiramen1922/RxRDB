@@ -5,9 +5,42 @@ import * as F from "./fb.js";
 let R = null;            // index.html 側の橋渡し (window.RXR)
 const AM = document.getElementById("admin");
 const NAV = document.getElementById("adminTabs");
-const TABLES = ["chars", "scripts", "babel"];
-const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル" };
-const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"] };
+const TABLES = ["chars", "scripts", "babel", "people", "styles"];
+const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル", people: "キャラクター", styles: "スタイル", options: "選択肢" };
+const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"], people: ["名前"], styles: ["スタイル"] };
+/* ---- 入力フォームの設計（列名 → 入力の種類）。ここにない列は「その他の列」に出る ---- */
+// t: text / num / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
+const SCHEMA = {
+  chars: [
+    { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "text"], ["名前 ひらがな", "text"], ["No", "num"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
+    { g: "キャラクター設定から（自動）", note: "騎士団・階級・性別は「キャラクター」の設定がそのまま使われます。変えるときはキャラクターのほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
+    { g: "ステータス", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["HP最大値", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["攻撃力最大値", "num"], ["物理防御", "num"], ["特殊防御", "num"], ["攻撃速度", "opt:攻撃速度"], ["抵抗値", "num"]] },
+    { g: "コスト", f: [["初期コスト", "num"], ["育成後コスト", "num"], ["再出撃コスト", "num"], ["再出撃時間(S)", "num"]] },
+    { g: "スキル", f: [["スキル名", "text"], ["スキルクールタイム", "num"], ["覚醒1 スキル効果", "long"], ["覚醒7 スキル効果", "long"], ["覚醒13 スキル効果", "long"]] },
+    { g: "BLADE", f: [["BLADE名", "text"], ["BLADEゲージ", "num"], ["Lv1 BLADE効果", "long"], ["Lv7 BLADE効果", "long"], ["Lv13 BLADE効果", "long"]] },
+    { g: "特性", f: [["特性名称", "text"], ["Lv1 特性効果", "long"], ["Lv3 特性効果", "long"], ["Lv5 特性効果", "long"], ["特性開放 ★4", "long"], ["特性開放 ★5", "long"]] },
+  ],
+  scripts: [
+    { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"]] },
+    { g: "ステータス", f: [["HP初期値", "num"], ["HP最大値", "num"], ["攻撃力初期値", "num"], ["攻撃力最大値", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
+    { g: "スキル1", f: [["スキル1効果", "long"]] },
+    { g: "スキル2", f: [["条件2", "cond"], ["スキル2効果", "long"]] },
+    { g: "スキル3", f: [["条件3", "cond"], ["スキル3効果", "long"]] },
+  ],
+  babel: [
+    { g: "基本", f: [["バベル種類", "opt:バベル種類"], ["階層", "num"], ["ボス", "text"], ["推奨属性", "opt:属性"]] },
+    { g: "解析データ", note: "1行に1つの効果。【特性】【味方】【敵】などの見出し行で区切ります。「上昇」「低下」などから自動で ▲▼ を判定します。", f: [["解析データ", "big"]] },
+    { g: "おすすめ・コメント", f: [["おすすめキャラID", "charpick"], ["ポイント", "long"], ["コメント", "long"]] },
+  ],
+  people: [
+    { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["性別", "opt:性別"], ["誕生日", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["CV", "text"]] },
+    { g: "プロフィール", f: [["プロフィール", "long"]] },
+  ],
+  styles: [
+    { g: "基本", note: "略称は「カノン 聖典」のようにキャラ名を自動で作るとき、よみはひらがなを作るときに使います。", f: [["スタイル", "text"], ["略称", "text"], ["よみ", "text"], ["メモ", "long"]] },
+  ],
+};
+const PH = { "誕生日": "例：4月1日", "CV": "声優", "階層": "例：110", "略称": "例：聖典", "よみ": "例：せいてん" };
 const STALE = 5 * 60e3;
 
 const S = {
@@ -23,6 +56,7 @@ let FEEDBACK = [];       // [{id, ...}]
 let LOG = [];            // [{id, ...}]
 let STATS = null;        // [{day, pv, uv}]
 let NEWSLIST = [];
+let OPTS = null;         // public/options（プルダウンの選択肢）
 let TIERPUB = {};        // public/tiers の中身（サーバー側）
 const TIERPEND = [];     // 送信中の配置変更（画面には先に反映）       // public/news
 let GH = null;           // {token, repo, branch} GitHub 連携（secrets/github）
@@ -123,11 +157,12 @@ function startListeners() {
       T[k].rows = m; T[k].rowsReady = true; T[k].pending = q.metadata.hasPendingWrites; tableChanged(k);
     });
   });
-  ["chars", "scripts", "babel", "crops", "news", "tiers"].forEach(k => on(F.doc(F.db, "public", k), s => {
+  ["chars", "scripts", "babel", "people", "styles", "crops", "news", "tiers", "options"].forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
     if (k === "crops") { try { R.setCrops(d && d.json ? JSON.parse(d.json) : {}); } catch (e) { } }
     else if (k === "tiers") { let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
+    else if (k === "options") { try { OPTS = d && d.json ? JSON.parse(d.json) : null; } catch (e) { OPTS = null; } if (OPTS) R.setOptions(OPTS); softRender(); return; }
     else if (k === "news") { try { NEWSLIST = d && d.json ? JSON.parse(d.json) : []; } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
     else maybePublish(k);
     softRender();
@@ -150,7 +185,8 @@ function derive(k) {
 const seeded = k => T[k].hdrExists && T[k].rowsReady;
 const allReady = () => TABLES.every(k => T[k].hdrReady && T[k].rowsReady);
 function tableChanged(k) {
-  if (seeded(k)) { const d = derive(k); R.setLive(k, { headers: d.headers, rows: d.rows }); R.rebuild(); }
+  if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel")) { R.setLive(k, publicData(k)); R.rebuild(); }
+  if (k === "people" && seeded("chars")) { R.setLive("chars", publicData("chars")); R.rebuild(); maybePublish("chars"); }
   // someone else changed the row I'm editing?
   if (ED.k === k && ED.id && !ED.isNew) {
     const r = T[k].rows.get(ED.id);
@@ -167,7 +203,19 @@ function tableChanged(k) {
 /* ================= publish (Firestore rows → public/{k}) ================= */
 function sigOf(k) {
   const t = T[k]; const ids = [...t.rows.values()].map(r => r.id + ":" + r.rev).sort();
-  return R.hashId(t.headers.join("\u0001") + "\u0002" + ids.join(","));
+  const own = R.hashId(t.headers.join("\u0001") + "\u0002" + ids.join(","));
+  return k === "chars" && seeded("people") ? own + "+" + sigOf("people") : own;
+}
+// 公開用のキャラ表には、キャラクター設定（騎士団・階級・性別）を合流させる
+const MASTER_COLS = ["騎士団", "階級", "性別"];
+function publicData(k) {
+  const d = derive(k);
+  if (k !== "chars" || !seeded("people")) return { headers: d.headers, rows: d.rows };
+  const pm = {}; T.people.rows.forEach(r => { const c = r.c || {}; if (c["名前"]) pm[c["名前"]] = c; });
+  const hd = d.headers.slice(); MASTER_COLS.forEach(h => { if (!hd.includes(h)) hd.push(h); });
+  const ci = d.headers.indexOf("キャラ");
+  const rows = d.rows.map(r => { const o = hd.map((h, i) => i < r.length ? r[i] : ""); const m = pm[r[ci]]; if (m) MASTER_COLS.forEach(h => { if (m[h]) o[hd.indexOf(h)] = m[h]; }); return o; });
+  return { headers: hd, rows };
 }
 const pubTimers = {};
 function maybePublish(k) {
@@ -181,7 +229,7 @@ async function publish(k, force) {
   if (!seeded(k)) return;
   const sig = sigOf(k);
   if (!force && PUB[k] && PUB[k].sig === sig) return;
-  const d = derive(k);
+  const d = publicData(k);
   const json = JSON.stringify({ headers: d.headers, rows: d.rows });
   if (json.length > 1000000) { toast(`${TLABEL[k]}データが大きすぎて公開できません（1MB超）`, 6000); return; }
   await F.setDoc(F.doc(F.db, "public", k), { json, sig, at: now(), by: me(), count: d.rows.length });
@@ -278,13 +326,14 @@ async function login() {
 }
 
 /* ================= data editing ================= */
-const ED = { k: "babel", q: "", id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, newCol: "", remote: null, gone: false, saving: false, conflict: null, leaveOk: false };
-function resetEd() { Object.assign(ED, { id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, remote: null, gone: false, conflict: null }); }
+const ED = { manual: {}, k: "babel", q: "", id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, newCol: "", remote: null, gone: false, saving: false, conflict: null, leaveOk: false };
+function resetEd() { Object.assign(ED, { manual: {}, id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, remote: null, gone: false, conflict: null }); }
 function keyOf(k, hd, r) { const g = n => { const i = hd.indexOf(n); return i >= 0 ? String(r[i] || "").trim() : ""; }; return KEYCOLS[k].map(g).join("|"); }
 function keyOfCells(k, c) { return KEYCOLS[k].map(n => String(c[n] || "").trim()).join("|"); }
 function labelOf(k, c) {
   if (k === "babel") return `${c["バベル種類"] || ""} ${c["階層"] || ""}F ${c["ボス"] || ""}`.trim();
-  if (k === "chars") return c["キャラ名"] ? `${c["キャラ名"]}${c["スタイル"] && c["スタイル"] !== "DEFAULT" ? "" : ""}` : (c["ID"] || "(名前なし)");
+  if (k === "chars") return c["キャラ名"] || c["ID"] || "(名前なし)";
+  if (k === "styles") return c["スタイル"] || "(名前なし)";
   return c["名前"] || "(名前なし)";
 }
 function thumbOf(k, c) {
@@ -298,7 +347,8 @@ function loadRow(k, id) {
   ED.base = Object.assign({}, r.c); ED.draft = Object.assign({}, r.c); ED.baseRev = r.rev;
   ED.dirty = false; ED.confirmDel = false; ED.remote = null; ED.gone = false; ED.conflict = null;
 }
-const EDORDER = ["babel", "chars", "scripts"];
+const EDORDER = ["babel", "chars", "scripts", "people", "styles", "options"];
+const EDGROUP = { babel: "", chars: "", scripts: "", people: "master", styles: "master", options: "master" };
 let DLG = null;
 function edDialog() {
   if (DLG) return DLG;
@@ -318,26 +368,53 @@ function presHtml() {
 function renderEdit(soft) {
   if (!allReady()) { AM.innerHTML = userBar() + statusBar(); return; }
   const k = ED.k;
-  const seg = `<div class="seg">${EDORDER.map(t => `<button data-edk="${t}" aria-pressed="${k === t}">${TLABEL[t]}</button>`).join("")}</div>`;
-  if (!seeded(k)) {
+  const seg = `<div class="seg edseg">${EDORDER.map((t, i) => `${i && EDGROUP[t] && !EDGROUP[EDORDER[i - 1]] ? '<span class="segsep">マスター</span>' : ""}<button data-edk="${t}" aria-pressed="${k === t}">${TLABEL[t]}</button>`).join("")}</div>`;
+  if (k !== "options" && !seeded(k)) {
     R.setMain(null);
-    AM.innerHTML = userBar() + `<div class="toolbar">${seg}</div><div class="empty seedbox"><h2>最初に、今のデータを管理画面に取り込みます</h2><p>公開サイトに出ているデータ（バベル ${countStatic("babel")}・キャラ ${countStatic("chars")}・スクリプト ${countStatic("scripts")}）は、まだ GitHub のファイルから表示している状態です。<br>下のボタンを1回押すと、それを編集用のデータベース（Firestore）に登録して、ここで編集できるようになります。</p><div class="row2" style="justify-content:center"><button class="btn primary big" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : "今のデータを取り込んで編集を始める"}</button></div><p class="hint">取り込みは最初の1回だけです。公開サイトの表示は変わりません。</p></div>`;
+    const base3 = ["chars", "scripts", "babel"].every(seeded);
+    AM.innerHTML = userBar() + `<div class="toolbar">${seg}</div><div class="empty seedbox">${base3 ? `<h2>${TLABEL[k]}の表を作ります</h2><p>キャラクター（名前・ふりがな・性別・騎士団・階級など）とスタイル（略称・よみ）の表を、今のキャラデータから自動で作ります。<br>作ったあとは、キャラの騎士団・階級・性別はキャラクターの設定から自動で入るようになります。</p>` : `<h2>最初に、今のデータを管理画面に取り込みます</h2><p>公開サイトに出ているデータ（バベル ${countStatic("babel")}・キャラ ${countStatic("chars")}・スクリプト ${countStatic("scripts")}）は、まだ GitHub のファイルから表示している状態です。<br>下のボタンを1回押すと、それを編集用のデータベース（Firestore）に登録して、ここで編集できるようになります。</p>`}<div class="row2" style="justify-content:center"><button class="btn primary big" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : base3 ? "キャラクターとスタイルの表を作る" : "今のデータを取り込んで編集を始める"}</button></div><p class="hint">公開サイトの表示は変わりません。</p></div>`;
     return;
   }
+  const custom = k === "people" || k === "styles" || k === "options";
   const list = document.getElementById("admlist");
   if (soft && list) {
     const st = document.getElementById("adstatus"); if (st) st.innerHTML = statusBar();
     const pr = document.getElementById("edpres"); if (pr) pr.innerHTML = presHtml();
     const ae = document.activeElement;
-    if (!(ae && ae.closest && ae.closest("#admlist") && /INPUT|TEXTAREA/.test(ae.tagName))) R.renderList(k);
+    if (!(ae && ae.closest && ae.closest("#admlist") && /INPUT|TEXTAREA/.test(ae.tagName))) { if (custom) list.innerHTML = customList(k); else R.renderList(k); }
     if (DLG && DLG.open) refreshForm();
     return;
   }
   document.getElementById("main").innerHTML = "";   // 同じ id の検索欄が重ならないように
-  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span><button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button></div><div id="edpres">${presHtml()}</div><div id="admlist" class="admlist"></div>`;
-  R.setMain(document.getElementById("admlist"), () => { if (S.tab === "edit") R.renderList(ED.k); });
-  R.renderList(k);
+  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
+  if (custom) { R.setMain(null); bindCustomList(); }
+  else { R.setMain(document.getElementById("admlist"), () => { if (S.tab === "edit") R.renderList(ED.k); }); R.renderList(k); }
   if (DLG && DLG.open) refreshForm();
+}
+const CL = { q: "" };
+function customList(k) {
+  if (k === "options") return `<div class="toolbar"><h2><small>OPTIONS</small>選択肢</h2></div><p class="hint" style="margin:-6px 0 12px">入力フォームのプルダウンに出る候補です。新しい騎士団などが出たらここに追加してください。</p>` + renderOptions();
+  const q = CL.q.toLowerCase();
+  if (k === "people") {
+    const units = {}; T.chars.rows.forEach(r => { const c = r.c || {}; (units[c["キャラ"]] = units[c["キャラ"]] || []).push(c); });
+    const list = [...T.people.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
+    return `<div class="toolbar"><h2><small>CHARACTERS</small>キャラクター</h2><input class="search" id="clq" placeholder="名前・騎士団などで検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.people.rows.size}</span></div>
+    <p class="hint" style="margin:-6px 0 12px">スタイルに関係なく、そのキャラ自身の情報です。ここの騎士団・階級・性別が、各スタイルのキャラデータに自動で使われます。</p>
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = us.map(u => R.IMG[u["ID"]]).find(Boolean);
+      const who = othersOn("people", r.id);
+      return `<button class="pcard" data-adrow="${esc(r.id)}">${face ? `<img src="${esc(face)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b><small>${esc(c["ふりがな"] || "")}</small>
+      <span class="ptags">${c["騎士団"] ? `<span>${R.ic(c["騎士団"], "ord")}${esc(c["騎士団"])}</span>` : '<span class="miss">騎士団未設定</span>'}${c["階級"] ? `<span>${R.ic(c["階級"])}${esc(c["階級"])}</span>` : ""}${c["性別"] ? `<span>${esc(c["性別"])}</span>` : ""}${c["誕生日"] ? `<span>🎂${esc(c["誕生日"])}</span>` : ""}</span>
+      <small class="count">スタイル ${us.length}：${esc(us.map(u => u["スタイル"]).join("・"))}</small></span>${who.length ? `<span class="pres">✎ ${esc(who[0].name || shortName(who[0].email))}</span>` : ""}</button>`; }).join("")}</div>`;
+  }
+  const cnt = {}; T.chars.rows.forEach(r => { const s = (r.c || {})["スタイル"]; cnt[s] = (cnt[s] || 0) + 1; });
+  const list = [...T.styles.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
+  return `<div class="toolbar"><h2><small>STYLES</small>スタイル</h2><input class="search" id="clq" placeholder="検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.styles.rows.size}</span></div>
+  <div class="tblwrap"><table class="stbl"><thead><tr><th>スタイル</th><th>略称</th><th>よみ</th><th>キャラ数</th><th>メモ</th></tr></thead><tbody>${list.map(r => { const c = r.c || {}; return `<tr data-adrow="${esc(r.id)}"><td class="first"><b>${esc(c["スタイル"] || "")}</b></td><td>${esc(c["略称"] || "")}</td><td>${esc(c["よみ"] || "")}</td><td>${cnt[c["スタイル"]] || 0}</td><td class="wrap">${esc(c["メモ"] || "")}</td></tr>`; }).join("")}</tbody></table></div>`;
+}
+function bindCustomList() {
+  AM.querySelectorAll("[data-optin]").forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") { const b = AM.querySelector(`[data-optadd="${CSS.escape(el.dataset.optin)}"]`); if (b) b.click(); } }));
+  const q = document.getElementById("clq");
+  if (q) q.addEventListener("input", () => { CL.q = q.value; const p = q.selectionStart; document.getElementById("admlist").innerHTML = customList(ED.k); bindCustomList(); const n = document.getElementById("clq"); n.focus(); n.setSelectionRange(p, p); });
 }
 function openEditor(k, id) {
   if (!T[k].rows.get(id)) { toast("この行が見つかりません（ほかのメンバーが削除した可能性があります）"); return; }
@@ -364,13 +441,152 @@ function renderForm() {
   body.innerHTML = editForm();
   if (!dl.open) dl.showModal();
   dl.scrollTop = sc;
-  body.querySelectorAll("[data-field]").forEach(el => el.addEventListener("input", () => {
-    ED.draft[el.dataset.field] = el.value; ED.dirty = true; ED.leaveOk = false;
-    const sb = document.getElementById("edsave"); if (sb) sb.disabled = false;
-    el.closest(".field").classList.toggle("changed", (ED.base[el.dataset.field] || "") !== el.value);
-  }));
+  body.querySelectorAll("[data-field]").forEach(el => {
+    const ev = el.tagName === "SELECT" || el.type === "date" ? "change" : "input";
+    el.addEventListener(ev, () => {
+      const name = el.dataset.field;
+      let v = el.value;
+      if (el.type === "date") v = fromDate(v);
+      ED.draft[name] = v; ED.dirty = true; ED.leaveOk = false;
+      if (ED.k === "chars" && (name === "キャラ名" || name === "名前 ひらがな")) ED.manual[name] = true;
+      const sb = document.getElementById("edsave"); if (sb) sb.disabled = false;
+      const fe = el.closest(".field"); if (fe) fe.classList.toggle("changed", (ED.base[name] || "") !== v);
+      if (ED.k === "chars" && (name === "キャラ" || name === "スタイル")) { autofillChar(); renderForm(); }
+    });
+  });
   const nc = document.getElementById("ednewcol"); if (nc) nc.addEventListener("input", () => { ED.newCol = nc.value; });
   const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const ik = ED.k === "chars" ? "char" : "script"; quickUpload(ik, ik === "char" ? ED.base["ID"] : ED.base["名前"], f); });
+  const cp = document.getElementById("cpin"); if (cp) cp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); charpickAdd(); } });
+}
+/* ---- 選択肢（プルダウン） ---- */
+const OPT_KEYS = ["騎士団", "階級", "ロール", "属性", "ダメージタイプ", "性別", "攻撃速度", "レアリティ", "バベル種類"];
+const OPT_NOTE = { "騎士団": "キャラクターの騎士団。公開サイトの絞り込み・アイコンにも使われます", "階級": "KING・QUEEN など", "ロール": "キャラ・スクリプトのロール", "属性": "破壊・衝撃・爆発", "攻撃速度": "A・Aplus など", "バベル種類": "リバースバベル など" };
+function colVals(k, col) { if (!T[k] || !seeded(k)) return []; const out = []; T[k].rows.forEach(r => { const v = String((r.c || {})[col] || "").trim(); if (v && !out.includes(v)) out.push(v); }); return out; }
+const uniq = (...ls) => { const o = []; ls.forEach(l => (l || []).forEach(v => { if (v && !o.includes(v)) o.push(v); })); return o; };
+function optDefaults() {
+  return {
+    "騎士団": uniq(R.ORDERS, colVals("people", "騎士団")), "階級": uniq(R.RANKS, colVals("people", "階級")),
+    "ロール": uniq(R.ROLES, colVals("chars", "ロール"), colVals("scripts", "ロール")), "属性": uniq(R.ATTRS, colVals("chars", "属性")),
+    "ダメージタイプ": uniq(["物理", "特殊", "ヒール"], colVals("chars", "ダメージタイプ")), "性別": uniq(["女", "男"], colVals("people", "性別")),
+    "攻撃速度": uniq(colVals("chars", "攻撃速度")), "レアリティ": uniq(colVals("scripts", "レアリティ")), "バベル種類": uniq(R.TYPES, colVals("babel", "バベル種類")),
+  };
+}
+function opts(key) { return OPTS && Array.isArray(OPTS[key]) && OPTS[key].length ? OPTS[key] : (optDefaults()[key] || []); }
+async function saveOpts(mut, label) {
+  try {
+    await F.runTransaction(F.db, async tx => {
+      const ref = F.doc(F.db, "public", "options"); const s = await tx.get(ref);
+      let o = {}; try { o = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
+      const base = optDefaults(); OPT_KEYS.forEach(k => { if (!Array.isArray(o[k]) || !o[k].length) o[k] = base[k]; });
+      mut(o);
+      tx.set(ref, { json: JSON.stringify(o), at: now(), by: me() });
+      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "options", label }));
+    });
+  } catch (e) { toast(fbErr(e), 5000); }
+}
+function usage(key, v) {
+  const m = { "騎士団": [["people", "騎士団"]], "階級": [["people", "階級"]], "ロール": [["chars", "ロール"], ["scripts", "ロール"]], "属性": [["chars", "属性"], ["babel", "推奨属性"]], "ダメージタイプ": [["chars", "ダメージタイプ"]], "性別": [["people", "性別"]], "攻撃速度": [["chars", "攻撃速度"]], "レアリティ": [["scripts", "レアリティ"]], "バベル種類": [["babel", "バベル種類"]] }[key] || [];
+  let n = 0; m.forEach(([k, c]) => { if (T[k]) T[k].rows.forEach(r => { if (String((r.c || {})[c] || "").trim() === v) n++; }); }); return n;
+}
+function renderOptions() {
+  let h = `<div class="optgrid">${OPT_KEYS.map(k => `<section class="apanel optcard"><h3 class="ph">${esc(k)}</h3><p class="hint" style="margin:0 0 8px">${esc(OPT_NOTE[k] || "")}</p>
+    <div class="optchips">${opts(k).map((v, i, a) => `<span class="optchip">${i > 0 ? `<button data-optmv="${esc(k)}|${i}|-1" title="前へ">‹</button>` : ""}<b>${esc(v)}</b><small>${usage(k, v)}</small>${i < a.length - 1 ? `<button data-optmv="${esc(k)}|${i}|1" title="後ろへ">›</button>` : ""}<button data-optrm="${esc(k)}|${esc(v)}" title="外す">✕</button></span>`).join("")}</div>
+    <div class="addcol"><input data-optin="${esc(k)}" placeholder="${esc(k)}を追加"><button class="btn small" data-optadd="${esc(k)}">追加</button></div></section>`).join("")}</div>
+    <p class="hint">数字はその値を使っているデータの件数です。外しても、入力済みのデータはそのまま残ります。</p>`;
+  return h;
+}
+/* ---- 入力フォームの部品 ---- */
+function toDate(v) { const m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(v || ""); return m ? `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : ""; }
+function fromDate(v) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ""); return m ? `${m[1]}年${+m[2]}月${+m[3]}日` : v; }
+function rowsOf(k) { return seeded(k) ? [...T[k].rows.values()].sort((a, b) => (a.o - b.o) || (a.id < b.id ? -1 : 1)).map(r => r.c || {}) : []; }
+const personRow = n => rowsOf("people").find(c => c["名前"] === n);
+const styleRow = n => rowsOf("styles").find(c => c["スタイル"] === n);
+function maxNo() { let m = 0; T.chars.rows.forEach(r => { const n = parseInt((r.c || {})["No"], 10); if (n > m) m = n; }); return m; }
+function autofillChar() {
+  const c = ED.draft; const ch = (c["キャラ"] || "").trim(); const st = (c["スタイル"] || "").trim() || "DEFAULT";
+  const sty = styleRow(st) || {}; const p = personRow(ch) || {};
+  if (ED.isNew) {
+    c["ID"] = ch ? `${ch}_${st.replace(/\s/g, "")}` : "";
+    if (!c["スタイル"]) c["スタイル"] = "DEFAULT";
+    if (!ED.manual["キャラ名"]) c["キャラ名"] = ch ? `${ch} ${sty["略称"] || st}` : "";
+    if (!ED.manual["名前 ひらがな"]) c["名前 ひらがな"] = ch ? `${p["ふりがな"] || ""}${sty["よみ"] || ""}` : "";
+    if (!c["No"]) c["No"] = String(maxNo() + 1);
+  }
+  MASTER_COLS.forEach(h => { if (p[h]) c[h] = p[h]; });
+}
+function selectHtml(id, name, list, v, ph) {
+  const items = v && !list.includes(v) ? list.concat([v]) : list;
+  return `<select id="${id}" data-field="${esc(name)}"><option value="">${esc(ph || "（選択）")}</option>${items.map(x => `<option value="${esc(x)}" ${x === v ? "selected" : ""}>${esc(x)}${!list.includes(x) ? "（一覧にない値）" : ""}</option>`).join("")}</select>`;
+}
+function charOptions() { return [...T.chars.rows.values()].map(r => r.c || {}).filter(c => c["ID"]).map(c => ({ id: c["ID"], label: c["キャラ名"] || c["ID"] })); }
+function charpickAdd() {
+  const inp = document.getElementById("cpin"); const q = (inp.value || "").trim(); if (!q) return;
+  const all = charOptions(); const hit = all.find(o => o.id === q || o.label === q || `${o.label}（${o.id}）` === q) || all.find(o => o.label.includes(q));
+  if (!hit) { toast("そのキャラが見つかりません"); return; }
+  const cur = String(ED.draft["おすすめキャラID"] || "").split(/[,、，\s]+/).filter(Boolean);
+  if (!cur.includes(hit.id)) cur.push(hit.id);
+  ED.draft["おすすめキャラID"] = cur.join(","); ED.dirty = true; renderForm();
+  const n = document.getElementById("cpin"); if (n) n.focus();
+}
+function fieldHtml(name, type, i, both) {
+  const v = ED.draft[name] == null ? "" : String(ED.draft[name]);
+  const changed = (ED.base[name] || "") !== v; const id = "f_" + i;
+  let cls = "field", inner = "", label = esc(name);
+  const ph = PH[name] ? ` placeholder="${esc(PH[name])}"` : "";
+  if (type === "id") {
+    cls += " idf";
+    inner = `<input id="${id}" value="${esc(v)}" readonly tabindex="-1"><small class="count">${ED.isNew ? "キャラとスタイルから自動で付きます" : "Tier配置・画像の紐付けに使うため固定です"}</small>`;
+  } else if (type === "people") {
+    inner = selectHtml(id, name, rowsOf("people").map(c => c["名前"]).filter(Boolean), v, "（キャラクターを選択）");
+  } else if (type === "style") {
+    inner = selectHtml(id, name, rowsOf("styles").map(c => c["スタイル"]).filter(Boolean), v, "（スタイルを選択）");
+  } else if (type.startsWith("opt:")) {
+    inner = selectHtml(id, name, opts(type.slice(4)), v);
+  } else if (type === "master") {
+    cls += " masterf"; const p = personRow(ED.draft["キャラ"]) || {};
+    inner = `<div class="mval">${esc(p[name] || v || "—")}</div>`;
+  } else if (type === "num") {
+    cls += " numf"; inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" inputmode="decimal"${ph}>`;
+  } else if (type === "date") {
+    const dv = toDate(v);
+    inner = dv || !v ? `<input id="${id}" type="date" data-field="${esc(name)}" value="${esc(dv)}">` : `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}">`;
+  } else if (type === "cond") {
+    inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_cond" placeholder="属性・騎士団・階級・スタイル・キャラ名・女性/男性">`;
+  } else if (type === "charpick") {
+    cls += " long";
+    const ids = v.split(/[,、，\s]+/).filter(Boolean);
+    inner = `<div class="cpchips">${ids.map(x => { const c = R.CHMAP[x]; return `<span class="cpchip">${R.IMG[x] ? `<img src="${esc(R.IMG[x])}" alt="">` : ""}${esc(c ? c.name : x)}${c ? "" : ' <small class="err">（見つからないID）</small>'}<button data-cprm="${esc(x)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだいません</span>'}</div>
+      <div class="addcol"><input id="cpin" list="dl_chars" placeholder="キャラ名を入力して追加"><button class="btn small" data-a="cpadd">追加</button></div>`;
+  } else if (type === "long" || type === "big") {
+    cls += " long";
+    const rows = type === "big" ? Math.max(8, (v.match(/\n/g) || []).length + 2) : Math.min(10, Math.max(2, Math.ceil(v.length / 48) + (v.match(/\n/g) || []).length));
+    inner = `<textarea id="${id}" data-field="${esc(name)}" rows="${rows}"${ph}>${esc(v)}</textarea>`;
+  } else {
+    const long = v.length > 40 || /\n/.test(v);
+    if (long) { cls += " long"; inner = `<textarea id="${id}" data-field="${esc(name)}" rows="${Math.min(8, Math.ceil(v.length / 48) + 1)}">${esc(v)}</textarea>`; }
+    else inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}"${ph}>`;
+  }
+  if (changed && type !== "master" && type !== "id") cls += " changed";
+  if (both.includes(name)) cls += " clash";
+  const key = KEYCOLS[ED.k] && KEYCOLS[ED.k].includes(name) && type !== "id";
+  return `<div class="${cls}"><label for="${id}">${label}${key ? ' <small class="req">必須</small>' : ""}</label>${inner}</div>`;
+}
+function formFields(both) {
+  const hd = T[ED.k].headers; const sch = SCHEMA[ED.k] || [];
+  const inSchema = new Set(sch.flatMap(g => g.f.map(x => x[0])));
+  let i = 0, h = "";
+  sch.forEach(g => {
+    if (ED.k === "chars" && g.f.every(([n]) => n === "騎士団" || n === "階級" || n === "性別") && !ED.draft["キャラ"]) return;
+    const nums = g.f.filter(([, t]) => t === "num").length;
+    h += `<section class="fgroup"><h3 class="fgh">${esc(g.g)}</h3>${g.note ? `<p class="hint fgnote">${esc(g.note)}</p>` : ""}<div class="fields2${nums >= 4 ? " numgrid" : ""}">${g.f.map(([n, t]) => fieldHtml(n, t, i++, both)).join("")}</div></section>`;
+  });
+  const others = hd.filter(n => !inSchema.has(n));
+  if (others.length) h += `<section class="fgroup"><h3 class="fgh">その他の列</h3><div class="fields2">${others.map(n => fieldHtml(n, /効果|解析|ポイント|コメント|プロフィール|メモ/.test(n) ? "long" : "text", i++, both)).join("")}</div></section>`;
+  // datalists
+  const cond = uniq(R.ATTRS, opts("騎士団"), opts("階級"), rowsOf("styles").map(c => c["スタイル"]), rowsOf("people").map(c => c["名前"]), ["女性", "男性"]);
+  h += `<datalist id="dl_cond">${cond.map(x => `<option value="${esc(x)}">`).join("")}</datalist>`;
+  if (ED.k === "babel") h += `<datalist id="dl_chars">${charOptions().map(o => `<option value="${esc(o.label)}">`).join("")}</datalist>`;
+  return h;
 }
 function tableSeg(attr, cur) { return `<div class="seg">${TABLES.map(k => `<button data-${attr}="${k}" aria-pressed="${cur === k}">${TLABEL[k]}</button>`).join("")}</div>`; }
 function bannerHtml() {
@@ -408,14 +624,8 @@ function editForm() {
       <p class="hint" style="margin:4px 0 0">${GH ? "画像はサイズを整えて GitHub に保存され、公開サイトには1〜2分で反映されます。" : "画像のアップロードには、オーナーが「画像」タブで GitHub 連携を設定する必要があります。"}</p></div>`}</section>`;
   }
   if (r && !ED.isNew) h += `<p class="count" style="margin:-6px 0 10px">最終更新：${esc(shortName(r.by))}（${esc(fmtTime(r.t))}）</p>`;
-  h += `<div class="fields">` + hd.map((name, i) => {
-    const v = ED.draft[name] == null ? "" : String(ED.draft[name]);
-    const long = v.length > 34 || /\n/.test(v) || /効果|解析|ポイント|コメント/.test(name); const id = "f_" + i;
-    const changed = (ED.base[name] || "") !== v;
-    const key = KEYCOLS[ED.k].includes(name);
-    return `<div class="field${long ? " long" : ""}${changed ? " changed" : ""}${both.includes(name) ? " clash" : ""}"><label for="${id}">${esc(name)}${key ? ' <small class="count">（識別用）</small>' : ""}</label>${long ? `<textarea id="${id}" data-field="${esc(name)}" rows="${Math.min(10, Math.max(2, Math.ceil(v.length / 42) + (v.match(/\n/g) || []).length))}">${esc(v)}</textarea>` : `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}">`}</div>`;
-  }).join("") + `</div>`;
-  h += `<div class="addcol"><input id="ednewcol" placeholder="列名を入力して列を追加" value="${esc(ED.newCol)}"><button class="btn small" data-ed="addcol">列を追加</button></div>`;
+  h += formFields(both);
+  h += `<details class="addcolbox"><summary>列を追加する</summary><div class="addcol"><input id="ednewcol" placeholder="新しい列の名前" value="${esc(ED.newCol)}"><button class="btn small" data-ed="addcol">列を追加</button></div></details>`;
   h += `<div class="formfoot">${ED.confirmDel ? `<span class="danger-q">この行を削除しますか？</span><button class="btn small danger" data-ed="delyes">削除する</button><button class="btn small" data-ed="delno">やめる</button>` : (!ED.isNew ? `<button class="btn small" data-ed="del">この行を削除</button>` : "")}<span style="flex:1"></span>${ED.dirty && !ED.isNew ? `<button class="btn small" data-ed="cancel">変更を取り消す</button>` : ""}<button class="btn" data-ed="close">閉じる</button><button class="btn primary" id="edsave" data-ed="save" ${ED.dirty || ED.gone ? "" : "disabled"}>${ED.isNew ? "追加して公開" : "保存して公開"}</button></div>`;
   return h;
 }
@@ -440,11 +650,14 @@ function dupKey(k, cells, selfId) {
 }
 function logDoc(o) { return Object.assign({ at: now(), by: me(), name: meName() }, o); }
 async function saveRow(force) {
-  const k = ED.k, hd = T[k].headers;
+  const k = ED.k;
+  if (k === "chars") autofillChar();
+  const extra = Object.keys(ED.draft).filter(h => !T[k].headers.includes(h) && String(ED.draft[h] || "") !== "");
+  const hd = T[k].headers.concat(extra);
   const cells = {}; hd.forEach(h => { cells[h] = String(ED.draft[h] == null ? "" : ED.draft[h]); });
   const dup = dupKey(k, cells, ED.id);
-  if (dup === "empty") { toast(`「${KEYCOLS[k].join("」「")}」を入力してください`, 4000); return; }
-  if (dup) { toast(`「${KEYCOLS[k].join("・")}」が「${dup}」と同じです。別の値にしてください`, 5000); return; }
+  if (dup === "empty") { toast(k === "chars" ? "キャラとスタイルを選んでください" : `「${KEYCOLS[k].join("」「")}」を入力してください`, 4000); return; }
+  if (dup) { toast(k === "chars" ? `このキャラとスタイルの組み合わせ（${cells["ID"]}）はすでに「${dup}」としてあります` : `「${KEYCOLS[k].join("・")}」が「${dup}」と同じです。別の値にしてください`, 6000); return; }
   const creating = ED.isNew || ED.gone;
   const id = creating ? (ED.id && ED.gone ? ED.id : "r" + rid()) : ED.id;
   const ref = F.doc(F.db, "tables", k, "rows", id);
@@ -453,7 +666,10 @@ async function saveRow(force) {
   ED.saving = true;
   try {
     await F.runTransaction(F.db, async tx => {
+      const hdrRef = F.doc(F.db, "tables", k);
+      const hs = extra.length ? await tx.get(hdrRef) : null;
       const s = await tx.get(ref);
+      if (hs) { const cur = hs.exists() ? (hs.data().headers || []) : []; tx.set(hdrRef, { headers: cur.concat(extra.filter(x => !cur.includes(x))), t: now(), by: me() }); }
       if (!creating && !force) {
         if (!s.exists()) throw { code: "gone" };
         const cur = s.data();
@@ -517,7 +733,7 @@ async function addColumn() {
 }
 async function edAction(a) {
   const k = ED.k;
-  if (a === "new") { ED.id = "new"; ED.isNew = true; ED.draft = {}; ED.base = {}; ED.baseRev = null; ED.dirty = true; ED.confirmDel = false; ED.conflict = null; ED.remote = null; ED.gone = false; ED.newCol = ""; renderForm(); return; }
+  if (a === "new") { ED.manual = {}; ED.id = "new"; ED.isNew = true; ED.draft = {}; ED.base = {}; if (k === "babel") ED.draft["バベル種類"] = R.TYPES[0] || ""; if (k === "chars") ED.draft["スタイル"] = "DEFAULT"; ED.baseRev = null; ED.dirty = true; ED.confirmDel = false; ED.conflict = null; ED.remote = null; ED.gone = false; ED.newCol = ""; renderForm(); return; }
   if (a === "close") { if (ED.dirty && !ED.leaveOk) { ED.leaveOk = true; toast("保存していない変更があります。もう一度押すと破棄して閉じます", 3500); return; } if (DLG) DLG.close(); return; }
   if (a === "cancel") { loadRow(k, ED.id); renderForm(); return; }
   if (a === "del") { ED.confirmDel = true; renderForm(); return; }
@@ -944,7 +1160,7 @@ function openCrop(kind, key) {
 
 /* ================= change log ================= */
 const LG = { k: "", open: null };
-const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", image: "画像", news: "お知らせ", tier: "Tier表" };
+const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", image: "画像", news: "お知らせ", tier: "Tier表", options: "選択肢" };
 function renderLog() {
   const list = LOG.filter(l => !LG.k || l.k === LG.k);
   let h = userBar() + `<div class="toolbar"><h2><small>HISTORY</small>変更履歴</h2><div class="seg"><button data-lgk="" aria-pressed="${!LG.k}">すべて</button>${TABLES.map(k => `<button data-lgk="${k}" aria-pressed="${LG.k === k}">${TLABEL[k]}</button>`).join("")}</div><span class="count">新しい順に最大150件</span></div>`;
@@ -1194,12 +1410,18 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes]");
+  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
   if (ds.a === "reload") { location.reload(); return; }
   if (ds.a === "seed") { seedAll(); return; }
+  if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
+  if (ds.a === "cpadd") { charpickAdd(); return; }
+  if (ds.cprm) { ED.draft["おすすめキャラID"] = String(ED.draft["おすすめキャラID"] || "").split(/[,、，\s]+/).filter(x => x && x !== ds.cprm).join(","); ED.dirty = true; renderForm(); return; }
+  if (ds.optadd) { const inp = AM.querySelector(`[data-optin="${CSS.escape(ds.optadd)}"]`); const v = (inp && inp.value || "").trim(); if (!v) return; const key = ds.optadd; saveOpts(o => { if (!o[key].includes(v)) o[key].push(v); }, `選択肢「${key}」に ${v} を追加`); return; }
+  if (ds.optrm) { const [key, v] = ds.optrm.split("|"); saveOpts(o => { o[key] = o[key].filter(x => x !== v); }, `選択肢「${key}」から ${v} を外す`); return; }
+  if (ds.optmv) { const [key, i, d] = ds.optmv.split("|"); saveOpts(o => { const a = o[key]; const j = +i + (+d); if (j < 0 || j >= a.length) return; [a[+i], a[j]] = [a[j], a[+i]]; }, `選択肢「${key}」の並び替え`); return; }
   if (ds.a === "tierclear") { TT.confirm = R.curFloor.key; renderTierTab(true); return; }
   if (ds.a === "tierimport") { TT.confirm = "import"; renderTierTab(true); return; }
   if (ds.a === "tierclearno") { TT.confirm = null; renderTierTab(true); return; }
@@ -1215,7 +1437,7 @@ function onAdminClick(e) {
   if (ds.a === "ghdelno") { IM.ghconfirm = false; renderImg(); return; }
   if (ds.a === "ghdelyes") { IM.ghconfirm = false; delGhToken(); return; }
   if (ds.a === "edcrop") { const ik = ED.k === "chars" ? "char" : "script"; openCrop(ik, ik === "char" ? ED.base["ID"] : ED.base["名前"]); return; }
-  if (ds.edk) { ED.k = ds.edk; resetEd(); renderEdit(false); return; }
+  if (ds.edk) { ED.k = ds.edk; resetEd(); CL.q = ""; renderEdit(false); return; }
   if (ds.ed) { edAction(ds.ed); return; }
   if (ds.iok) { IO.k = ds.iok; IO.confirm = null; renderIO(); return; }
   if (ds.io) { ioAction(ds.io, t); return; }
@@ -1317,6 +1539,47 @@ function injectStyle() {
 .edtool{margin-bottom:10px}
 #dlgEdit .formfoot{padding-bottom:14px}
 .seedbox{max-width:760px;margin:20px auto}
+.edseg{flex-wrap:wrap;align-items:center}
+.segsep{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;margin:0 4px 0 10px;padding-left:10px;border-left:2px solid var(--line2)}
+.fgroup{margin:0 0 14px;padding:12px 14px 14px;background:var(--field);border:1px solid var(--line)}
+.fgh{margin:0 0 10px;font-size:13px;font-weight:900;color:var(--accent-ink);letter-spacing:.12em;display:flex;align-items:center;gap:8px}
+.fgh::before{content:"";width:4px;height:14px;background:linear-gradient(var(--accent),var(--accent2))}
+.fgnote{margin:-4px 0 10px!important}
+.fields2{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px 14px}
+.fields2.numgrid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+.fields2 .field.long{grid-column:1/-1}
+.field select{border:1px solid var(--line2);background:var(--panel2);padding:6px 8px;border-radius:2px;width:100%;font-size:14px;color:var(--ink)}
+.field.numf input{text-align:right;font-variant-numeric:tabular-nums}
+.field.idf input{background:transparent;border-style:dashed;color:var(--muted)}
+.field.idf small{font-size:11px}
+.field.masterf .mval{padding:6px 8px;border:1px dashed var(--line2);font-size:14px;min-height:32px}
+.req{color:var(--bad);font-size:10.5px;font-weight:700}
+.cpchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.cpchip{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);padding:2px 4px 2px 2px;font-size:13px;font-weight:700}
+.cpchip img{width:26px;height:26px;object-fit:cover}
+.cpchip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:12px}
+.addcolbox{margin:4px 0 0;font-size:13px;color:var(--muted)}
+.addcolbox summary{cursor:pointer}
+.optgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.optcard{margin:0}
+.optchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.optchip{display:inline-flex;align-items:center;gap:4px;background:var(--field);border:1px solid var(--line2);padding:3px 6px;font-size:13.5px}
+.optchip small{color:var(--muted);font-size:11px}
+.optchip button{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px;font-size:13px}
+.optchip button:hover{color:var(--accent)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.pcard{display:flex;gap:12px;align-items:flex-start;text-align:left;border:0;background:var(--panel);box-shadow:var(--shadow);padding:10px;cursor:pointer;color:var(--ink);position:relative}
+.pcard:hover{background:var(--soft)}
+.pcard>img,.pcard>.noimg{width:64px;height:64px;object-fit:cover;flex:none;background:var(--soft)}
+.ptags img{width:16px;height:16px;object-fit:contain}
+.pinfo{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pinfo b{font-size:16px}
+.ptags{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:12.5px}
+.ptags span{display:inline-flex;align-items:center;gap:3px}
+.ptags .miss{color:var(--bad)}
+.pcard .pres{position:absolute;top:6px;right:6px}
+.stbl{width:100%}
+.stbl tr{cursor:pointer}
 .btn.big{font-size:16px;padding:12px 26px}
 .nwform select{border:1px solid var(--line2);background:var(--field);padding:5px 8px;font-size:14px;color:var(--ink)}
 .ck2{display:flex!important;align-items:center;gap:6px;font-size:13.5px!important;font-weight:500!important;color:var(--ink)!important;min-height:32px}

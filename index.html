@@ -1106,6 +1106,7 @@ async function loadSite(){
     if(FBC){try{const v=await fsGetJson("public/"+k);if(v&&v.rows){st[k]=v;return;}}catch(e){}}
     st[k]=await get(`data/${k}.json`).catch(()=>null);
   }).concat(FBC?[fsGetJson("public/crops").then(v=>{crops=v;}).catch(()=>{})]:[]).concat([
+    (FBC?fsGetJson("public/options"):Promise.reject()).then(setOptions).catch(()=>{}),
     (FBC?fsGetJson("public/news"):Promise.reject()).catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
     (FBC?fsGetJson("public/tiers"):Promise.reject()).catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_AT=v.at||0;}}).catch(()=>{})
   ]));
@@ -1119,6 +1120,8 @@ async function loadSite(){
   countVisit().catch(()=>{});
   if(location.hash==="#admin")openAdminModule();
 }
+/* 管理画面の「選択肢」（public/options）を絞り込みボタンなどに反映 */
+function setOptions(o){if(!o)return;const put=(arr,v)=>{if(Array.isArray(v)&&v.length)arr.splice(0,arr.length,...v);};put(ATTRS,o["属性"]);put(ROLES,o["ロール"]);put(RANKS,o["階級"]);put(ORDERS,o["騎士団"]);}
 /* ================= 画像で共有 ================= */
 const SITE_URL=location.origin+location.pathname;
 let SHARE={blob:null,url:"",text:""};
@@ -1225,7 +1228,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=9");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=10");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1271,6 +1274,7 @@ window.RXR={
   setTierEdit(on,hook){TIER_EDIT=!!on;TIER_HOOK=hook||null;sel=null;renderActionBar();},renderTier(){renderTier();renderActionBar();},
   get curFloor(){return curFloor();},
   get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
+  setOptions,
   jstDay,get SITE_LOADED(){return SITE_LOADED;},
   dlg(id){return document.getElementById(id);},
 };
