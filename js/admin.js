@@ -229,7 +229,7 @@ function userBar() {
 function statusBar() {
   if (!allReady()) return `<div class="astatus">データを読み込んでいます…</div>`;
   const notSeeded = TABLES.filter(k => !seeded(k));
-  if (notSeeded.length) return `<div class="astatus warn">Firestore にまだ登録されていないデータがあります（${notSeeded.map(k => TLABEL[k]).join("・")}）。「読み込み・書き出し」の「初期データを登録」から始めてください。今の公開サイトは GitHub の data/*.json を表示しています。</div>`;
+  if (notSeeded.length) return `<div class="astatus warn">まだ取り込んでいないデータがあります（${notSeeded.map(k => TLABEL[k]).join("・")}）。<button class="btn small primary" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : "今のデータを取り込む"}</button></div>`;
   return `<div class="astatus ok pubrow">${TABLES.map(k => { const p = pubState(k); return `<span>${TLABEL[k]} ${T[k].rows.size}件 <span class="mb ${p.cls}">${p.t}</span></span>`; }).join("")}<span class="count">保存すると数秒で公開サイトに反映されます</span></div>`;
 }
 function renderAdmin(soft) {
@@ -321,7 +321,7 @@ function renderEdit(soft) {
   const seg = `<div class="seg">${EDORDER.map(t => `<button data-edk="${t}" aria-pressed="${k === t}">${TLABEL[t]}</button>`).join("")}</div>`;
   if (!seeded(k)) {
     R.setMain(null);
-    AM.innerHTML = userBar() + statusBar() + `<div class="toolbar">${seg}</div><div class="empty"><h2>${TLABEL[k]}データがまだ登録されていません</h2><p>「読み込み・書き出し」→「初期データを登録」で、今の公開データ（GitHub の data/*.json）を取り込めます。</p><div class="row2" style="justify-content:center"><button class="btn primary" data-a="goio">読み込み・書き出しへ</button></div></div>`;
+    AM.innerHTML = userBar() + `<div class="toolbar">${seg}</div><div class="empty seedbox"><h2>最初に、今のデータを管理画面に取り込みます</h2><p>公開サイトに出ているデータ（バベル ${countStatic("babel")}・キャラ ${countStatic("chars")}・スクリプト ${countStatic("scripts")}）は、まだ GitHub のファイルから表示している状態です。<br>下のボタンを1回押すと、それを編集用のデータベース（Firestore）に登録して、ここで編集できるようになります。</p><div class="row2" style="justify-content:center"><button class="btn primary big" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : "今のデータを取り込んで編集を始める"}</button></div><p class="hint">取り込みは最初の1回だけです。公開サイトの表示は変わりません。</p></div>`;
     return;
   }
   const list = document.getElementById("admlist");
@@ -529,6 +529,18 @@ async function edAction(a) {
   if (a === "mergesave") { const both = mergeRemote(Object.assign({}, ED.conflict.other)); ED.conflict = null; if (both.length) { toast("両方が変えた項目はあなたの内容で保存します", 3000); } saveRow(false); return; }
   if (a === "force") { ED.conflict = null; saveRow(true); return; }
   if (a === "discard") { loadRow(k, ED.id); renderForm(); return; }
+}
+
+/* ---- 初期データの取り込み（data/*.json → Firestore） ---- */
+let SEEDING = false;
+function countStatic(k) { const d = R.LIVE[k]; return d && d.rows ? d.rows.length + "件" : "—"; }
+async function seedAll() {
+  if (SEEDING) return; SEEDING = true; renderAll();
+  try {
+    for (const t of TABLES) { if (seeded(t)) continue; const d = await staticJson(`data/${t}.json`); await applyTable(t, d, "replace", "seed"); }
+    toast("取り込みが終わりました。ここから編集できます", 5000);
+  } catch (e) { toast(fbErr(e), 7000); }
+  SEEDING = false; renderAll();
 }
 
 /* ================= import / export ================= */
@@ -1186,6 +1198,7 @@ function onAdminClick(e) {
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
   if (ds.a === "reload") { location.reload(); return; }
+  if (ds.a === "seed") { seedAll(); return; }
   if (ds.a === "tierclear") { TT.confirm = R.curFloor.key; renderTierTab(true); return; }
   if (ds.a === "tierimport") { TT.confirm = "import"; renderTierTab(true); return; }
   if (ds.a === "tierclearno") { TT.confirm = null; renderTierTab(true); return; }
@@ -1302,6 +1315,8 @@ function injectStyle() {
 .preslist .pres{margin:0}
 .edtool{margin-bottom:10px}
 #dlgEdit .formfoot{padding-bottom:14px}
+.seedbox{max-width:760px;margin:20px auto}
+.btn.big{font-size:16px;padding:12px 26px}
 .nwform select{border:1px solid var(--line2);background:var(--field);padding:5px 8px;font-size:14px;color:var(--ink)}
 .ck2{display:flex!important;align-items:center;gap:6px;font-size:13.5px!important;font-weight:500!important;color:var(--ink)!important;min-height:32px}
 .ck2 input{width:auto!important;flex:none}
