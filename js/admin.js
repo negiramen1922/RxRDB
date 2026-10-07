@@ -91,7 +91,7 @@ const fmtTime = t => { if (!t) return ""; const d = new Date(t); const p = n => 
 const ago = t => { const s = (now() - t) / 1000; if (s < 60) return "たった今"; if (s < 3600) return Math.floor(s / 60) + "分前"; if (s < 86400) return Math.floor(s / 3600) + "時間前"; return fmtTime(t); };
 function fbErr(e) {
   const c = e && e.code || "";
-  if (c === "permission-denied" || c === "permission_denied") return "権限がありません。ログインし直すか、オーナーに権限を確認してください";
+  if (c === "permission-denied" || c === "permission_denied") return "保存できませんでした（権限エラー）。Firestore のルールが最新か確認してください。直らなければログインし直してください";
   if (c === "resource-exhausted") return "今日の無料枠の上限に達したか、書き込みが混み合っています。時間をおいてもう一度試してください";
   if (c === "unavailable") return "サーバーにつながりません。通信状態を確認してください";
   return "失敗しました：" + (e && (e.message || c) || "不明なエラー");
@@ -192,7 +192,7 @@ function startListeners() {
   if (S.role === "owner") on(F.collection(F.db, "roles"), q => { ROLES = q.docs.map(d => Object.assign({ email: d.id }, d.data())); softRender(); });
   else ROLES = [];
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
-  F.setDoc(F.doc(F.db, "names", meId()), { name: meName(), role: S.role, at: now() }).catch(() => { });
+  F.setDoc(F.doc(F.db, "names", meId()), { name: meName(), role: S.role, at: now() }).then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
   on(F.query(F.collection(F.db, "feedback"), F.orderBy("at", "desc"), F.limit(300)), q => {
     FEEDBACK = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: x.at && x.at.toMillis ? x.at.toMillis() : (x.at || 0) }); });
@@ -297,8 +297,9 @@ function renderAll() { renderNav(); renderAdmin(false); }
 let softT = null;
 function softRender() { if (!S.open) return; clearTimeout(softT); softT = setTimeout(() => renderAdmin(true), 80); }
 function userBar() {
-  return `<div class="whoami">${S.user.photoURL ? `<img src="${esc(S.user.photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}<span><b>${esc(meName())}</b> <small>${esc(me())}</small></span><span class="rolebadge">${S.role === "owner" ? "オーナー" : "編集者"}</span><button class="btn small" data-a="logout">ログアウト</button></div>`;
+  return rulesWarn() + `<div class="whoami">${S.user.photoURL ? `<img src="${esc(S.user.photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}<span><b>${esc(meName())}</b> <small>${esc(me())}</small></span><span class="rolebadge">${S.role === "owner" ? "オーナー" : "編集者"}</span><button class="btn small" data-a="logout">ログアウト</button></div>`;
 }
+function rulesWarn() { return S.rulesOld ? `<div class="astatus warn conflict"><b>Firestore のルールが古いままのため、保存ができません。</b>Firebase コンソール → Firestore Database → ルール に、<a href="https://github.com/negiramen1922/RxRDB/blob/main/firestore.rules" target="_blank" rel="noopener">最新の firestore.rules</a> を丸ごと貼り付けて「公開」し、このページを再読み込みしてください。</div>` : ""; }
 function statusBar() {
   if (!allReady()) return `<div class="astatus">データを読み込んでいます…</div>`;
   const notSeeded = TABLES.filter(k => !seeded(k));
