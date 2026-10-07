@@ -1142,7 +1142,7 @@ async function b64(blob) { const u = new Uint8Array(await blob.arrayBuffer()); l
 const unb64 = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), c => c.charCodeAt(0)));
 function ghErr(e) {
   if (e && e.status === 401) return "GitHub のトークンが無効か期限切れです。オーナーが「画像」タブで登録し直してください";
-  if (e && (e.status === 403 || e.status === 404)) return "GitHub に書き込む権限がありません（トークンの対象リポジトリと Contents の Read and write を確認してください）";
+  if (e && (e.status === 403 || e.status === 404)) return "GitHub に書き込む権限がありません。トークンの設定で Repository access に RxRDB が入っているか、Permissions の Contents が「Read and write」（Read-only ではなく）になっているか確認してください" + (e.detail ? `（${e.detail}）` : "");
   return "GitHub へのアップロードに失敗しました：" + (e && (e.detail || e.message) || "");
 }
 async function ghCommit(items, progress) {
@@ -1216,6 +1216,9 @@ async function saveGhToken() {
   const prev = GH; GH = { token, repo, branch: "main" };
   try { await gh(""); await gh("/git/ref/heads/main"); }
   catch (e) { GH = prev; toast(e.status === 401 ? "トークンが正しくないようです" : e.status === 404 ? "リポジトリが見つかりません（トークンの対象リポジトリを確認してください）" : ghErr(e), 6000); return; }
+  // 読めても書けないトークン（Contents が Read-only）を保存しないよう、小さな blob を作って書き込み権限を確かめる（コミットはしない）
+  try { await gh("/git/blobs", { method: "POST", body: JSON.stringify({ content: "rxrdb token check", encoding: "utf-8" }) }); }
+  catch (e) { GH = prev; toast(ghErr(e), 9000); return; }
   try { await F.setDoc(F.doc(F.db, "secrets", "github"), { token, repo, branch: "main", at: now(), by: meId() }); toast("GitHub 連携を保存しました"); }
   catch (e) { GH = prev; toast(fbErr(e) + "（Firestore のルールを最新にしてください）", 7000); }
 }
