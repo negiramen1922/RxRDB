@@ -705,6 +705,8 @@ document.querySelectorAll("#userTabs [data-top]").forEach(b=>b.addEventListener(
 document.getElementById("subTabs").addEventListener("click",e=>{const b=e.target.closest("[data-sub]");if(b)goSub(b.dataset.sub);});
 function goSub(k){if(k.startsWith("rank:")){const t=k.slice(5);if(RK.t!==t){RK.t=t;RK.stat=RKDEF[t][0][0];RK.dir=RKDEF[t][0][2];RK.focus=null;RK.role=null;RK.rar=null;RK.attr=null;}switchTab("rank");}else switchTab(k);}
 function switchTab(t){track("tab",{tab:t});tab=t;sel=null;render();window.scrollTo(0,0);}
+/* 日本語入力（IME）の変換中は再描画しない */
+function liveInput(el,fn){if(!el)return;el.addEventListener("input",e=>{if(e.isComposing||el._comp)return;fn();});el.addEventListener("compositionstart",()=>{el._comp=true;});el.addEventListener("compositionend",()=>{el._comp=false;fn();});}
 let main=document.getElementById("main");
 function render(){
   if(MODE==="admin"){if(ADMIN_LIST)ADMIN_LIST();return;}
@@ -775,7 +777,7 @@ function renderTier(){
   const memo=document.getElementById("memo");
   memo.addEventListener("input",()=>{S.notes[f.key]=memo.value;save();});
   const pq=document.getElementById("poolQ");
-  if(pq)pq.addEventListener("input",()=>{pool.q=pq.value;const p=pq.selectionStart;renderTier();const nq=document.getElementById("poolQ");nq.focus();nq.setSelectionRange(p,p);});
+  liveInput(pq,()=>{pool.q=pq.value;const p=pq.selectionStart;renderTier();const nq=document.getElementById("poolQ");nq.focus();nq.setSelectionRange(p,p);});
   bindDrag();
 }
 function fmtDay(t){const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;}
@@ -850,7 +852,7 @@ function renderChars(){
   list.forEach(c=>{h+=`<tr data-detail="${esc(c.id)}">${cols.map((i,n)=>{const v=c.row[i]||"";const H=d.headers[i];if(H==="属性")return `<td>${ic(v)} <span class="attr ${esc(v)}">${esc(v)}</span></td>`;if(H==="ロール"||H==="階級")return `<td>${ic(v)} ${esc(v)}</td>`;if(H==="騎士団")return `<td>${ic(v,"ord")} ${esc(v)}</td>`;return `<td${n===0?' class="first"':v.length>26?' class="wrap"':""}>${n===0?(IMG[c.id]?`<img src="${IMG[c.id]}" alt="" style="width:26px;height:26px;border-radius:5px;vertical-align:middle;margin-right:6px">`:"")+"<b>"+esc(v)+"</b>":esc(v)}</td>`;}).join("")}</tr>`;});
   main.innerHTML=h+`</tbody></table></div><p class="hint">行をクリックで詳細。見出しクリックで並び替え。</p>`;
   const tq=document.getElementById("tq");
-  tq.addEventListener("input",()=>{st.q=tq.value;const p=tq.selectionStart;renderChars();const n=document.getElementById("tq");n.focus();n.setSelectionRange(p,p);});
+  liveInput(tq,()=>{st.q=tq.value;const p=tq.selectionStart;renderChars();const n=document.getElementById("tq");n.focus();n.setSelectionRange(p,p);});
 }
 
 /* ---------- babel table ---------- */
@@ -864,7 +866,7 @@ function renderBabel(){
   list.forEach(f=>{const c=Object.keys(place(f.key)).length;h+=`<tr data-floor="${esc(f.key)}" data-go="1"><td><b>${esc(f.floor)}</b></td><td>${esc(f.boss)}</td><td>${f.attr?`<span class="attr ${esc(f.attr)}">${esc(f.attr)}</span>`:""}</td><td class="wrap">${f.lines.filter(l=>!l.sec).map(l=>`<div style="color:${l.pol>0?"var(--good)":l.pol<0?"var(--bad)":"inherit"}">${esc(l.text)}</div>`).join("")}</td><td class="wrap">${f.recs.map(id=>esc(CHMAP[id]?CHMAP[id].name:id)).join("、")}</td><td>${c||""}</td></tr>`;});
   main.innerHTML=h+`</tbody></table></div><p class="hint">行をクリックするとその階層のTier表を開きます。</p>`;
   const bq=document.getElementById("bq");
-  bq.addEventListener("input",()=>{st.q=bq.value;const p=bq.selectionStart;renderBabel();const n=document.getElementById("bq");n.focus();n.setSelectionRange(p,p);});
+  liveInput(bq,()=>{st.q=bq.value;const p=bq.selectionStart;renderBabel();const n=document.getElementById("bq");n.focus();n.setSelectionRange(p,p);});
 }
 
 /* ---------- scripts ---------- */
@@ -886,7 +888,7 @@ function renderScripts(){
   list.forEach(s=>{h+=`<tr data-sdetail="${s.i}">${C.map((i,n)=>{const v=s.row[i]||"";const H=d.headers[i];if(H==="レアリティ")return `<td><span class="rar ${esc(v)}">${esc(v)}</span></td>`;if(H==="ロール")return `<td>${ic(v)} ${esc(v)}</td>`;if(H==="条件2"||H==="条件3")return `<td>${v?`${ic(ALIAS[v]||v,ORDERS.includes(v)?"ord":"")} ${esc(v)}`:""}</td>`;return `<td${n===0?' class="first"':v.length>20?' class="wrap"':""}>${n===0?sth(s)+"<b>"+esc(v)+"</b>":esc(v)}</td>`;}).join("")}</tr>`;});
   main.innerHTML=h+`</tbody></table></div><p class="hint">行をクリックすると詳細と、条件に合うキャラが見られます。</p>`;
   const sq=document.getElementById("sq");
-  sq.addEventListener("input",()=>{st.q=sq.value;const p=sq.selectionStart;renderScripts();const n=document.getElementById("sq");n.focus();n.setSelectionRange(p,p);});
+  liveInput(sq,()=>{st.q=sq.value;const p=sq.selectionStart;renderScripts();const n=document.getElementById("sq");n.focus();n.setSelectionRange(p,p);});
 }
 function openScript(i){
   const s=SC.find(x=>x.i===i);if(!s)return;const d=data("scripts");
@@ -1278,7 +1280,7 @@ function renderOwn(){
    <span style="flex:1"></span><button class="btn small" data-act="ownall">表示中をすべて所持に</button><button class="btn small" data-act="ownreset">リセット</button></div>
   <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${attrColor(c.attr)}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${IMG[c.id]?`<img src="${IMG[c.id]}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span><span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}" aria-label="★${n}">★</button>`).join("")}</span></div>`;}).join("")||'<p class="count">該当するキャラがいません</p>'}</div>`;
   main.innerHTML=h;
-  const qi=document.getElementById("ownQ");qi.addEventListener("input",()=>{OWNF.q=qi.value;const p=qi.selectionStart;renderOwn();const n=document.getElementById("ownQ");n.focus();n.setSelectionRange(p,p);});
+  const qi=document.getElementById("ownQ");liveInput(qi,()=>{OWNF.q=qi.value;const p=qi.selectionStart;renderOwn();const n=document.getElementById("ownQ");n.focus();n.setSelectionRange(p,p);});
 }
 main.addEventListener("click",e=>{
   if(tab!=="own")return;const t=e.target.closest("[data-owntoggle],[data-ownstar],[data-ownshow],[data-ownsort],[data-ownattr],[data-ownrole]");if(!t)return;const ds=t.dataset;const o=OWN();
@@ -1349,7 +1351,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=11");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=12");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1396,6 +1398,7 @@ window.RXR={
   get curFloor(){return curFloor();},
   get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
   setOptions,
+  liveInput,
   jstDay,get SITE_LOADED(){return SITE_LOADED;},
   dlg(id){return document.getElementById(id);},
 };

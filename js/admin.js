@@ -416,7 +416,7 @@ function customList(k) {
 function bindCustomList() {
   AM.querySelectorAll("[data-optin]").forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") { const b = AM.querySelector(`[data-optadd="${CSS.escape(el.dataset.optin)}"]`); if (b) b.click(); } }));
   const q = document.getElementById("clq");
-  if (q) q.addEventListener("input", () => { CL.q = q.value; const p = q.selectionStart; document.getElementById("admlist").innerHTML = customList(ED.k); bindCustomList(); const n = document.getElementById("clq"); n.focus(); n.setSelectionRange(p, p); });
+  if (q) R.liveInput(q, () => { CL.q = q.value; const p = q.selectionStart; document.getElementById("admlist").innerHTML = customList(ED.k); bindCustomList(); const n = document.getElementById("clq"); n.focus(); n.setSelectionRange(p, p); });
 }
 function openEditor(k, id) {
   if (!T[k].rows.get(id)) { toast("この行が見つかりません（ほかのメンバーが削除した可能性があります）"); return; }
@@ -963,7 +963,7 @@ function renderImg() {
   h += tail;
   AM.innerHTML = h;
   const inp = document.getElementById("imfiles"); inp.addEventListener("change", () => addFiles(inp.files));
-  const cq = document.getElementById("cropq"); if (cq) cq.addEventListener("input", () => { IM.cq = cq.value; const p = cq.selectionStart; renderImg(); const n = document.getElementById("cropq"); n.focus(); n.setSelectionRange(p, p); });
+  const cq = document.getElementById("cropq"); if (cq) R.liveInput(cq, () => { IM.cq = cq.value; const p = cq.selectionStart; renderImg(); const n = document.getElementById("cropq"); n.focus(); n.setSelectionRange(p, p); });
   const dr = document.getElementById("drop");
   dr.addEventListener("dragover", e => { e.preventDefault(); dr.classList.add("over"); }); dr.addEventListener("dragleave", () => dr.classList.remove("over"));
   dr.addEventListener("drop", e => { e.preventDefault(); dr.classList.remove("over"); addFiles(e.dataTransfer.files); });
