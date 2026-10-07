@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>バベル Tier表メーカー｜リバリバ</title>
-<meta name="description" content="リバースブルー×リバースエンド（リバリバ）のバベル階層別Tier表。各階層のおすすめキャラやボス情報、キャラ・スクリプトのデータが見られます。">
+<title>RxRwiki｜リバリバ バベル攻略・Tier表</title>
+<meta name="description" content="RxRwiki：リバースブルー×リバースエンド（リバリバ）のバベル攻略wiki。階層別Tier表。各階層のおすすめキャラやボス情報、キャラ・スクリプトのデータが見られます。">
 <meta property="og:type" content="website">
-<meta property="og:title" content="バベル Tier表メーカー｜リバリバ">
-<meta property="og:description" content="リバリバのバベル階層別Tier表。各階層のおすすめキャラがわかる、自分のTier表も作って共有できます。">
+<meta property="og:title" content="RxRwiki｜リバリバ バベル攻略・Tier表">
+<meta property="og:description" content="リバースブルー×リバースエンド（リバリバ）のバベル攻略wiki。階層ごとのボス情報・解析データ・Tier表で、おすすめキャラがわかります。">
 <meta property="og:url" content="https://negiramen1922.github.io/RxRDB/">
 <meta property="og:image" content="https://negiramen1922.github.io/RxRDB/images/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
@@ -453,8 +453,8 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
     <div class="brand">
       <div>
         <p class="kicker">REVERSE BLUE × REVERSE END</p>
-        <h1>BABEL<span>TIER</span></h1>
-        <p class="sub">バベル階層別Tier表メーカー</p>
+        <h1>RxR<span>wiki</span></h1>
+        <p class="sub">リバリバ バベル攻略wiki</p>
       </div>
       <div class="acts">
         <button class="btn ghost-dark small" data-news>お知らせ<span class="nbadge2" id="newsCount" hidden></span></button>
@@ -463,7 +463,7 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
     </div>
   </div>
   <nav class="tabs" id="userTabs" role="tablist">
-    <button role="tab" data-tab="tier" aria-selected="true">階層別Tier表</button>
+    <button role="tab" data-tab="tier" aria-selected="true">バベル攻略</button>
     <button role="tab" data-tab="sum" aria-selected="false">全階層まとめ</button>
     <button role="tab" data-tab="chars" aria-selected="false">キャラデータ</button>
     <button role="tab" data-tab="babel" aria-selected="false">バベル一覧</button>
@@ -1143,7 +1143,7 @@ async function makeTierImage(f,P,mine){
   const hero=await loadImgEl(HERO);
   if(hero){c.save();c.beginPath();c.rect(0,0,W,HEAD);c.clip();c.globalAlpha=.55;const s=Math.max(W/hero.width,HEAD/hero.height);c.drawImage(hero,(W-hero.width*s)/2,0,hero.width*s,hero.height*s);c.restore();
     g=c.createLinearGradient(0,0,W,0);g.addColorStop(0,"rgba(5,20,55,.92)");g.addColorStop(.7,"rgba(5,20,55,.35)");g.addColorStop(1,"rgba(5,20,55,.1)");c.fillStyle=g;c.fillRect(0,0,W,HEAD);}
-  c.fillStyle="#cfe3ff";c.font=`600 15px ${EN}`;c.fillText("REVERSE BLUE × REVERSE END  /  BABEL TIER",PAD,36);
+  c.fillStyle="#cfe3ff";c.font=`600 15px ${EN}`;c.fillText("REVERSE BLUE × REVERSE END  /  RxRwiki BABEL",PAD,36);
   c.fillStyle="#fff";c.font=`900 40px ${JP}`;c.fillText(`${f.type}  ${f.floor}F`,PAD,86);
   c.font=`700 26px ${JP}`;c.fillText(f.boss||"",PAD,124);
   // badge
@@ -1168,7 +1168,7 @@ async function makeTierImage(f,P,mine){
     y+=h+6;});
   // footer
   y=H-FOOT;g=c.createLinearGradient(0,y,0,H);g.addColorStop(0,"rgba(5,20,55,.0)");g.addColorStop(.35,"rgba(5,20,55,.85)");g.addColorStop(1,"rgba(5,20,55,.95)");c.fillStyle=g;c.fillRect(0,y,W,FOOT);
-  c.fillStyle="#fff";c.font=`900 22px ${JP}`;c.fillText("バベル Tier表メーカー｜リバリバ",PAD,H-38);
+  c.fillStyle="#fff";c.font=`900 22px ${JP}`;c.fillText("RxRwiki｜リバリバ バベル攻略",PAD,H-38);
   c.fillStyle="#9fd2ff";c.font=`600 20px ${EN}`;c.fillText(SITE_URL.replace(/^https?:\/\//,""),PAD,H-12);
   c.fillStyle="#cfe3ff";c.font=`500 15px ${JP}`;const d=new Date();const ds=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;c.fillText(ds,W-PAD-c.measureText(ds).width,H-14);
   return new Promise(r=>cv.toBlob(r,"image/png"));
@@ -1193,7 +1193,7 @@ async function openShare(){
 }
 document.getElementById("dlgShare").addEventListener("click",async e=>{
   const b=e.target.closest("[data-share]");if(!b)return;const k=b.dataset.share;track("share",{method:k});
-  if(k==="native"){try{await navigator.share({files:[new File([SHARE.blob],SHARE.name,{type:"image/png"})],text:SHARE.text+"\n"+SHARE.link,title:"バベル Tier表"});}catch(er){}return;}
+  if(k==="native"){try{await navigator.share({files:[new File([SHARE.blob],SHARE.name,{type:"image/png"})],text:SHARE.text+"\n"+SHARE.link,title:"RxRwiki バベルTier表"});}catch(er){}return;}
   if(k==="x"){window.open(`https://x.com/intent/post?text=${encodeURIComponent(SHARE.text)}&url=${encodeURIComponent(SHARE.link)}`,"_blank","noopener");return;}
   if(k==="save"){const a=document.createElement("a");a.href=SHARE.url;a.download=SHARE.name;document.body.appendChild(a);a.click();a.remove();return;}
   if(k==="copyimg"){try{await navigator.clipboard.write([new ClipboardItem({"image/png":SHARE.blob})]);toast("画像をコピーしました。投稿欄に貼り付けられます");}catch(er){toast("コピーできませんでした。「画像を保存」を使ってください");}return;}
@@ -1245,7 +1245,7 @@ const dlgF=document.getElementById("dlgFeedback");
 document.querySelectorAll("[data-feedback]").forEach(b=>b.addEventListener("click",ev=>{ev.preventDefault();
   document.getElementById("fbText").value="";document.getElementById("fbContact").value="";document.getElementById("fbErr").textContent="";
   document.getElementById("fbPage").textContent=feedbackPage();dlgF.showModal();}));
-function feedbackPage(){const f=curFloor();const t={tier:"階層別Tier表",sum:"全階層まとめ",chars:"キャラデータ",babel:"バベル一覧",scripts:"スクリプト",rank:"ランキング"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
+function feedbackPage(){const f=curFloor();const t={tier:"バベル攻略",sum:"全階層まとめ",chars:"キャラデータ",babel:"バベル一覧",scripts:"スクリプト",rank:"ランキング"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
 document.getElementById("fbSend").addEventListener("click",async e=>{
   const text=document.getElementById("fbText").value.trim(),contact=document.getElementById("fbContact").value.trim(),kind=document.querySelector('input[name="fbKind"]:checked').value;
   const err=document.getElementById("fbErr");
