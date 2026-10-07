@@ -124,6 +124,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 
 .floorcard{padding:18px 20px;margin-bottom:16px}
 .floorcard .head{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.bossimg{width:64px;height:64px;object-fit:cover;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .floorcard .num{font-family:var(--display);font-weight:700;font-size:58px;line-height:.85;transform:skewX(-10deg);background:linear-gradient(180deg,var(--accent2),var(--accent) 60%,#0d3b8c);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-flex;flex-direction:column}
 .floorcard .num small{font-size:12px;letter-spacing:.35em;font-weight:600;-webkit-text-fill-color:var(--muted)}
 .floorcard h2{font-weight:900;font-size:26px;margin:0 0 4px;line-height:1.2;transform:skewX(-6deg)}
@@ -571,7 +572,8 @@ const PRISTINE="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
 const SEED=JSON.parse(document.getElementById("seed").textContent);
 const ASSETS=JSON.parse(document.getElementById("assets").textContent);
 const IMG=Object.assign({},ASSETS.thumbs),BANNER=Object.assign({},ASSETS.banners),ICON=Object.assign({},ASSETS.icons),SIMG=Object.assign({},ASSETS.sthumbs),SFULL=Object.assign({},ASSETS.sfull);
-const BASE={SIMG:ASSETS.sthumbs||{},SFULL:ASSETS.sfull||{},IMG:ASSETS.thumbs||{},BANNER:ASSETS.banners||{},ICON:ASSETS.icons||{},HERO:ASSETS.hero||""};let HERO=BASE.HERO;
+const BOSS={},BOSSF={},EVT={},EVTF={};
+const BASE={SIMG:ASSETS.sthumbs||{},SFULL:ASSETS.sfull||{},IMG:ASSETS.thumbs||{},BANNER:ASSETS.banners||{},ICON:ASSETS.icons||{},HERO:ASSETS.hero||"",BOSS:{},BOSSF:{},EVT:{},EVTF:{}};let HERO=BASE.HERO;
 const ic=(k,cls)=>ICON[k]?`<img class="ic ${cls||""}" src="${ICON[k]}" alt="${esc(k)}" title="${esc(k)}">`:"";
 const KEY="babel-tier-v2";
 const TIERS=["SSS","SS","S","A","B","C","D"];
@@ -739,7 +741,7 @@ function renderTier(){
     h+=`<button class="floorbtn" data-floor="${esc(x.key)}" aria-current="${x.key===f.key}" aria-label="${esc(x.floor)}階"><b>${esc(x.floor)}</b>${c?`<small>${c}</small>`:""}</button>`;
   });
   h+=`</div><div class="base"></div></aside><section>`;
-  h+=`<div class="floorcard"><div class="head"><span class="num"><small>FLOOR</small>${esc(f.floor)}</span><div><div class="type">${esc(f.type)}</div><h2>${esc(f.boss||"（ボス未登録）")}</h2>${f.attr?`<span class="attr ${esc(f.attr)}">推奨 ${esc(f.attr)}</span>${ic(f.attr,"big")}`:""}</div></div>
+  h+=`<div class="floorcard"><div class="head"><span class="num"><small>FLOOR</small>${esc(f.floor)}</span>${BOSS[f.boss]?`<img class="bossimg" src="${BOSS[f.boss]}" alt="">`:""}<div><div class="type">${esc(f.type)}</div><h2>${esc(f.boss||"（ボス未登録）")}</h2>${f.attr?`<span class="attr ${esc(f.attr)}">推奨 ${esc(f.attr)}</span>${ic(f.attr,"big")}`:""}</div></div>
   <div class="fgrid"><div><p class="note-h">解析データ</p><ul class="effects">${f.lines.map(l=>`<li class="${l.sec?"sec":l.pol>0?"pos":l.pol<0?"neg":""}">${esc(l.text)}</li>`).join("")||'<li class="sec">なし</li>'}</ul></div><div>`;
   if(f.recs.length)h+=`<p class="note-h">おすすめキャラ</p><div class="recs">${f.recs.map(id=>`<button data-pick="${esc(id)}">★ ${esc(CHMAP[id]?CHMAP[id].name:id)}</button>`).join("")}</div>`;
   if(f.point)h+=`<p class="note-h">ポイント</p><p class="note-b">${esc(f.point)}</p>`;
@@ -747,7 +749,7 @@ function renderTier(){
   h+=`<p class="note-h">自分用メモ</p><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など">${esc(S.notes[f.key]||"")}</textarea></div></div></div>`;
   if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;main.innerHTML=h;return;}
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
-  h+=`<details class="tcrit"${S.critClosed?"":" open"}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(TDESC[t])}</dd></div>`).join("")}</dl></details>`;
+  h+=`<details class="tcrit"${S.critOpen?" open":""}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(TDESC[t])}</dd></div>`).join("")}</dl></details>`;
   const placed=Object.keys(P).length;
   if(MINE())h+=`<p class="offnote mine">自分用のTier表です。キャラを選んでTierを押すか、ドラッグで配置できます。<b>このブラウザにだけ保存</b>され、公式のTier表には影響しません。</p>`;
   else if(!TIER_EDIT)h+=`<p class="offnote">${placed?`このTier表は運営メンバーが作成しています。キャラを押すと詳細が見られます。${OFFICIAL_AT?`<span class="count">最終更新 ${fmtDay(OFFICIAL_AT)}</span>`:""}`:`この階層のTier表は準備中です。もうしばらくお待ちください。`}</p>`;
@@ -1043,7 +1045,7 @@ document.addEventListener("click",e=>{
   else if(a==="allcols"){tstate.chars.all=!tstate.chars.all;renderChars();}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sel){sel=null;render();}});
-document.addEventListener("toggle",e=>{if(e.target.classList&&e.target.classList.contains("tcrit")){S.critClosed=!e.target.open;save();}},true);
+document.addEventListener("toggle",e=>{if(e.target.classList&&e.target.classList.contains("tcrit")){S.critOpen=e.target.open;save();}},true);
 document.addEventListener("dblclick",e=>{const t=e.target.closest(".tile");if(t)openChar(t.dataset.id);});
 
 /* ---------- import ---------- */
@@ -1103,6 +1105,7 @@ function applyMedia(){
   for(const k in BANNER)delete BANNER[k];Object.assign(BANNER,BASE.BANNER);
   for(const k in ICON)delete ICON[k];Object.assign(ICON,BASE.ICON);
   for(const k in SIMG)delete SIMG[k];Object.assign(SIMG,BASE.SIMG);for(const k in SFULL)delete SFULL[k];Object.assign(SFULL,BASE.SFULL);
+  [[BOSS,"BOSS"],[BOSSF,"BOSSF"],[EVT,"EVT"],[EVTF,"EVTF"]].forEach(([m,k])=>{for(const x in m)delete m[x];Object.assign(m,BASE[k]);});
   HERO=BASE.HERO;setHero();applyCrops();
 }
 let rerenderT=null,ADMIN_RENDER=null,ADMIN_LIST=null;
@@ -1110,7 +1113,8 @@ function rerender(){clearTimeout(rerenderT);rerenderT=setTimeout(()=>{buildModel
 function enterAdmin(){location.hash="#admin";}
 function canvasBlob(im,sx,sy,sw,sh,dw,dh,type,q){const c=document.createElement("canvas");c.width=Math.round(dw);c.height=Math.round(dh);const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height);
   return new Promise(r=>c.toBlob(b=>{if(b&&b.type===type)r(b);else c.toBlob(r,"image/png");},type,q));}
-function cropSrc(kind,key){return kind==="char"?BANNER[key]:SFULL[key];}
+function cropSrc(kind,key){return kind==="char"?BANNER[key]:kind==="boss"?BOSSF[key]:kind==="event"?EVTF[key]:SFULL[key];}
+const thumbMap=kind=>kind==="char"?IMG:kind==="boss"?BOSS:kind==="event"?EVT:SIMG;
 function loadImgSrc(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=src;});}
 async function cropBlob(src,c,size){const im=await loadImgSrc(src);const W=im.naturalWidth,H=im.naturalHeight;const side=c.cs*H;return canvasBlob(im,c.cx*W,c.cy*H,side,side,size,size,"image/webp",.85);}
 let cropRun=0;
@@ -1118,9 +1122,9 @@ function cropSig(src,c){return [src,c.cx,c.cy,c.cs].join("|");}
 async function applyCrops(){
   const run=++cropRun;const todo=[];
   Object.values(CROPS).forEach(c=>{if(!c||!c.key)return;const src=cropSrc(c.kind,c.key);if(!src)return;const k=c.kind+"|"+c.key;
-    if(CROPURL[k]&&CROPURL[k].sig===cropSig(src,c))(c.kind==="char"?IMG:SIMG)[c.key]=CROPURL[k].url;else todo.push([c,src,k]);});
+    if(CROPURL[k]&&CROPURL[k].sig===cropSig(src,c))thumbMap(c.kind)[c.key]=CROPURL[k].url;else todo.push([c,src,k]);});
   let changed=false;
-  for(const [c,src,k] of todo){try{const b=await cropBlob(src,c,176);if(run!==cropRun)return;if(CROPURL[k])URL.revokeObjectURL(CROPURL[k].url);CROPURL[k]={sig:cropSig(src,c),url:URL.createObjectURL(b)};(c.kind==="char"?IMG:SIMG)[c.key]=CROPURL[k].url;changed=true;}catch(e){}}
+  for(const [c,src,k] of todo){try{const b=await cropBlob(src,c,176);if(run!==cropRun)return;if(CROPURL[k])URL.revokeObjectURL(CROPURL[k].url);CROPURL[k]={sig:cropSig(src,c),url:URL.createObjectURL(b)};thumbMap(c.kind)[c.key]=CROPURL[k].url;changed=true;}catch(e){}}
   if(changed)rerender();
 }
 
@@ -1171,7 +1175,7 @@ async function loadSite(){
   if(crops)CROPS=crops;
   renderNewsBadge();
   const im=await imP;
-  if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});if(im.hero)BASE.HERO=im.hero;}
+  if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});if(im.hero)BASE.HERO=im.hero;}
   SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
   countVisit().catch(()=>{});
@@ -1351,7 +1355,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=14");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=15");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1387,7 +1391,7 @@ document.getElementById("fbSend").addEventListener("click",async e=>{
 window.RXR={
   get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
   get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
-  IMG,BANNER,SIMG,SFULL,ICON,BASE,ATTRS,ROLES,RANKS,ORDERS,
+  IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,BASE,ATTRS,ROLES,RANKS,ORDERS,
   get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,
   rebuild(){buildModels();},renderUser(){render();},
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},

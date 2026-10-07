@@ -24,7 +24,9 @@
 - ローカル確認では Firebase に届かないので、テストは gstatic と firestore.googleapis.com をモックして行う。
 
 ## マスター
-- `people`（キャラクター: 名前・ふりがな・性別・誕生日・騎士団・階級・CV・プロフィール）と `styles`（スタイル・略称・よみ）。予備は data/people.json・data/styles.json。
+- `bosses`（ボス: 名前・よみ・説明。画像は images.json の bosses/bossfull）と `events`（イベント名・開始日・終了日・実装キャラID・登場ボス・説明。テーマイラストは events/eventfull）。ボスはバベルの「ボス」・イベントの「登場ボス」と名前（空白・記号を無視）でつながる。予備は data/bosses.json・data/events.json。
+- 選択肢の騎士団・階級・ロール・属性のアイコンは images.json の icons（管理画面の選択肢から GitHub にアップロード）。
+- `people`（騎士: 名前・ふりがな・性別・誕生日・騎士団・階級・CV・プロフィール）と `styles`（スタイル・略称・よみ）。予備は data/people.json・data/styles.json。
 - 公開用のキャラ表（public/chars）を作るとき、騎士団・階級・性別は people から合流させる（js/admin.js の publicData）。
 - 新しいキャラ（スタイル別）は キャラ＋スタイルを選ぶと ID（`キャラ_スタイル`）・キャラ名（キャラ＋略称）・ひらがな（ふりがな＋よみ）・No が自動で入る。入力フォームの項目構成は js/admin.js の SCHEMA。
 

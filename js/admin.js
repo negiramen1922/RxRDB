@@ -5,15 +5,17 @@ import * as F from "./fb.js";
 let R = null;            // index.html 側の橋渡し (window.RXR)
 const AM = document.getElementById("admin");
 const NAV = document.getElementById("adminTabs");
-const TABLES = ["chars", "scripts", "babel", "people", "styles"];
-const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル", people: "キャラクター", styles: "スタイル", options: "選択肢" };
-const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"], people: ["名前"], styles: ["スタイル"] };
+const TABLES = ["chars", "scripts", "babel", "people", "styles", "bosses", "events"];
+const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル", people: "騎士", styles: "スタイル", bosses: "ボス", events: "イベント", options: "選択肢" };
+const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"], people: ["名前"], styles: ["スタイル"], bosses: ["名前"], events: ["イベント名"] };
+// 画像を持つ表：種類と、画像のキーになる列
+const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], bosses: ["boss", "名前"], events: ["event", "イベント名"] };
 /* ---- 入力フォームの設計（列名 → 入力の種類）。ここにない列は「その他の列」に出る ---- */
 // t: text / num / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
 const SCHEMA = {
   chars: [
     { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "text"], ["名前 ひらがな", "text"], ["No", "num"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
-    { g: "キャラクター設定から（自動）", note: "騎士団・階級・性別は「キャラクター」の設定がそのまま使われます。変えるときはキャラクターのほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
+    { g: "騎士の設定から（自動）", note: "騎士団・階級・性別は「騎士」の設定がそのまま使われます。変えるときは騎士のほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
     { g: "ステータス", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["HP最大値", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["攻撃力最大値", "num"], ["物理防御", "num"], ["特殊防御", "num"], ["攻撃速度", "opt:攻撃速度"], ["抵抗値", "num"]] },
     { g: "コスト", f: [["初期コスト", "num"], ["育成後コスト", "num"], ["再出撃コスト", "num"], ["再出撃時間(S)", "num"]] },
     { g: "スキル", f: [["スキル名", "text"], ["スキルクールタイム", "num"], ["覚醒1 スキル効果", "long"], ["覚醒7 スキル効果", "long"], ["覚醒13 スキル効果", "long"]] },
@@ -28,13 +30,22 @@ const SCHEMA = {
     { g: "スキル3", f: [["条件3", "cond"], ["スキル3効果", "long"]] },
   ],
   babel: [
-    { g: "基本", f: [["バベル種類", "opt:バベル種類"], ["階層", "num"], ["ボス", "text"], ["推奨属性", "opt:属性"]] },
+    { g: "基本", f: [["バベル種類", "opt:バベル種類"], ["階層", "num"], ["ボス", "bossref"], ["推奨属性", "opt:属性"]] },
     { g: "解析データ", note: "1行に1つの効果。【特性】【味方】【敵】などの見出し行で区切ります。「上昇」「低下」などから自動で ▲▼ を判定します。", f: [["解析データ", "big"]] },
     { g: "おすすめ・コメント", f: [["おすすめキャラID", "charpick"], ["ポイント", "long"], ["コメント", "long"]] },
   ],
   people: [
     { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["性別", "opt:性別"], ["誕生日", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["CV", "text"]] },
     { g: "プロフィール", f: [["プロフィール", "long"]] },
+  ],
+  bosses: [
+    { g: "基本", f: [["名前", "text"], ["よみ", "text"], ["説明", "long"]] },
+  ],
+  events: [
+    { g: "基本", f: [["イベント名", "text"], ["開始日", "date"], ["終了日", "date"]] },
+    { g: "実装キャラ", f: [["実装キャラID", "charpick"]] },
+    { g: "登場ボス", f: [["登場ボス", "bosspick"]] },
+    { g: "説明", f: [["説明", "long"]] },
   ],
   styles: [
     { g: "基本", note: "略称は「カノン 聖典」のようにキャラ名を自動で作るとき、よみはひらがなを作るときに使います。", f: [["スタイル", "text"], ["略称", "text"], ["よみ", "text"], ["メモ", "long"]] },
@@ -356,8 +367,8 @@ function loadRow(k, id) {
   ED.base = Object.assign({}, r.c); ED.draft = Object.assign({}, r.c); ED.baseRev = r.rev;
   ED.dirty = false; ED.confirmDel = false; ED.remote = null; ED.gone = false; ED.conflict = null;
 }
-const EDORDER = ["babel", "chars", "scripts", "people", "styles", "options"];
-const EDGROUP = { babel: "", chars: "", scripts: "", people: "master", styles: "master", options: "master" };
+const EDORDER = ["babel", "chars", "scripts", "people", "styles", "bosses", "events", "options"];
+const EDGROUP = { babel: "", chars: "", scripts: "", people: "master", styles: "master", bosses: "master", events: "master", options: "master" };
 let DLG = null;
 function edDialog() {
   if (DLG) return DLG;
@@ -413,10 +424,10 @@ function renderEdit(soft) {
   if (k !== "options" && !seeded(k)) {
     R.setMain(null);
     const base3 = ["chars", "scripts", "babel"].every(seeded);
-    AM.innerHTML = userBar() + `<div class="toolbar">${seg}</div><div class="empty seedbox">${base3 ? `<h2>${TLABEL[k]}の表を作ります</h2><p>キャラクター（名前・ふりがな・性別・騎士団・階級など）とスタイル（略称・よみ）の表を、今のキャラデータから自動で作ります。<br>作ったあとは、キャラの騎士団・階級・性別はキャラクターの設定から自動で入るようになります。</p>` : `<h2>最初に、今のデータを管理画面に取り込みます</h2><p>公開サイトに出ているデータ（バベル ${countStatic("babel")}・キャラ ${countStatic("chars")}・スクリプト ${countStatic("scripts")}）は、まだ GitHub のファイルから表示している状態です。<br>下のボタンを1回押すと、それを編集用のデータベース（Firestore）に登録して、ここで編集できるようになります。</p>`}<div class="row2" style="justify-content:center"><button class="btn primary big" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : base3 ? "キャラクターとスタイルの表を作る" : "今のデータを取り込んで編集を始める"}</button></div><p class="hint">公開サイトの表示は変わりません。</p></div>`;
+    AM.innerHTML = userBar() + `<div class="toolbar">${seg}</div><div class="empty seedbox">${base3 ? `<h2>${TLABEL[k]}の表を作ります</h2><p>騎士（名前・ふりがな・性別・騎士団・階級など）・スタイル・ボスの表を、今のデータから自動で作ります（イベントは空の表を作ります）。<br>作ったあとは、キャラの騎士団・階級・性別は騎士の設定から自動で入るようになります。</p>` : `<h2>最初に、今のデータを管理画面に取り込みます</h2><p>公開サイトに出ているデータ（バベル ${countStatic("babel")}・キャラ ${countStatic("chars")}・スクリプト ${countStatic("scripts")}）は、まだ GitHub のファイルから表示している状態です。<br>下のボタンを1回押すと、それを編集用のデータベース（Firestore）に登録して、ここで編集できるようになります。</p>`}<div class="row2" style="justify-content:center"><button class="btn primary big" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : base3 ? "マスターの表を作る" : "今のデータを取り込んで編集を始める"}</button></div><p class="hint">公開サイトの表示は変わりません。</p></div>`;
     return;
   }
-  const custom = k === "people" || k === "styles" || k === "options";
+  const custom = ["people", "styles", "bosses", "events", "options"].includes(k);
   const list = document.getElementById("admlist");
   if (soft && list) {
     const st = document.getElementById("adstatus"); if (st) st.innerHTML = statusBar();
@@ -434,19 +445,41 @@ function renderEdit(soft) {
   if (DLG && DLG.open) refreshForm();
 }
 const CL = { q: "" };
+const bnorm = s => String(s || "").normalize("NFKC").replace(/[\s　：:・【】（）()「」『』＝=]/g, "").toLowerCase();
+function floorsOfBoss(name) { const n = bnorm(name); return rowsOf("babel").filter(c => n && bnorm(c["ボス"]) === n); }
+const splitList = v => String(v || "").split(/[,、，\n]+/).map(x => x.trim()).filter(Boolean);
+function eventsOfBoss(name) { const n = bnorm(name); return rowsOf("events").filter(c => splitList(c["登場ボス"]).some(b => bnorm(b) === n)); }
+function eventsOfChar(id) { return rowsOf("events").filter(c => splitList(c["実装キャラID"]).includes(id)); }
+const fmtD = v => { const m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(v || ""); return m ? `${m[1]}/${+m[2]}/${+m[3]}` : (v || ""); };
 function customList(k) {
   if (k === "options") return `<div class="toolbar"><h2><small>OPTIONS</small>選択肢</h2></div><p class="hint" style="margin:-6px 0 12px">入力フォームのプルダウンに出る候補です。新しい騎士団などが出たらここに追加してください。</p>` + renderOptions();
   const q = CL.q.toLowerCase();
   if (k === "people") {
     const units = {}; T.chars.rows.forEach(r => { const c = r.c || {}; (units[c["キャラ"]] = units[c["キャラ"]] || []).push(c); });
     const list = [...T.people.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
-    return `<div class="toolbar"><h2><small>CHARACTERS</small>キャラクター</h2><input class="search" id="clq" placeholder="名前・騎士団などで検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.people.rows.size}</span></div>
+    return `<div class="toolbar"><h2><small>KNIGHTS</small>騎士</h2><input class="search" id="clq" placeholder="名前・騎士団などで検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.people.rows.size}</span></div>
     <p class="hint" style="margin:-6px 0 12px">スタイルに関係なく、そのキャラ自身の情報です。ここの騎士団・階級・性別が、各スタイルのキャラデータに自動で使われます。</p>
-    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = us.map(u => R.IMG[u["ID"]]).find(Boolean);
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = R.IMG[`${c["名前"]}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean);
       const who = othersOn("people", r.id);
       return `<button class="pcard" data-adrow="${esc(r.id)}">${face ? `<img src="${esc(face)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b><small>${esc(c["ふりがな"] || "")}</small>
       <span class="ptags">${c["騎士団"] ? `<span>${R.ic(c["騎士団"], "ord")}${esc(c["騎士団"])}</span>` : '<span class="miss">騎士団未設定</span>'}${c["階級"] ? `<span>${R.ic(c["階級"])}${esc(c["階級"])}</span>` : ""}${c["性別"] ? `<span>${esc(c["性別"])}</span>` : ""}${c["誕生日"] ? `<span>🎂${esc(c["誕生日"])}</span>` : ""}</span>
       <small class="count">スタイル ${us.length}：${esc(us.map(u => u["スタイル"]).join("・"))}</small></span>${who.length ? `<span class="pres">✎ ${esc(who[0].name || "メンバー")}</span>` : ""}</button>`; }).join("")}</div>`;
+  }
+  if (k === "bosses") {
+    const list = [...T.bosses.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
+    return `<div class="toolbar"><h2><small>BOSSES</small>ボス</h2><input class="search" id="clq" placeholder="ボス名で検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.bosses.rows.size}</span></div>
+    <p class="hint" style="margin:-6px 0 12px">バベルの「ボス」とイベントの「登場ボス」に同じ名前があると、自動でつながります（空白や記号の違いは無視します）。</p>
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const fl = floorsOfBoss(c["名前"]); const ev = eventsOfBoss(c["名前"]); const im = R.BOSS[c["名前"]];
+      return `<button class="pcard" data-adrow="${esc(r.id)}">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b>${c["よみ"] ? `<small>${esc(c["よみ"])}</small>` : ""}
+      <span class="ptags">${fl.map(f => `<span>${esc(String(f["バベル種類"] || "").replace("バベル", ""))} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">バベル未登場</span>'}</span>${ev.length ? `<small class="count">イベント：${esc(ev.map(e => e["イベント名"]).join("、"))}</small>` : ""}</span></button>`; }).join("")}</div>`;
+  }
+  if (k === "events") {
+    const list = [...T.events.rows.values()].map(r => r).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q))).sort((a, b) => String((b.c || {})["開始日"] || "").localeCompare(String((a.c || {})["開始日"] || ""), "ja", { numeric: true }));
+    return `<div class="toolbar"><h2><small>EVENTS</small>イベント</h2><input class="search" id="clq" placeholder="イベント名で検索" value="${esc(CL.q)}"><span class="count">${list.length}件</span></div>
+    ${list.length ? "" : `<div class="empty"><h2>まだイベントがありません</h2><p>右上の「＋ イベントを追加」から、開始日・テーマイラスト・実装キャラ・登場ボスを登録できます。</p></div>`}
+    <div class="evgrid">${list.map(r => { const c = r.c || {}; const im = R.EVTF[c["イベント名"]] || R.EVT[c["イベント名"]]; const ids = splitList(c["実装キャラID"]); const bs = splitList(c["登場ボス"]);
+      return `<button class="evcard" data-adrow="${esc(r.id)}"><span class="evimg">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg evnoimg">テーマイラスト未登録</span>'}</span><span class="evinfo"><small class="count">${esc(fmtD(c["開始日"]))}${c["終了日"] ? ` 〜 ${esc(fmtD(c["終了日"]))}` : " 〜"}</small><b>${esc(c["イベント名"] || "")}</b>
+      <span class="evchars">${ids.map(x => R.IMG[x] ? `<img src="${esc(R.IMG[x])}" alt="" title="${esc(R.CHMAP[x] ? R.CHMAP[x].name : x)}">` : `<span class="tag">${esc(R.CHMAP[x] ? R.CHMAP[x].name : x)}</span>`).join("")}</span>${bs.length ? `<small class="count">ボス：${esc(bs.join("、"))}</small>` : ""}</span></button>`; }).join("")}</div>`;
   }
   const cnt = {}; T.chars.rows.forEach(r => { const s = (r.c || {})["スタイル"]; cnt[s] = (cnt[s] || 0) + 1; });
   const list = [...T.styles.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
@@ -454,6 +487,7 @@ function customList(k) {
   <div class="tblwrap"><table class="stbl"><thead><tr><th>スタイル</th><th>略称</th><th>よみ</th><th>キャラ数</th><th>メモ</th></tr></thead><tbody>${list.map(r => { const c = r.c || {}; return `<tr data-adrow="${esc(r.id)}"><td class="first"><b>${esc(c["スタイル"] || "")}</b></td><td>${esc(c["略称"] || "")}</td><td>${esc(c["よみ"] || "")}</td><td>${cnt[c["スタイル"]] || 0}</td><td class="wrap">${esc(c["メモ"] || "")}</td></tr>`; }).join("")}</tbody></table></div>`;
 }
 function bindCustomList() {
+  AM.querySelectorAll("[data-opticon]").forEach(el => el.addEventListener("change", () => { const f = el.files[0]; if (f) quickUpload("icon", el.dataset.opticon, f).then(() => { const l = document.getElementById("admlist"); if (l && ED.k === "options") { l.innerHTML = customList("options"); bindCustomList(); } }); }));
   AM.querySelectorAll("[data-optin]").forEach(el => el.addEventListener("keydown", e => { if (e.key === "Enter") { const b = AM.querySelector(`[data-optadd="${CSS.escape(el.dataset.optin)}"]`); if (b) b.click(); } }));
   const q = document.getElementById("clq");
   if (q) R.liveInput(q, () => { CL.q = q.value; const p = q.selectionStart; document.getElementById("admlist").innerHTML = customList(ED.k); bindCustomList(); const n = document.getElementById("clq"); n.focus(); n.setSelectionRange(p, p); });
@@ -497,12 +531,13 @@ function renderForm() {
     });
   });
   const nc = document.getElementById("ednewcol"); if (nc) nc.addEventListener("input", () => { ED.newCol = nc.value; });
-  const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const ik = ED.k === "chars" ? "char" : "script"; quickUpload(ik, ik === "char" ? ED.base["ID"] : ED.base["名前"], f); });
-  const cp = document.getElementById("cpin"); if (cp) cp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); charpickAdd(); } });
+  const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const io = IMGOF[ED.k]; quickUpload(io[0], ED.base[io[1]], f); });
+  body.querySelectorAll(".cpin").forEach(cp => cp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); pickAdd(cp.dataset.cpfield); } }));
 }
 /* ---- 選択肢（プルダウン） ---- */
+const ICONKEYS = ["騎士団", "階級", "ロール", "属性"];
 const OPT_KEYS = ["騎士団", "階級", "ロール", "属性", "ダメージタイプ", "性別", "攻撃速度", "レアリティ", "バベル種類"];
-const OPT_NOTE = { "騎士団": "キャラクターの騎士団。公開サイトの絞り込み・アイコンにも使われます", "階級": "KING・QUEEN など", "ロール": "キャラ・スクリプトのロール", "属性": "破壊・衝撃・爆発", "攻撃速度": "A・Aplus など", "バベル種類": "リバースバベル など" };
+const OPT_NOTE = { "騎士団": "騎士の所属。公開サイトの絞り込み・アイコンにも使われます", "階級": "KING・QUEEN など", "ロール": "キャラ・スクリプトのロール", "属性": "破壊・衝撃・爆発", "攻撃速度": "A・Aplus など", "バベル種類": "リバースバベル など" };
 function colVals(k, col) { if (!T[k] || !seeded(k)) return []; const out = []; T[k].rows.forEach(r => { const v = String((r.c || {})[col] || "").trim(); if (v && !out.includes(v)) out.push(v); }); return out; }
 const uniq = (...ls) => { const o = []; ls.forEach(l => (l || []).forEach(v => { if (v && !o.includes(v)) o.push(v); })); return o; };
 function optDefaults() {
@@ -532,9 +567,9 @@ function usage(key, v) {
 }
 function renderOptions() {
   let h = `<div class="optgrid">${OPT_KEYS.map(k => `<section class="apanel optcard"><h3 class="ph">${esc(k)}</h3><p class="hint" style="margin:0 0 8px">${esc(OPT_NOTE[k] || "")}</p>
-    <div class="optchips">${opts(k).map((v, i, a) => `<span class="optchip">${i > 0 ? `<button data-optmv="${esc(k)}|${i}|-1" title="前へ">‹</button>` : ""}<b>${esc(v)}</b><small>${usage(k, v)}</small>${i < a.length - 1 ? `<button data-optmv="${esc(k)}|${i}|1" title="後ろへ">›</button>` : ""}<button data-optrm="${esc(k)}|${esc(v)}" title="外す">✕</button></span>`).join("")}</div>
+    <div class="optchips">${opts(k).map((v, i, a) => `<span class="optchip">${ICONKEYS.includes(k) ? `<label class="opticon" title="${esc(v)} のアイコンを${R.ICON[v] ? "変更" : "追加"}">${R.ICON[v] ? `<img src="${esc(R.ICON[v])}" alt="">` : "＋"}<input type="file" accept="image/*" data-opticon="${esc(v)}" hidden></label>` : ""}${i > 0 ? `<button data-optmv="${esc(k)}|${i}|-1" title="前へ">‹</button>` : ""}<b>${esc(v)}</b><small>${usage(k, v)}</small>${i < a.length - 1 ? `<button data-optmv="${esc(k)}|${i}|1" title="後ろへ">›</button>` : ""}<button data-optrm="${esc(k)}|${esc(v)}" title="外す">✕</button></span>`).join("")}</div>
     <div class="addcol"><input data-optin="${esc(k)}" placeholder="${esc(k)}を追加"><button class="btn small" data-optadd="${esc(k)}">追加</button></div></section>`).join("")}</div>
-    <p class="hint">数字はその値を使っているデータの件数です。外しても、入力済みのデータはそのまま残ります。</p>`;
+    <p class="hint">数字はその値を使っているデータの件数です。外しても、入力済みのデータはそのまま残ります。騎士団・階級・ロール・属性は、左の四角を押すとアイコン画像を追加・変更できます（GitHub 連携が必要）。</p>`;
   return h;
 }
 /* ---- 入力フォームの部品 ---- */
@@ -561,14 +596,16 @@ function selectHtml(id, name, list, v, ph) {
   return `<select id="${id}" data-field="${esc(name)}"><option value="">${esc(ph || "（選択）")}</option>${items.map(x => `<option value="${esc(x)}" ${x === v ? "selected" : ""}>${esc(x)}${!list.includes(x) ? "（一覧にない値）" : ""}</option>`).join("")}</select>`;
 }
 function charOptions() { return [...T.chars.rows.values()].map(r => r.c || {}).filter(c => c["ID"]).map(c => ({ id: c["ID"], label: c["キャラ名"] || c["ID"] })); }
-function charpickAdd() {
-  const inp = document.getElementById("cpin"); const q = (inp.value || "").trim(); if (!q) return;
-  const all = charOptions(); const hit = all.find(o => o.id === q || o.label === q || `${o.label}（${o.id}）` === q) || all.find(o => o.label.includes(q));
-  if (!hit) { toast("そのキャラが見つかりません"); return; }
-  const cur = String(ED.draft["おすすめキャラID"] || "").split(/[,、，\s]+/).filter(Boolean);
-  if (!cur.includes(hit.id)) cur.push(hit.id);
-  ED.draft["おすすめキャラID"] = cur.join(","); ED.dirty = true; renderForm();
-  const n = document.getElementById("cpin"); if (n) n.focus();
+function pickAdd(field) {
+  const inp = document.querySelector(`#edBody .cpin[data-cpfield="${CSS.escape(field)}"]`); if (!inp) return;
+  const q = (inp.value || "").trim(); if (!q) return; const isC = inp.dataset.cptype === "charpick";
+  let val = q;
+  if (isC) { const all = charOptions(); const hit = all.find(o => o.id === q || o.label === q) || all.find(o => o.label.includes(q)); if (!hit) { toast("そのキャラが見つかりません"); return; } val = hit.id; }
+  else { const hit = rowsOf("bosses").find(b => bnorm(b["名前"]) === bnorm(q)); if (hit) val = hit["名前"]; }
+  const cur = isC ? String(ED.draft[field] || "").split(/[,、，\s]+/).filter(Boolean) : splitList(ED.draft[field]);
+  if (!cur.includes(val)) cur.push(val);
+  ED.draft[field] = cur.join(isC ? "," : "、"); ED.dirty = true; renderForm();
+  const n = document.querySelector(`#edBody .cpin[data-cpfield="${CSS.escape(field)}"]`); if (n) n.focus();
 }
 function fieldHtml(name, type, i, both) {
   const v = ED.draft[name] == null ? "" : String(ED.draft[name]);
@@ -594,11 +631,13 @@ function fieldHtml(name, type, i, both) {
     inner = dv || !v ? `<input id="${id}" type="date" data-field="${esc(name)}" value="${esc(dv)}">` : `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}">`;
   } else if (type === "cond") {
     inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_cond" placeholder="属性・騎士団・階級・スタイル・キャラ名・女性/男性">`;
-  } else if (type === "charpick") {
-    cls += " long";
-    const ids = v.split(/[,、，\s]+/).filter(Boolean);
-    inner = `<div class="cpchips">${ids.map(x => { const c = R.CHMAP[x]; return `<span class="cpchip">${R.IMG[x] ? `<img src="${esc(R.IMG[x])}" alt="">` : ""}${esc(c ? c.name : x)}${c ? "" : ' <small class="err">（見つからないID）</small>'}<button data-cprm="${esc(x)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだいません</span>'}</div>
-      <div class="addcol"><input id="cpin" list="dl_chars" placeholder="キャラ名を入力して追加"><button class="btn small" data-a="cpadd">追加</button></div>`;
+  } else if (type === "bossref") {
+    inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_boss" placeholder="ボス名（一覧から選ぶか入力）">`;
+  } else if (type === "charpick" || type === "bosspick") {
+    cls += " long"; const isC = type === "charpick";
+    const ids = isC ? v.split(/[,、，\s]+/).filter(Boolean) : splitList(v);
+    inner = `<div class="cpchips">${ids.map(x => { const c = isC ? R.CHMAP[x] : null; const img = isC ? R.IMG[x] : R.BOSS[x]; const ok = isC ? !!c : rowsOf("bosses").some(b => bnorm(b["名前"]) === bnorm(x)); return `<span class="cpchip">${img ? `<img src="${esc(img)}" alt="">` : ""}${esc(c ? c.name : x)}${ok ? "" : ` <small class="err">（${isC ? "見つからないID" : "ボス一覧にない"}）</small>`}<button data-cprm="${esc(name)}|${esc(x)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだいません</span>'}</div>
+      <div class="addcol"><input class="cpin" data-cpfield="${esc(name)}" data-cptype="${type}" list="${isC ? "dl_chars" : "dl_boss"}" placeholder="${isC ? "キャラ名" : "ボス名"}を入力して追加"><button class="btn small" data-cpadd="${esc(name)}">追加</button></div>`;
   } else if (type === "long" || type === "big") {
     cls += " long";
     const rows = type === "big" ? Math.max(8, (v.match(/\n/g) || []).length + 2) : Math.min(10, Math.max(2, Math.ceil(v.length / 48) + (v.match(/\n/g) || []).length));
@@ -612,6 +651,17 @@ function fieldHtml(name, type, i, both) {
   if (both.includes(name)) cls += " clash";
   const key = KEYCOLS[ED.k] && KEYCOLS[ED.k].includes(name) && type !== "id";
   return `<div class="${cls}"><label for="${id}">${label}${key ? ' <small class="req">必須</small>' : ""}</label>${inner}</div>`;
+}
+function linkInfo() {
+  if (ED.isNew) return "";
+  const box = (t, inner) => `<section class="fgroup linkbox"><h3 class="fgh">${t}</h3>${inner}</section>`;
+  if (ED.k === "bosses") {
+    const fl = floorsOfBoss(ED.base["名前"]), ev = eventsOfBoss(ED.base["名前"]);
+    return box("つながっているデータ（自動）", `<p class="hint fgnote">バベルの「ボス」・イベントの「登場ボス」に同じ名前があるものです。</p><div class="linkrow"><b>バベル</b>${fl.map(f => `<span class="tag">${esc(f["バベル種類"])} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">なし</span>'}</div><div class="linkrow"><b>イベント</b>${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("") || '<span class="count">なし</span>'}</div>`);
+  }
+  if (ED.k === "chars") { const ev = eventsOfChar(ED.base["ID"]); return ev.length ? box("実装イベント（自動）", `<div class="linkrow">${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("")}</div>`) : ""; }
+  if (ED.k === "babel") { const b = rowsOf("bosses").find(c => bnorm(c["名前"]) === bnorm(ED.base["ボス"])); return box("ボス（自動）", b ? `<div class="linkrow">${R.BOSS[b["名前"]] ? `<img class="linkimg" src="${esc(R.BOSS[b["名前"]])}" alt="">` : ""}<b>${esc(b["名前"])}</b><span class="count">ボスの画像・説明は「ボス」で編集できます</span></div>` : `<p class="hint fgnote">「ボス」の一覧にこの名前がありません。ボスに追加すると画像などがつながります。</p>`); }
+  return "";
 }
 function formFields(both) {
   const hd = T[ED.k].headers; const sch = SCHEMA[ED.k] || [];
@@ -627,7 +677,8 @@ function formFields(both) {
   // datalists
   const cond = uniq(R.ATTRS, opts("騎士団"), opts("階級"), rowsOf("styles").map(c => c["スタイル"]), rowsOf("people").map(c => c["名前"]), ["女性", "男性"]);
   h += `<datalist id="dl_cond">${cond.map(x => `<option value="${esc(x)}">`).join("")}</datalist>`;
-  if (ED.k === "babel") h += `<datalist id="dl_chars">${charOptions().map(o => `<option value="${esc(o.label)}">`).join("")}</datalist>`;
+  if (ED.k === "babel" || ED.k === "events") h += `<datalist id="dl_chars">${charOptions().map(o => `<option value="${esc(o.label)}">`).join("")}</datalist>`;
+  if (ED.k === "babel" || ED.k === "events") h += `<datalist id="dl_boss">${rowsOf("bosses").map(b => `<option value="${esc(b["名前"])}">`).join("")}</datalist>`;
   return h;
 }
 function tableSeg(attr, cur) { return `<div class="seg">${TABLES.map(k => `<button data-${attr}="${k}" aria-pressed="${cur === k}">${TLABEL[k]}</button>`).join("")}</div>`; }
@@ -652,9 +703,9 @@ function editForm() {
   const hd = T[ED.k].headers;
   const r = T[ED.k].rows.get(ED.id);
   const both = ED.conflict ? ED.conflict.both : [];
-  const ik = ED.k === "chars" ? "char" : ED.k === "scripts" ? "script" : null;
-  const ikey = ik === "char" ? (ED.base["ID"] || "") : ik === "script" ? (ED.base["名前"] || "") : "";
-  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : null;
+  const io = IMGOF[ED.k]; const ik = io ? io[0] : null;
+  const ikey = io ? (ED.base[io[1]] || "") : "";
+  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : ik === "boss" ? R.BOSS[ikey] : ik === "event" ? R.EVT[ikey] : null;
   const full = ik && ikey ? R.cropSrc(ik, ikey) : null;
   const adj = ik && ikey && R.CROPS["c_" + ik + "_" + R.hashId(ikey)];
   let h = `<div class="edhead"><h2>${ED.isNew ? `${TLABEL[ED.k]}を追加` : esc(labelOf(ED.k, ED.draft))}</h2><span class="count">${TLABEL[ED.k]}</span><span style="flex:1"></span><button class="btn small" data-ed="close" aria-label="閉じる">✕ 閉じる</button></div><div id="edbanner">${bannerHtml()}</div>`;
@@ -662,11 +713,11 @@ function editForm() {
     h += `<section class="edimgs">${ED.isNew || !ikey ? `<p class="hint" style="margin:0">画像は、保存したあとにここから追加できます。</p>` : `
       <div class="edth">${th ? `<img src="${esc(th)}" alt="">` : `<span class="noimg"></span>`}<small>サムネイル${adj ? "（調整済み）" : ""}</small></div>
       ${full ? `<div class="edfull"><img src="${esc(full)}" alt=""><small>元の画像</small></div>` : ""}
-      <div class="edimgbtns">${full ? `<button class="btn small" data-a="edcrop">サムネイルの切り抜きを調整</button>` : ""}<label class="btn small filebtn">${full ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label>
+      <div class="edimgbtns">${ik === "event" ? '<b class="count">テーマイラスト</b>' : ""}${full ? `<button class="btn small" data-a="edcrop">サムネイルの切り抜きを調整</button>` : ""}<label class="btn small filebtn">${full ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label>
       <p class="hint" style="margin:4px 0 0">${GH ? "画像はサイズを整えて GitHub に保存され、公開サイトには1〜2分で反映されます。" : "画像のアップロードには、オーナーが「画像」タブで GitHub 連携を設定する必要があります。"}</p></div>`}</section>`;
   }
   if (r && !ED.isNew) h += `<p class="count" style="margin:-6px 0 10px">最終更新：${esc(shortName(r.by))}（${esc(fmtTime(r.t))}）</p>`;
-  h += formFields(both);
+  h += formFields(both) + linkInfo();
   h += `<details class="addcolbox"><summary>列を追加する</summary><div class="addcol"><input id="ednewcol" placeholder="新しい列の名前" value="${esc(ED.newCol)}"><button class="btn small" data-ed="addcol">列を追加</button></div></details>`;
   h += `<div class="formfoot">${ED.confirmDel ? `<span class="danger-q">この行を削除しますか？</span><button class="btn small danger" data-ed="delyes">削除する</button><button class="btn small" data-ed="delno">やめる</button>` : (!ED.isNew ? `<button class="btn small" data-ed="del">この行を削除</button>` : "")}<span style="flex:1"></span>${ED.dirty && !ED.isNew ? `<button class="btn small" data-ed="cancel">変更を取り消す</button>` : ""}<button class="btn" data-ed="close">閉じる</button><button class="btn primary" id="edsave" data-ed="save" ${ED.dirty || ED.gone ? "" : "disabled"}>${ED.isNew ? "追加して公開" : "保存して公開"}</button></div>`;
   return h;
@@ -941,12 +992,14 @@ async function ioAction(a, btn) {
 
 /* ================= images ================= */
 const IM = { k: "char", files: [], busy: false, cq: "" };
-const IKIND = { char: "キャラ", script: "スクリプト", icon: "アイコン", hero: "ヘッダー背景" };
+const IKIND = { char: "キャラ", script: "スクリプト", boss: "ボス", event: "イベント", icon: "アイコン", hero: "ヘッダー背景" };
 const ICON_ALIAS = { "アタッカー": ["attacker", "attaker", "atk"], "シューター": ["shooter"], "ブレイカー": ["breaker"], "ヒーラー": ["healer"], "トリックスター": ["trickster", "trickstar"], "サポーター": ["supporter", "support"], "ブレイドライン": ["bladeline"], "千紫": ["colors", "senshi"], "Mazlab": ["maze", "mazlab", "mazelab"], "第六起源魔術教会": ["sixth"], "リンドブルム": ["lindwurm", "lindblum"], "オッター貿易": ["otter"], "アクシオンゲート": ["axiongate", "axion"], "ORANGE": ["orange"] };
 function targets(k) {
   if (k === "char") return R.CH.map(c => ({ key: c.id, label: c.name, alts: [c.id, c.name, c.base + (c.style || "")] }));
   if (k === "script") { const seen = new Set(); return R.SC.filter(s => s.name && !seen.has(s.name) && seen.add(s.name)).map(s => ({ key: s.name, label: s.name, alts: [s.name] })); }
-  if (k === "icon") return [...R.ATTRS, ...R.ROLES, ...R.RANKS, ...R.ORDERS].map(x => ({ key: x, label: x, alts: [x, ...(ICON_ALIAS[x] || [])] }));
+  if (k === "boss") return rowsOf("bosses").map(c => ({ key: c["名前"], label: c["名前"], alts: [c["名前"], c["よみ"] || ""].filter(Boolean) }));
+  if (k === "event") return rowsOf("events").map(c => ({ key: c["イベント名"], label: c["イベント名"], alts: [c["イベント名"]] }));
+  if (k === "icon") return uniq(opts("属性"), opts("ロール"), opts("階級"), opts("騎士団")).map(x => ({ key: x, label: x, alts: [x, ...(ICON_ALIAS[x] || [])] }));
   return [{ key: "main", label: "ヘッダー背景", alts: ["main", "header", "hero"] }];
 }
 const READ = [["一番", "いちばん"], ["可愛", "かわい"], ["全て", "すべて"], ["出来", "でき"], ["下さい", "ください"], ["貴方", "あなた"], ["僕", "ぼく"], ["私", "わたし"], ["御用心", "ごようじん"], ["ご用心", "ごようじん"], ["綺譚", "奇譚"], ["見て", "みて"]];
@@ -970,7 +1023,7 @@ function sim(a, b) {
   return Math.min(s, 0.99);
 }
 function scoreFile(name, tg) { const n = norm(name); let best = 0; tg.alts.forEach(a => { best = Math.max(best, sim(n, norm(a))); }); return best; }
-function hasImage(k, key) { return k === "char" ? !!R.BASE.IMG[key] : k === "script" ? !!R.BASE.SIMG[key] : k === "icon" ? !!R.BASE.ICON[key] : !!R.BASE.HERO; }
+function hasImage(k, key) { return k === "char" ? !!R.BASE.IMG[key] : k === "script" ? !!R.BASE.SIMG[key] : k === "boss" ? !!R.BASE.BOSS[key] : k === "event" ? !!R.BASE.EVT[key] : k === "icon" ? !!R.BASE.ICON[key] : !!R.BASE.HERO; }
 function matchAll() {
   const tg = targets(IM.k);
   IM.files.forEach(f => { f.cands = tg.map(t => ({ key: t.key, label: t.label, s: scoreFile(f.name, t) })).sort((a, b) => b.s - a.s).slice(0, 8); });
@@ -1024,14 +1077,14 @@ async function processImage(kind, key, file) {
   if (kind === "icon") { const s = Math.min(1, 96 / Math.max(W, H)); const p = `images/icons/${nm}.png`; const b = await R.canvasBlob(im, 0, 0, W, H, W * s, H * s, "image/png"); files.push({ path: p, blob: b }); set.icons = p; local.icons = b; }
   else if (kind === "hero") { const [dw, dh] = fit(1800); const b = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82); files.push({ path: "images/hero.webp", blob: b }); set.hero = "images/hero.webp"; local.hero = b; }
   else {
-    const dir = kind === "char" ? "images/chars" : "images/scripts"; const [dw, dh] = fit(kind === "char" ? 1200 : 720);
+    const dir = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events" }[kind]; const [dw, dh] = fit({ char: 1200, script: 720, boss: 900, event: 1400 }[kind]);
     const full = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82);
     let side, sx, sy;
     if (W > H * 1.2) { side = H * 0.46; sx = W / 2 - side / 2; sy = H * 0.08; } else { side = Math.min(W, H) * 0.9; sx = (W - side) / 2; sy = Math.min(H - side, H * 0.04); }
     const thumb = await R.canvasBlob(im, sx, sy, side, side, 176, 176, "image/webp", .85);
     files.push({ path: `${dir}/${nm}.webp`, blob: full }, { path: `${dir}/thumb/${nm}.webp`, blob: thumb });
-    if (kind === "char") { set.banners = `${dir}/${nm}.webp`; set.thumbs = `${dir}/thumb/${nm}.webp`; local.banners = full; local.thumbs = thumb; }
-    else { set.sfull = `${dir}/${nm}.webp`; set.sthumbs = `${dir}/thumb/${nm}.webp`; local.sfull = full; local.sthumbs = thumb; }
+    const SEC = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"] }[kind];
+    set[SEC[0]] = `${dir}/${nm}.webp`; set[SEC[1]] = `${dir}/thumb/${nm}.webp`; local[SEC[0]] = full; local[SEC[1]] = thumb;
   }
   return { kind, key, name: file.name, files, set, local };
 }
@@ -1049,7 +1102,7 @@ function applyImagesJson(json, items) {
 }
 // アップロード直後は GitHub Pages の反映（1分ほど）を待たずに、手元の画像で表示する
 function showLocal(items) {
-  const MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL" };
+  const MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF" };
   items.forEach(it => Object.entries(it.local).forEach(([sec, b]) => { const u = URL.createObjectURL(b); if (sec === "hero") R.BASE.HERO = u; else R.BASE[MAP[sec]][it.key] = u; }));
   R.applyMedia(); R.rebuild();
 }
@@ -1483,7 +1536,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -1492,8 +1545,8 @@ function onAdminClick(e) {
   if (ds.a === "ghimport") { ghImport(false); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
-  if (ds.a === "cpadd") { charpickAdd(); return; }
-  if (ds.cprm) { ED.draft["おすすめキャラID"] = String(ED.draft["おすすめキャラID"] || "").split(/[,、，\s]+/).filter(x => x && x !== ds.cprm).join(","); ED.dirty = true; renderForm(); return; }
+  if (ds.cpadd) { pickAdd(ds.cpadd); return; }
+  if (ds.cprm) { const [f, x] = ds.cprm.split("|"); const isC = f !== "登場ボス"; ED.draft[f] = (isC ? String(ED.draft[f] || "").split(/[,、，\s]+/).filter(Boolean) : splitList(ED.draft[f])).filter(y => y !== x).join(isC ? "," : "、"); ED.dirty = true; renderForm(); return; }
   if (ds.optadd) { const inp = AM.querySelector(`[data-optin="${CSS.escape(ds.optadd)}"]`); const v = (inp && inp.value || "").trim(); if (!v) return; const key = ds.optadd; saveOpts(o => { if (!o[key].includes(v)) o[key].push(v); }, `選択肢「${key}」に ${v} を追加`); return; }
   if (ds.optrm) { const [key, v] = ds.optrm.split("|"); saveOpts(o => { o[key] = o[key].filter(x => x !== v); }, `選択肢「${key}」から ${v} を外す`); return; }
   if (ds.optmv) { const [key, i, d] = ds.optmv.split("|"); saveOpts(o => { const a = o[key]; const j = +i + (+d); if (j < 0 || j >= a.length) return; [a[+i], a[j]] = [a[j], a[+i]]; }, `選択肢「${key}」の並び替え`); return; }
@@ -1511,7 +1564,7 @@ function onAdminClick(e) {
   if (ds.a === "ghdel") { IM.ghconfirm = true; renderImg(); return; }
   if (ds.a === "ghdelno") { IM.ghconfirm = false; renderImg(); return; }
   if (ds.a === "ghdelyes") { IM.ghconfirm = false; delGhToken(); return; }
-  if (ds.a === "edcrop") { const ik = ED.k === "chars" ? "char" : "script"; openCrop(ik, ik === "char" ? ED.base["ID"] : ED.base["名前"]); return; }
+  if (ds.a === "edcrop") { const io = IMGOF[ED.k]; openCrop(io[0], ED.base[io[1]]); return; }
   if (ds.edk) { ED.k = ds.edk; resetEd(); CL.q = ""; renderEdit(false); return; }
   if (ds.ed) { edAction(ds.ed); return; }
   if (ds.iok) { IO.k = ds.iok; IO.confirm = null; renderIO(); return; }
@@ -1615,6 +1668,22 @@ function injectStyle() {
 #dlgEdit .formfoot{padding-bottom:14px}
 .seedbox{max-width:760px;margin:20px auto}
 .ghnewbar{display:flex;flex-direction:column;gap:6px}
+.opticon{display:inline-grid;place-items:center;width:24px;height:24px;border:1px dashed var(--line2);cursor:pointer;font-size:13px;color:#9fb3d1;margin:0!important;background:#0d2346}
+.opticon img{width:22px;height:22px;object-fit:contain}
+.evgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.evcard{display:flex;flex-direction:column;text-align:left;border:0;background:var(--panel);box-shadow:var(--shadow);padding:0;cursor:pointer;color:var(--ink);overflow:hidden}
+.evcard:hover{background:var(--soft)}
+.evimg{display:block;aspect-ratio:16/7;background:var(--soft);overflow:hidden}
+.evimg img,.evimg .noimg{width:100%;height:100%;object-fit:cover;display:block}
+.evnoimg{display:grid!important;place-items:center;color:var(--muted);font-size:13px}
+.evinfo{display:flex;flex-direction:column;gap:4px;padding:10px 12px}
+.evinfo b{font-size:16px}
+.evchars{display:flex;gap:4px;flex-wrap:wrap}
+.evchars img{width:34px;height:34px;object-fit:cover}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;background:var(--panel2);border:1px solid var(--line2);margin:0 4px 4px 0}
+.linkrow{display:flex;gap:6px 8px;flex-wrap:wrap;align-items:center;margin:4px 0}
+.linkrow>b{font-size:12.5px;min-width:4.5em;color:var(--accent-ink)}
+.linkimg{width:48px;height:48px;object-fit:cover}
 .edseg{flex-wrap:wrap;align-items:center}
 .segsep{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.1em;margin:0 4px 0 10px;padding-left:10px;border-left:2px solid var(--line2)}
 .fgroup{margin:0 0 14px;padding:12px 14px 14px;background:var(--field);border:1px solid var(--line)}
