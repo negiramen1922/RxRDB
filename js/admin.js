@@ -1226,7 +1226,7 @@ function ghPanel() {
   return `<section class="apanel seed"><h3 class="ph">GitHub 連携（画像の直接アップロード）</h3>${ghForm()}</section>`;
 }
 function ghForm() {
-  return `<ol class="steps"><li>GitHub 右上のアイコン → <b>Settings</b> → 左下 <b>Developer settings</b> → <b>Personal access tokens</b> → <b>Fine-grained tokens</b> → <b>Generate new token</b></li>
+  return `<ol class="steps"><li><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener"><b>トークン作成ページを開く</b></a>（GitHub にログインした状態で）。<br><span class="hint">自分で開く場合は、右上の自分のアイコン → <b>Settings</b> → 左メニュー最下部 <b>Developer settings</b> → <b>Personal access tokens</b> → <b>Fine-grained tokens</b> → <b>Generate new token</b>。リポジトリの Settings ではなく、アカウントの Settings です。</span></li>
   <li>Token name は「RxRDB 画像」など、Expiration は1年（期限が来たらここで登録し直し）</li>
   <li><b>Repository access</b> → <b>Only select repositories</b> → <b>RxRDB</b> を選ぶ</li>
   <li><b>Permissions</b> → Repository permissions → <b>Contents</b> を <b>Read and write</b> にして作成</li>
