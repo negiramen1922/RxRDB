@@ -377,6 +377,13 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
 .sph.SSR{background:linear-gradient(135deg,#ff4f9a,#ffb340)}.sph.SR{background:linear-gradient(135deg,#7b5cff,#c08bff)}
 .rowth{width:34px!important;height:34px!important}
 .sitefoot{max-width:1240px;margin:0 auto;padding:8px 20px 28px;font-size:12px;color:var(--muted)}
+.sitefoot p{margin:4px 0}
+.sitefoot .links{display:flex;gap:18px;flex-wrap:wrap}
+.sitefoot a{color:var(--accent-ink);font-weight:700}
+.fbkinds{display:flex;gap:6px 16px;flex-wrap:wrap;margin-top:8px}
+.dlg .fbkinds label{display:inline-flex;align-items:center;gap:5px;margin:0;font-weight:500}
+.dlg .fbin{width:100%;border:1px solid var(--line2);background:var(--field);padding:8px;font-size:13px;color:var(--ink)}
+#dlgFeedback textarea{min-height:130px}
 </style>
 </head>
 <body>
@@ -400,7 +407,7 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
       </div>
       <div class="acts">
         <button class="btn ghost-dark small" id="openExport">共有・バックアップ</button>
-        <button class="btn ghost-dark small" id="openAdmin" hidden>管理画面</button>
+        <button class="btn ghost-dark small" data-feedback>不具合・ご要望</button>
       </div>
     </div>
   </div>
@@ -412,17 +419,12 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
     <button role="tab" data-tab="scripts" aria-selected="false">スクリプト</button>
     <button role="tab" data-tab="rank" aria-selected="false">ランキング</button>
   </nav>
-  <nav class="tabs admin" id="adminTabs" role="tablist" hidden>
-    <button role="tab" data-atab="edit" aria-selected="true">データ編集</button>
-    <button role="tab" data-atab="io" aria-selected="false">読み込み・書き出し</button>
-    <button role="tab" data-atab="img" aria-selected="false">画像</button>
-    <button role="tab" data-atab="back" aria-selected="false">← ユーザー画面へ</button>
-  </nav>
+  <nav class="tabs admin" id="adminTabs" role="tablist" hidden></nav>
 </header>
 <main id="main"></main>
 <main id="admin" hidden></main>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<footer class="sitefoot">ファンメイドの非公式ツールです。ゲーム内の画像・テキストの権利は各権利者に帰属します。このサイトはアクセス解析に Google Analytics を使用しています。</footer>
+<footer class="sitefoot"><p>ファンメイドの非公式ツールです。ゲーム内の画像・テキストの権利は各権利者に帰属します。このサイトはアクセス解析に Google Analytics を使用しています。</p><p class="links"><a href="#" data-feedback>不具合・ご要望を送る</a><a href="#admin">管理者ログイン</a></p></footer>
 <div id="actionbar" class="actionbar hidden"></div>
 
 
@@ -446,12 +448,24 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
 
 <dialog id="dlgCrop"><div class="dlg" id="cropBody"></div></dialog>
 <dialog id="dlgDetail"><div class="dlg" id="detailBody"></div></dialog>
+<dialog id="dlgFeedback"><div class="dlg">
+  <h2>不具合・ご要望</h2>
+  <p class="hint" style="margin:0 0 6px">表示のおかしいところ、データの間違い、ほしい機能などを送ってください。いただいた内容は管理メンバーだけが見られます。</p>
+  <div class="fbkinds"><label><input type="radio" name="fbKind" value="bug" checked> 不具合・データの間違い</label><label><input type="radio" name="fbKind" value="request"> ご要望</label><label><input type="radio" name="fbKind" value="other"> その他</label></div>
+  <label for="fbText">内容</label>
+  <textarea id="fbText" maxlength="2000" placeholder="例：〇〇の攻撃力が違う／スマホで△△が押せない など"></textarea>
+  <label for="fbContact">連絡先（任意）</label>
+  <input id="fbContact" class="fbin" maxlength="200" placeholder="返信がほしい場合のみ：Discord ID や X アカウントなど">
+  <p class="hint" style="margin-top:6px">送信元のページ：<span id="fbPage"></span></p>
+  <p class="err" id="fbErr"></p>
+  <div class="foot"><button class="btn" data-close>閉じる</button><button class="btn primary" id="fbSend">送信する</button></div>
+</div></dialog>
 
 <script type="application/json" id="seed">{}</script>
 <script type="application/json" id="assets">{}</script>
 <script>
 /* サイト設定：アクセス解析のIDを入れると有効になります */
-window.SITE={cfBeacon:"",ga:"G-ZLFG00YE2J"};
+window.SITE={cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"}};
 </script>
 <script id="app">
 (function(){
@@ -932,11 +946,9 @@ document.getElementById("expCopy").addEventListener("click",async e=>{
   setTimeout(()=>e.target.textContent="コピー",1800);
 });
 
-/* ================= live data / media ================= */
-let ADMIN=false,DB=null,ASSETSCAP=null,DLCAP=null,DBSTATE="local",MEDIA={},TBLMETA={};
-const TABLES=["chars","scripts","babel"];
-const TLABEL={chars:"キャラ",scripts:"スクリプト",babel:"バベル"};
-const blob=id=>"/_blob/"+id;
+/* ================= site core ================= */
+let ADMIN=false,MODE="user";const DLCAP=null;
+let CROPS={};const CROPURL={};
 function toast(msg,ms){const el=document.getElementById("toast");el.textContent=msg;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true;},ms||2600);}
 function setHero(){document.getElementById("hero").style.setProperty("--hero",HERO?`url(${HERO})`:"none");}
 function hashId(s){let h1=0x811c9dc5,h2=0x1234567;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,16777619)>>>0;h2=Math.imul(h2^c,2246822519)>>>0;}return h1.toString(36)+h2.toString(36);}
@@ -945,462 +957,126 @@ function applyMedia(){
   for(const k in BANNER)delete BANNER[k];Object.assign(BANNER,BASE.BANNER);
   for(const k in ICON)delete ICON[k];Object.assign(ICON,BASE.ICON);
   for(const k in SIMG)delete SIMG[k];Object.assign(SIMG,BASE.SIMG);for(const k in SFULL)delete SFULL[k];Object.assign(SFULL,BASE.SFULL);
-  HERO=BASE.HERO;
-  Object.values(MEDIA).forEach(m=>{
-    if(!m||!m.key)return;
-    const full=m.full?blob(m.full):"",th=m.thumb?blob(m.thumb):full;
-    if(m.kind==="char"){if(th)IMG[m.key]=th;if(full)BANNER[m.key]=full;}
-    else if(m.kind==="script"){if(th)SIMG[m.key]=th;if(full)SFULL[m.key]=full;}
-    else if(m.kind==="icon"){if(full)ICON[m.key]=full;}
-    else if(m.kind==="hero"&&full)HERO=full;
-  });
-  setHero();
-  applyCrops();
+  HERO=BASE.HERO;setHero();applyCrops();
 }
-let rerenderT=null;
-function rerender(){clearTimeout(rerenderT);rerenderT=setTimeout(()=>{buildModels();if(MODE==="admin"){if(!(ATAB==="edit"&&ED.dirty)&&!(ATAB==="io"&&IO.text))renderAdmin();}else render();},60);}
-async function connect(){
-  if(!window.claude||!window.claude.use)return;
-  try{
-    const user=await window.claude.use("user");
-    ADMIN=user?await user.canEdit().catch(()=>false):false;
-    document.getElementById("openAdmin").hidden=!ADMIN;
-  }catch(e){}
-  try{DB=await window.claude.use("db");}catch(e){DB=null;}
-  if(ADMIN){try{ASSETSCAP=await window.claude.use("assets");}catch(e){}try{DLCAP=await window.claude.use("downloads");}catch(e){}}
-  if(!DB){DBSTATE="local";return;}
-  DBSTATE="loading";
-  const parts={},metas={};
-  const assemble=k=>{
-    const m=metas[k];if(!m){if(LIVE[k]){delete LIVE[k];rerender();}return;}
-    const ps=parts[k]||{};const rows=[];
-    for(let i=0;i<m.parts;i++){const p=ps["p"+i];if(!p||p.rev!==m.rev)return;rows.push(...(p.rows||[]).map(r=>Array.isArray(r)?r.map(x=>x==null?"":String(x)):[]));}
-    LIVE[k]={headers:(m.headers||[]).slice(),rows};TBLMETA[k]=m;rerender();
-  };
-  TABLES.forEach(k=>{
-    DB.doc("tables/"+k).onSnapshot(s=>{metas[k]=s.exists?s.data():null;if(!s.exists)delete TBLMETA[k];assemble(k);},e=>{});
-    DB.collection("tables/"+k+"/parts").onSnapshot(q=>{const o={};q.docs.forEach(d=>{o[d.id]=d.data();});parts[k]=o;assemble(k);},e=>{});
-  });
-  DB.collection("crops").onSnapshot(q=>{CROPS={};q.docs.forEach(d=>{CROPS[d.id]=d.data();});applyCrops();},e=>{});
-  DB.collection("media").onSnapshot(q=>{MEDIA={};q.docs.forEach(d=>{MEDIA[d.id]=d.data();});applyMedia();rerender();},e=>{});
-  DBSTATE="live";
-}
-/* write a whole table: parts first (new rev), then meta, then drop extra parts */
-async function saveTable(k,headers,rows){
-  if(!DB)throw {message:"データベースに接続できません"};
-  const rev=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  const chunks=[];let cur=[],size=0;
-  rows.forEach(r=>{const s=JSON.stringify(r).length;if(cur.length&&(size+s>180000||cur.length>=60)){chunks.push(cur);cur=[];size=0;}cur.push(r.map(x=>String(x??"")));size+=s;});
-  if(cur.length||!chunks.length)chunks.push(cur);
-  const old=TBLMETA[k]?TBLMETA[k].parts||0:0;
-  for(let i=0;i<chunks.length;i++)await DB.doc(`tables/${k}/parts/p${i}`).set({rev,rows:chunks[i]});
-  await DB.doc("tables/"+k).set({headers:headers.slice(),parts:chunks.length,rev,updatedAt:new Date().toISOString(),count:rows.length});
-  for(let i=chunks.length;i<old;i++){try{await DB.doc(`tables/${k}/parts/p${i}`).delete();}catch(e){}}
-  LIVE[k]={headers:headers.slice(),rows:rows.map(r=>r.map(x=>String(x??"")))};
-}
-function dbErr(e){const c=e&&e.code;if(c==="invalid_argument")return "保存できませんでした（編集権限がないか、データが大きすぎます）";if(c==="quota_exceeded")return "データベースの容量がいっぱいです";if(c==="resource_exhausted")return "書き込みが混み合っています。少し待ってからもう一度保存してください";return "保存できませんでした："+(e&&e.message||c||"不明なエラー");}
-
-/* ================= mode switch ================= */
-let MODE="user",ATAB="edit";
-function enterAdmin(){if(!ADMIN)return;MODE="admin";sel=null;document.getElementById("main").hidden=true;document.getElementById("admin").hidden=false;document.getElementById("userTabs").hidden=true;document.getElementById("adminTabs").hidden=false;document.getElementById("openAdmin").textContent="ユーザー画面へ";document.getElementById("actionbar").classList.add("hidden");renderAdmin();window.scrollTo(0,0);}
-function leaveAdmin(){MODE="user";document.getElementById("main").hidden=false;document.getElementById("admin").hidden=true;document.getElementById("userTabs").hidden=false;document.getElementById("adminTabs").hidden=true;document.getElementById("openAdmin").textContent="管理画面";render();window.scrollTo(0,0);}
-document.getElementById("openAdmin").addEventListener("click",()=>MODE==="admin"?leaveAdmin():enterAdmin());
-document.querySelectorAll("#adminTabs button").forEach(b=>b.addEventListener("click",()=>{
-  if(b.dataset.atab==="back"){leaveAdmin();return;}
-  ATAB=b.dataset.atab;document.querySelectorAll("#adminTabs button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));renderAdmin();window.scrollTo(0,0);
-}));
-const AM=document.getElementById("admin");
-function statusBar(){
-  const live=TABLES.filter(k=>LIVE[k]).length;
-  let s,cls;
-  if(!DB){s="データベースに接続していません。表示は内蔵データで、編集は保存できません。";cls="warn";}
-  else if(!live){s="公開データはまだ登録されていません（表示は内蔵データ）。「読み込み・書き出し」から登録できます。";cls="warn";}
-  else{s=`公開中のデータ：${TABLES.map(k=>`${TLABEL[k]} ${LIVE[k]?LIVE[k].rows.length+"件":"未登録（内蔵）"}`).join("／")}。ここでの変更はすぐに全員の画面に反映されます。`;cls="ok";}
-  return `<div class="astatus ${cls}">${s}</div>`;
-}
-function renderAdmin(){
-  if(ATAB==="edit")renderEdit();else if(ATAB==="io")renderIO();else renderImg();
-}
-
-/* ================= data editing ================= */
-const ED={k:"chars",q:"",sel:-1,dirty:false,draft:null,confirmDel:false,newCol:""};
-function keyCol(k,d){const n={chars:["ID","キャラ名"],scripts:["名前"],babel:["階層"]}[k];return colOf(d,n);}
-function rowLabel(k,d,r){
-  if(k==="babel"){const t=r[colOf(d,["バベル種類"])]||"",f=r[colOf(d,["階層"])]||"",b=r[colOf(d,["ボス"])]||"";return `${t} ${f}F ${b}`;}
-  if(k==="chars")return r[colOf(d,["キャラ名"])]||r[keyCol(k,d)]||"(名前なし)";
-  return r[keyCol(k,d)]||"(名前なし)";
-}
-function rowThumb(k,d,r){
-  if(k==="chars"){const id=r[colOf(d,["ID"])];return IMG[id]?`<img src="${IMG[id]}" alt="">`:`<span class="noimg"></span>`;}
-  if(k==="scripts"){const n=r[colOf(d,["名前"])];return SIMG[n]?`<img src="${SIMG[n]}" alt="">`:`<span class="noimg"></span>`;}
-  return `<span class="flnum">${esc(r[colOf(d,["階層"])]||"")}</span>`;
-}
-function renderEdit(){
-  const d=data(ED.k);
-  let list=d.rows.map((r,i)=>({r,i}));
-  if(ED.q){const q=ED.q.toLowerCase();list=list.filter(x=>x.r.some(c=>(c||"").toLowerCase().includes(q)));}
-  let h=statusBar()+`<div class="toolbar"><h2><small>EDIT</small>データ編集</h2><div class="seg">${TABLES.map(k=>`<button data-edk="${k}" aria-pressed="${ED.k===k}">${TLABEL[k]}</button>`).join("")}</div>
-  <input class="search" id="edq" placeholder="検索" value="${esc(ED.q)}"><span class="count">${list.length} / ${d.rows.length}</span><button class="btn small" data-ed="new">＋ 行を追加</button></div>
-  <div class="adm-grid"><div class="adm-list" id="edlist">${list.map(x=>`<button data-edrow="${x.i}" aria-current="${ED.sel===x.i}">${rowThumb(ED.k,d,x.r)}<span>${esc(rowLabel(ED.k,d,x.r))}</span></button>`).join("")||'<p class="count" style="padding:12px">該当なし</p>'}</div>
-  <div class="adm-form" id="edform">${editForm(d)}</div></div>`;
-  AM.innerHTML=h;
-  const q=document.getElementById("edq");q.addEventListener("input",()=>{ED.q=q.value;const p=q.selectionStart;const sc=document.getElementById("edlist").scrollTop;renderEdit();const n=document.getElementById("edq");n.focus();n.setSelectionRange(p,p);});
-  AM.querySelectorAll("[data-field]").forEach(el=>el.addEventListener("input",()=>{ED.draft[+el.dataset.field]=el.value;ED.dirty=true;const sb=document.getElementById("edsave");if(sb)sb.disabled=false;}));
-  const nc=document.getElementById("ednewcol");if(nc)nc.addEventListener("input",()=>{ED.newCol=nc.value;});
-}
-function editForm(d){
-  if(ED.sel<0||!ED.draft)return `<div class="empty" style="box-shadow:none"><h2>行を選んでください</h2><p>左の一覧から編集したい行を選ぶか、「行を追加」で新しく作れます。</p></div>`;
-  const isNew=ED.sel>=d.rows.length;
-  let h=`<div class="formhead"><h3 class="fh">${isNew?"新しい行":esc(rowLabel(ED.k,d,ED.draft))}</h3>${ED.k==="chars"&&!isNew&&IMG[ED.draft[colOf(d,["ID"])]]?`<img class="formth" src="${IMG[ED.draft[colOf(d,["ID"])]]}" alt="">`:""}</div>`;
-  h+=`<div class="fields">`+d.headers.map((hd,i)=>{const v=ED.draft[i]||"";const long=v.length>34||/\n/.test(v)||/効果|解析|ポイント|コメント/.test(hd);const id="f_"+i;
-    return `<div class="field${long?" long":""}"><label for="${id}">${esc(hd)}</label>${long?`<textarea id="${id}" data-field="${i}" rows="${Math.min(10,Math.max(2,Math.ceil(v.length/42)+(v.match(/\n/g)||[]).length))}">${esc(v)}</textarea>`:`<input id="${id}" data-field="${i}" value="${esc(v)}">`}</div>`;}).join("")+`</div>`;
-  h+=`<div class="addcol"><input id="ednewcol" placeholder="列名を入力して列を追加" value="${esc(ED.newCol)}"><button class="btn small" data-ed="addcol">列を追加</button></div>`;
-  h+=`<div class="formfoot">${ED.confirmDel?`<span class="danger-q">この行を削除しますか？</span><button class="btn small danger" data-ed="delyes">削除する</button><button class="btn small" data-ed="delno">やめる</button>`:(!isNew?`<button class="btn small" data-ed="del">この行を削除</button>`:"")}<span style="flex:1"></span><button class="btn small" data-ed="cancel">変更を取り消す</button><button class="btn primary" id="edsave" data-ed="save" ${ED.dirty?"":"disabled"}>保存して公開</button></div>`;
-  return h;
-}
-async function edAction(a){
-  const d=data(ED.k);
-  if(a==="new"){ED.sel=d.rows.length;ED.draft=d.headers.map(()=>"");ED.dirty=true;ED.confirmDel=false;renderEdit();return;}
-  if(a==="cancel"){if(ED.sel>=d.rows.length){ED.sel=-1;ED.draft=null;}else ED.draft=d.rows[ED.sel].slice();ED.dirty=false;ED.confirmDel=false;renderEdit();return;}
-  if(a==="del"){ED.confirmDel=true;renderEdit();return;}
-  if(a==="delno"){ED.confirmDel=false;renderEdit();return;}
-  if(a==="addcol"){const n=(ED.newCol||"").trim();if(!n)return toast("列名を入力してください");if(d.headers.includes(n))return toast("同じ名前の列があります");
-    const rows=d.rows.map(r=>r.concat([""]));const hd=d.headers.concat([n]);
-    try{await saveTable(ED.k,hd,rows);ED.newCol="";ED.draft=ED.draft.concat([""]);toast(`列「${n}」を追加しました`);buildModels();renderEdit();}catch(e){toast(dbErr(e));}return;}
-  if(a==="save"||a==="delyes"){
-    const rows=d.rows.map(r=>r.slice());
-    if(a==="delyes")rows.splice(ED.sel,1);else if(ED.sel>=rows.length)rows.push(ED.draft.slice());else rows[ED.sel]=ED.draft.slice();
-    const btn=document.getElementById("edsave");if(btn){btn.disabled=true;btn.textContent="保存中…";}
-    try{await saveTable(ED.k,d.headers,rows);toast(a==="delyes"?"削除しました":"保存しました。全員の画面に反映されます");
-      if(a==="delyes"){ED.sel=-1;ED.draft=null;}ED.dirty=false;ED.confirmDel=false;buildModels();renderEdit();}
-    catch(e){toast(dbErr(e),5000);if(btn){btn.disabled=false;btn.textContent="保存して公開";}}
-  }
-}
-
-/* ================= import / export ================= */
-const IO={k:"chars",text:"",hr:-1,mode:"merge",preview:null,confirmReset:false};
-function rowKey(k,hd,r,seen){
-  const g=n=>{const i=hd.indexOf(n);return i>=0?(r[i]||"").trim():"";};
-  let key=k==="chars"?(g("ID")||g("キャラ名")):k==="babel"?g("バベル種類")+"|"+g("階層"):g("名前");
-  if(seen){seen[key]=(seen[key]||0)+1;if(seen[key]>1)key+="#"+seen[key];}
-  return key;
-}
-function diffTables(k,cur,inc){
-  const map=(d)=>{const s={},m=new Map();d.rows.forEach(r=>{const key=rowKey(k,d.headers,r,s);if(key)m.set(key,r);});return m;};
-  const A=map(cur),B=map(inc);const added=[],changed=[],removed=[];
-  const val=(d,r,h)=>{const i=d.headers.indexOf(h);return i>=0?(r[i]||"").trim():"";};
-  B.forEach((r,key)=>{if(!A.has(key))added.push(key);else{const a=A.get(key);const diffs=inc.headers.filter(h=>val(cur,a,h)!==val(inc,r,h));if(diffs.length)changed.push([key,diffs]);}});
-  A.forEach((r,key)=>{if(!B.has(key))removed.push(key);});
-  return{added,changed,removed,A,B};
-}
-function mergeTables(k,cur,inc,replace){
-  const hd=cur.headers.slice();inc.headers.forEach(h=>{if(!hd.includes(h))hd.push(h);});
-  const conv=(d,r)=>hd.map(h=>{const i=d.headers.indexOf(h);return i>=0?(r[i]||""):"";});
-  if(replace)return{headers:inc.headers.slice(),rows:inc.rows.map(r=>inc.headers.map((_,i)=>r[i]||""))};
-  const sI={},incMap=new Map();inc.rows.forEach(r=>incMap.set(rowKey(k,inc.headers,r,sI),r));
-  const sC={},used=new Set();
-  const rows=cur.rows.map(r=>{const key=rowKey(k,cur.headers,r,sC);const base=conv(cur,r);if(incMap.has(key)){used.add(key);const n=incMap.get(key);inc.headers.forEach((h,i)=>{base[hd.indexOf(h)]=n[i]||"";});}return base;});
-  incMap.forEach((r,key)=>{if(!used.has(key))rows.push(conv(inc,r));});
-  return{headers:hd,rows};
-}
-function renderIO(){
-  const d=data(IO.k);
-  let h=statusBar()+`<div class="toolbar"><h2><small>IMPORT / EXPORT</small>読み込み・書き出し</h2><div class="seg">${TABLES.map(k=>`<button data-iok="${k}" aria-pressed="${IO.k===k}">${TLABEL[k]}</button>`).join("")}</div></div>
-  <div class="iogrid"><section class="apanel"><h3 class="ph">スプレッドシートから読み込む</h3>
-  <p class="hint" style="margin-top:0">シートを見出し行ごと範囲選択してコピーし、ここに貼り付けてください。CSV・TSVファイルも使えます。${IO.k==="chars"?"キャラは「ID」列で同じキャラを判定します。":IO.k==="babel"?"「バベル種類」と「階層」で同じ階層を判定します。":"「名前」列で同じスクリプトを判定します。"}</p>
-  <textarea id="iotext" class="bigta" placeholder="ここに貼り付け">${esc(IO.text)}</textarea>
-  <div class="row2"><input type="file" id="iofile" accept=".csv,.tsv,.txt"><label class="inl">見出しの行 <input type="number" id="iohr" min="1" value="${IO.hr>=0?IO.hr+1:1}" style="width:4.5em"></label></div>
-  <div id="iopv">${ioPreview()}</div></section>
-  <section class="apanel"><h3 class="ph">書き出す</h3>
-  <p class="hint" style="margin-top:0">今公開している${TLABEL[IO.k]}データ（${d.rows.length}件）をタブ区切りでコピーできます。スプレッドシートにそのまま貼り付けられます。</p>
-  <div class="row2"><button class="btn primary" data-io="copy">タブ区切りでコピー</button>${DLCAP?`<button class="btn" data-io="csv">CSVで保存</button><button class="btn" data-io="json">全データをJSONで保存</button>`:""}</div>
-  <h3 class="ph" style="margin-top:22px">公開用サイトを書き出す</h3>
-  <p class="hint" style="margin-top:0">GitHub（negiramen1922/RxRDB）の公開サイト用です。「GitHub用データ」は data/chars.json・scripts.json・babel.json の3ファイルをZIPにまとめます。展開してリポジトリの data フォルダに上書きし、push すると公開サイトが更新されます。画像はリポジトリ側で管理しています。</p>
-  <div class="row2">${DLCAP?`<button class="btn primary" data-io="ghdata">GitHub用データを書き出す（data/*.json）</button><button class="btn" data-io="site">画像込みの公開用ZIP</button>`:`<span class="count">この画面ではファイルを保存できません</span>`}</div>
-  <h3 class="ph" style="margin-top:22px">初期データに戻す</h3>
-  <p class="hint" style="margin-top:0">${TLABEL[IO.k]}データを、このツールに内蔵している最初のデータ（${(SEED[IO.k]||{rows:[]}).rows.length}件）で置き換えます。</p>
-  <div class="row2">${IO.confirmReset?`<span class="danger-q">今の公開データは上書きされます。よろしいですか？</span><button class="btn small danger" data-io="resetyes">置き換える</button><button class="btn small" data-io="resetno">やめる</button>`:`<button class="btn" data-io="reset">初期データで置き換える</button>`}</div></section></div>`;
-  AM.innerHTML=h;
-  const ta=document.getElementById("iotext");ta.addEventListener("input",()=>{IO.text=ta.value;IO.hr=-1;document.getElementById("iopv").innerHTML=ioPreview();});
-  document.getElementById("iohr").addEventListener("change",e=>{IO.hr=Math.max(0,(+e.target.value||1)-1);document.getElementById("iopv").innerHTML=ioPreview();});
-  document.getElementById("iofile").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{IO.text=r.result;IO.hr=-1;renderIO();};r.readAsText(f);});
-}
-function ioParsed(){
-  if(!IO.text.trim())return null;const rows=parseDelimited(IO.text);if(!rows.length)return null;
-  if(IO.hr<0||IO.hr>=rows.length){let best=0,bc=-1;rows.slice(0,6).forEach((r,i)=>{const c=r.filter(x=>x.trim()).length;if(c>bc){bc=c;best=i;}});IO.hr=best;const el=document.getElementById("iohr");if(el)el.value=best+1;}
-  const hd=rows[IO.hr].map((h,i)=>h.trim()||"列"+(i+1));const w=Math.max(...rows.map(r=>r.length));while(hd.length<w)hd.push("列"+(hd.length+1));
-  return{headers:hd,rows:rows.slice(IO.hr+1).map(r=>hd.map((_,i)=>r[i]||""))};
-}
-function ioPreview(){
-  const inc=ioParsed();if(!inc)return "";
-  const need={chars:["ID"],babel:["バベル種類","階層"],scripts:["名前"]}[IO.k].filter(n=>!inc.headers.includes(n));
-  if(need.length)return `<p class="err">「${need.join("」「")}」列が見つかりません。見出しの行が合っているか確認してください。</p>`;
-  const df=diffTables(IO.k,data(IO.k),inc);
-  const li=(arr,f)=>arr.slice(0,12).map(f).join("")+(arr.length>12?`<li class="count">ほか${arr.length-12}件</li>`:"");
-  const newCols=inc.headers.filter(h=>!data(IO.k).headers.includes(h));
-  return `<div class="diff"><div><b class="pos">追加 ${df.added.length}</b><ul>${li(df.added,k=>`<li>${esc(k)}</li>`)}</ul></div>
-  <div><b class="chg">変更 ${df.changed.length}</b><ul>${li(df.changed,([k,c])=>`<li>${esc(k)} <span class="count">${esc(c.slice(0,3).join("・"))}${c.length>3?" ほか":""}</span></li>`)}</ul></div>
-  <div><b class="neg">今のデータにだけある ${df.removed.length}</b><ul>${li(df.removed,k=>`<li>${esc(k)}</li>`)}</ul></div></div>
-  ${newCols.length?`<p class="hint">新しい列：${esc(newCols.join("、"))}</p>`:""}
-  <div class="row2"><button class="btn primary" data-io="merge">追加・変更を反映（${df.added.length+df.changed.length}件）</button><button class="btn" data-io="replace">貼り付けた内容で丸ごと置き換え（${inc.rows.length}件）</button></div>
-  <p class="hint">「追加・変更を反映」は今のデータにだけある行を残します。丸ごと置き換えると、それらの行は消えます。</p>`;
-}
-function toTSV(d){const q=v=>/[\t\n"]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;return [d.headers,...d.rows].map(r=>r.map(x=>q(String(x||""))).join("\t")).join("\n");}
-function toCSV(d){const q=v=>/[,\n"]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;return "﻿"+[d.headers,...d.rows].map(r=>r.map(x=>q(String(x||""))).join(",")).join("\r\n");}
-async function ioAction(a,btn){
-  const d=data(IO.k);
-  if(a==="copy"){const s=toTSV(d);try{await navigator.clipboard.writeText(s);toast(`${d.rows.length}件をコピーしました。スプレッドシートに貼り付けられます`);}catch(e){IO.text=s;renderIO();toast("コピーできなかったので、読み込み欄に表示しました。選択してコピーしてください",5000);}return;}
-  if(a==="csv"||a==="json"){if(!DLCAP)return;try{
-    if(a==="csv")await DLCAP.save({filename:`babel-tier-${IO.k}.csv`,data:new Blob([toCSV(d)],{type:"text/csv"})});
-    else await DLCAP.save({filename:"babel-tier-data.json",data:new Blob([JSON.stringify({chars:data("chars"),scripts:data("scripts"),babel:data("babel"),media:MEDIA})],{type:"application/json"})});
-  }catch(e){if(e&&e.code!=="declined")toast("保存できませんでした");}return;}
-  if(a==="site"){exportSite(btn);return;}
-  if(a==="ghdata"){if(!window.JSZip||!DLCAP){toast("この画面ではファイルを保存できません");return;}
-    try{const z=new JSZip();["chars","scripts","babel"].forEach(k=>z.file(`data/${k}.json`,JSON.stringify(data(k),null,1)));
-      await DLCAP.save({filename:"rxrdb-data.zip",data:await z.generateAsync({type:"blob"})});toast("GitHub用データを書き出しました");}
-    catch(e){if(!(e&&e.code==="declined"))toast("書き出しに失敗しました");}return;}
-  if(a==="reset"){IO.confirmReset=true;renderIO();return;}
-  if(a==="resetno"){IO.confirmReset=false;renderIO();return;}
-  let next=null;
-  if(a==="resetyes")next=SEED[IO.k];
-  else{const inc=ioParsed();if(!inc)return;next=mergeTables(IO.k,d,inc,a==="replace");}
-  if(btn){btn.disabled=true;btn.textContent="保存中…";}
-  try{await saveTable(IO.k,next.headers,next.rows);IO.text="";IO.hr=-1;IO.confirmReset=false;buildModels();renderIO();toast(`${TLABEL[IO.k]}データを保存しました（${next.rows.length}件）`);}
-  catch(e){toast(dbErr(e),5000);renderIO();}
-}
-
-/* ================= images ================= */
-const IM={k:"char",files:[],busy:false};
-const IKIND={char:"キャラ",script:"スクリプト",icon:"アイコン",hero:"ヘッダー背景"};
-const ICON_ALIAS={"アタッカー":["attacker","attaker","atk"],"シューター":["shooter"],"ブレイカー":["breaker"],"ヒーラー":["healer"],"トリックスター":["trickster","trickstar"],"サポーター":["supporter","support"],"ブレイドライン":["bladeline"],"千紫":["colors","senshi"],"Mazlab":["maze","mazlab","mazelab"],"第六起源魔術教会":["sixth"],"リンドブルム":["lindwurm","lindblum"],"オッター貿易":["otter"],"アクシオンゲート":["axiongate","axion"],"ORANGE":["orange"]};
-function targets(k){
-  if(k==="char")return CH.map(c=>({key:c.id,label:c.name,alts:[c.id,c.name,c.base+(c.style||"")]}));
-  if(k==="script"){const seen=new Set();return SC.filter(s=>s.name&&!seen.has(s.name)&&seen.add(s.name)).map(s=>({key:s.name,label:s.name,alts:[s.name]}));}
-  if(k==="icon")return [...ATTRS,...ROLES,...RANKS,...ORDERS].map(x=>({key:x,label:x,alts:[x,...(ICON_ALIAS[x]||[])]}));
-  return [{key:"main",label:"ヘッダー背景",alts:["main","header","hero"]}];
-}
-const READ=[["一番","いちばん"],["可愛","かわい"],["全て","すべて"],["出来","でき"],["下さい","ください"],["貴方","あなた"],["僕","ぼく"],["私","わたし"],["御用心","ごようじん"],["ご用心","ごようじん"],["綺譚","奇譚"],["見て","みて"]];
-const ROMAN={"iii":"3","ii":"2","iv":"4","vi":"6","v":"5","i":"1"};
-function norm(s){
-  s=String(s||"").normalize("NFKC").toLowerCase().replace(/\.(png|jpe?g|webp|gif|bmp|avif)$/,"").replace(/defalut|defualt/g,"default");
-  for(const [k,v] of READ)s=s.split(k).join(v);
-  s=s.replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
-  s=s.replace(/(^|[^a-z])(iii|ii|iv|vi|v|i)$/,(m,a,b)=>a+ROMAN[b]);
-  s=s.replace(/[ーｰ―‐\-–—]/g,"").replace(/[^\p{L}\p{N}]/gu,"");
-  return s;
-}
-function bigrams(s){const m=new Map();for(let i=0;i<s.length-1;i++){const b=s.slice(i,i+2);m.set(b,(m.get(b)||0)+1);}return m;}
-function sim(a,b){
-  if(!a||!b)return 0;if(a===b)return 1;
-  const na=(a.match(/\d+$/)||[""])[0],nb=(b.match(/\d+$/)||[""])[0];
-  let s;
-  const sa=a.length<b.length?a:b,lb=a.length<b.length?b:a;
-  if(sa.length>=4&&lb.includes(sa))s=0.75+0.2*sa.length/lb.length;
-  else{const A=bigrams(a),B=bigrams(b);let inter=0;A.forEach((v,k)=>{if(B.has(k))inter+=Math.min(v,B.get(k));});s=(2*inter)/Math.max(1,(a.length-1)+(b.length-1));}
-  if(na!==nb){s*=(na&&nb)?0.35:0.8;}
-  return Math.min(s,0.99);
-}
-function scoreFile(name,tg){const n=norm(name);let best=0;tg.alts.forEach(a=>{best=Math.max(best,sim(n,norm(a)));});return best;}
-function hasImage(k,key){return Object.values(MEDIA).some(m=>m.kind===k&&m.key===key)||(k==="char"&&BASE.IMG[key])||(k==="icon"&&BASE.ICON[key]);}
-function matchAll(){
-  const tg=targets(IM.k);
-  IM.files.forEach(f=>{f.cands=tg.map(t=>({key:t.key,label:t.label,s:scoreFile(f.name,t)})).sort((a,b)=>b.s-a.s).slice(0,8);});
-  const pairs=[];IM.files.forEach((f,fi)=>f.cands.forEach(c=>pairs.push([c.s,fi,c.key])));
-  pairs.sort((a,b)=>b[0]-a[0]);const usedT=new Set(),usedF=new Set();
-  IM.files.forEach(f=>{if(!f.manual)f.key="";});
-  pairs.forEach(([s,fi,key])=>{const f=IM.files[fi];if(f.manual||usedF.has(fi)||usedT.has(key)||s<0.45)return;f.key=key;f.score=s;usedF.add(fi);usedT.add(key);});
-  IM.files.forEach(f=>{if(f.manual){usedT.add(f.key);}f.on=f.status==="done"?false:(f.on==null?!!f.key&&f.score>=0.6:f.on&&!!f.key);});
-}
-function renderImg(){
-  const tg=targets(IM.k);const has=tg.filter(t=>hasImage(IM.k,t.key));const miss=tg.filter(t=>!hasImage(IM.k,t.key));
-  let h=statusBar()+`<div class="toolbar"><h2><small>IMAGES</small>画像</h2><div class="seg">${Object.keys(IKIND).map(k=>`<button data-imk="${k}" aria-pressed="${IM.k===k}">${IKIND[k]}</button>`).join("")}</div>${tg.length>1?`<span class="count">画像あり ${has.length} / ${tg.length}</span>`:""}</div>`;
-  if(!ASSETSCAP)h+=`<div class="astatus warn">この画面では画像をアップロードできません。アーティファクトの編集権限があるアカウントで開いてください。</div>`;
-  h+=`<section class="apanel"><h3 class="ph">まとめてアップロード</h3>
-  <p class="hint" style="margin-top:0">${IM.k==="char"?"ファイル名がキャラID（例：カノン_DEFAULT）やキャラ名に近いものを自動で割り当てます。":IM.k==="script"?"ファイル名とスクリプト名を比べて、表記ゆれ（全角半角・記号・カタカナひらがな・末尾の番号など）を吸収して割り当てます。":IM.k==="icon"?"属性・ロール・階級・騎士団のアイコンを差し替えます。英語のファイル名（attacker、orange など）にも対応しています。":"ページ上部の背景画像を差し替えます。横長の画像がおすすめです。"}割り当ては下の表で直せます。</p>
-  <label class="drop" id="drop"><input type="file" id="imfiles" accept="image/*" ${IM.k==="hero"?"":"multiple"}><span>画像ファイルを選ぶか、ここにドラッグ</span></label>`;
-  if(IM.files.length){
-    const assignedCount={};IM.files.forEach(f=>{if(f.key)assignedCount[f.key]=(assignedCount[f.key]||0)+1;});
-    const on=IM.files.filter(f=>f.on&&f.key&&f.status!=="done").length;
-    h+=`<div class="mtbl"><div class="mrow mh"><span></span><span>ファイル</span><span>割り当て先</span><span>判定</span></div>${IM.files.map((f,i)=>{
-      const st=f.status==="done"?`<span class="mb done">登録済み</span>`:f.status==="up"?`<span class="mb">送信中…</span>`:f.status==="err"?`<span class="mb bad">失敗</span>`:!f.key?`<span class="mb bad">未割り当て</span>`:f.manual?`<span class="mb ok">手動</span>`:f.score>=0.97?`<span class="mb ok">一致</span>`:f.score>=0.6?`<span class="mb mid">近い ${Math.round(f.score*100)}%</span>`:`<span class="mb bad">要確認 ${Math.round(f.score*100)}%</span>`;
-      const warn=f.key&&assignedCount[f.key]>1?`<small class="err">同じ割り当て先が複数あります</small>`:f.key&&hasImage(IM.k,f.key)&&f.status!=="done"?`<small class="count">今の画像を置き換えます</small>`:"";
-      return `<div class="mrow"><label class="ck"><input type="checkbox" data-imon="${i}" ${f.on?"checked":""} ${f.status==="done"||!f.key?"disabled":""}><img src="${f.url}" alt=""></label><span class="fname">${esc(f.name)}</span>
-      <span><select data-imkey="${i}" ${f.status==="done"?"disabled":""}><option value="">（割り当てない）</option><optgroup label="候補">${f.cands.map(c=>`<option value="${esc(c.key)}" ${c.key===f.key?"selected":""}>${esc(c.label)}（${Math.round(c.s*100)}%）</option>`).join("")}</optgroup><optgroup label="すべて">${tg.map(t=>`<option value="${esc(t.key)}" ${!f.cands.some(c=>c.key===f.key)&&t.key===f.key?"selected":""}>${esc(t.label)}${hasImage(IM.k,t.key)?"":"　※画像なし"}</option>`).join("")}</optgroup></select>${warn}</span><span>${st}</span></div>`;}).join("")}</div>
-    <div class="row2"><button class="btn primary" data-im="upload" ${on&&ASSETSCAP&&!IM.busy?"":"disabled"}>チェックした ${on} 件を登録</button><button class="btn" data-im="clear">一覧をクリア</button><span class="count">「近い」「要確認」は割り当て先を確認してからチェックを入れてください。</span></div>`;
-  }
-  h+=`</section>`;
-  if(tg.length>1){
-    h+=`<section class="apanel"><h3 class="ph">画像がないもの（${miss.length}）</h3>${miss.length?`<div class="misslist">${miss.map(t=>`<span>${esc(t.label)}</span>`).join("")}</div>`:`<p class="hint" style="margin:0">すべて画像があります。</p>`}</section>`;
-  }
-  if(IM.k==="char"||IM.k==="script"){
-    const src=tg.filter(x=>cropSrc(IM.k,x.key));const q=(IM.cq||"").toLowerCase();const shown=src.filter(x=>!q||x.label.toLowerCase().includes(q)||String(x.key).toLowerCase().includes(q));
-    const adj=t=>CROPS["c_"+IM.k+"_"+hashId(t.key)];
-    h+=`<section class="apanel"><h3 class="ph">サムネイルの位置調整</h3><p class="hint" style="margin-top:0">一覧の正方形サムネイルがずれているものを選んで、切り抜く位置を直せます。調整済みのものには印が付きます。</p>
-    <input class="search" id="cropq" placeholder="名前で絞り込み" value="${esc(IM.cq||"")}" style="max-width:320px;margin-bottom:10px">
-    <div class="cropgrid">${shown.map(x=>{const th=IM.k==="char"?IMG[x.key]:SIMG[x.key];return `<button data-crop="${esc(x.key)}" title="${esc(x.label)}" class="${adj(x)?"adj":""}">${th?`<img src="${th}" alt="">`:`<span class="noimg"></span>`}<span>${esc(x.label)}</span></button>`;}).join("")||'<span class="count">元画像のあるものがありません</span>'}</div></section>`;
-  }
-  const mine=Object.entries(MEDIA).filter(([id,m])=>m.kind===IM.k);
-  if(mine.length)h+=`<section class="apanel"><h3 class="ph">アップロード済み（${mine.length}）</h3><div class="upl">${mine.sort((a,b)=>String(a[1].key).localeCompare(b[1].key,"ja")).map(([id,m])=>`<div><img src="${blob(m.thumb||m.full)}" alt=""><span>${esc(IM.k==="hero"?"ヘッダー背景":(targets(IM.k).find(t=>t.key===m.key)||{label:m.key}).label)}</span><button class="btn small" data-imdel="${esc(id)}">外す</button></div>`).join("")}</div><p class="hint">「外す」と内蔵の画像（あれば）に戻ります。</p></section>`;
-  AM.innerHTML=h;
-  const inp=document.getElementById("imfiles");inp.addEventListener("change",()=>addFiles(inp.files));
-  const cq=document.getElementById("cropq");if(cq)cq.addEventListener("input",()=>{IM.cq=cq.value;const p=cq.selectionStart;renderImg();const n=document.getElementById("cropq");n.focus();n.setSelectionRange(p,p);});
-  const dr=document.getElementById("drop");
-  dr.addEventListener("dragover",e=>{e.preventDefault();dr.classList.add("over");});dr.addEventListener("dragleave",()=>dr.classList.remove("over"));
-  dr.addEventListener("drop",e=>{e.preventDefault();dr.classList.remove("over");addFiles(e.dataTransfer.files);});
-  AM.querySelectorAll("[data-imkey]").forEach(s=>s.addEventListener("change",()=>{const f=IM.files[+s.dataset.imkey];f.key=s.value;f.manual=!!s.value;f.score=1;f.on=!!s.value;renderImg();}));
-  AM.querySelectorAll("[data-imon]").forEach(c=>c.addEventListener("change",()=>{IM.files[+c.dataset.imon].on=c.checked;renderImg();}));
-}
-function addFiles(list){
-  [...list].filter(f=>/^image\//.test(f.type)).forEach(f=>IM.files.push({file:f,name:f.name,url:URL.createObjectURL(f),key:"",score:0,on:null,manual:false,status:""}));
-  matchAll();renderImg();
-}
-function loadImg(file){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(file);});}
+let rerenderT=null,ADMIN_RENDER=null;
+function rerender(){clearTimeout(rerenderT);rerenderT=setTimeout(()=>{buildModels();if(MODE==="admin"){if(ADMIN_RENDER)ADMIN_RENDER(true);}else render();},60);}
+function enterAdmin(){location.hash="#admin";}
 function canvasBlob(im,sx,sy,sw,sh,dw,dh,type,q){const c=document.createElement("canvas");c.width=Math.round(dw);c.height=Math.round(dh);const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height);
   return new Promise(r=>c.toBlob(b=>{if(b&&b.type===type)r(b);else c.toBlob(r,"image/png");},type,q));}
-async function processImage(file,kind){
-  const im=await loadImg(file);const W=im.naturalWidth,H=im.naturalHeight;
-  const fit=(mw)=>{const s=Math.min(1,mw/W);return[W*s,H*s];};
-  if(kind==="icon"){const s=Math.min(1,96/Math.max(W,H));return{full:await canvasBlob(im,0,0,W,H,W*s,H*s,"image/png")};}
-  if(kind==="hero"){const[dw,dh]=fit(1800);return{full:await canvasBlob(im,0,0,W,H,dw,dh,"image/webp",.8)};}
-  const[dw,dh]=fit(kind==="char"?960:900);
-  const full=await canvasBlob(im,0,0,W,H,dw,dh,"image/webp",.8);
-  let side,sx,sy;
-  if(W>H*1.2){side=H*0.46;sx=W/2-side/2;sy=H*0.08;}else{side=Math.min(W,H)*0.9;sx=(W-side)/2;sy=Math.min(H-side,H*0.04);}
-  const thumb=await canvasBlob(im,sx,sy,side,side,128,128,"image/webp",.8);
-  return{full,thumb};
-}
-async function imAction(a,btn){
-  if(a==="clear"){IM.files.forEach(f=>URL.revokeObjectURL(f.url));IM.files=[];renderImg();return;}
-  if(a==="upload"){
-    if(!ASSETSCAP||!DB)return toast("この画面では画像を登録できません");
-    IM.busy=true;const todo=IM.files.filter(f=>f.on&&f.key&&f.status!=="done");let ok=0;
-    for(const f of todo){f.status="up";renderImg();
-      try{const p=await processImage(f.file,IM.k);
-        const up=async b=>{try{return await ASSETSCAP.upload(b);}catch(e){if(e&&e.code==="store_unavailable")return await ASSETSCAP.upload(b);throw e;}};
-        const full=await up(p.full);const thumb=p.thumb?await up(p.thumb):null;
-        const id="m_"+IM.k+"_"+hashId(f.key);
-        await DB.doc("media/"+id).set({kind:IM.k,key:f.key,full:full.id,thumb:thumb?thumb.id:null,file:f.name,at:new Date().toISOString()});
-        f.status="done";f.on=false;ok++;}
-      catch(e){f.status="err";f.err=e&&(e.code||e.message);}
-    }
-    IM.busy=false;renderImg();toast(`${ok}件の画像を登録しました${ok<todo.length?`（${todo.length-ok}件は失敗）`:""}`,4000);return;
-  }
-}
-async function imDel(id){if(!DB)return;try{await DB.doc("media/"+id).delete();toast("画像を外しました");}catch(e){toast(dbErr(e));}}
-
-AM.addEventListener("click",e=>{
-  const t=e.target.closest("[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-imdel],[data-crop]");if(!t)return;const ds=t.dataset;
-  if(ds.edk){if(ED.dirty&&!ED.leaveOk){ED.leaveOk=true;toast("保存していない変更があります。もう一度押すと破棄して切り替えます",3500);return;}ED.leaveOk=false;ED.k=ds.edk;ED.sel=-1;ED.draft=null;ED.dirty=false;ED.q="";renderEdit();return;}
-  if(ds.edrow!==undefined){if(ED.dirty&&!ED.leaveOk&&+ds.edrow!==ED.sel){ED.leaveOk=true;toast("保存していない変更があります。もう一度押すと破棄して切り替えます",3500);return;}ED.leaveOk=false;ED.sel=+ds.edrow;ED.draft=data(ED.k).rows[ED.sel].slice();ED.dirty=false;ED.confirmDel=false;renderEdit();
-    if(window.innerWidth<820){const f=document.getElementById("edform");if(f)f.scrollIntoView({block:"start"});}return;}
-  if(ds.ed){edAction(ds.ed);return;}
-  if(ds.iok){IO.k=ds.iok;IO.confirmReset=false;renderIO();return;}
-  if(ds.io){ioAction(ds.io,t);return;}
-  if(ds.imk){IM.k=ds.imk;IM.files.forEach(f=>URL.revokeObjectURL(f.url));IM.files=[];renderImg();return;}
-  if(ds.im){imAction(ds.im,t);return;}
-  if(ds.imdel){imDel(ds.imdel);return;}
-  if(ds.crop!==undefined){openCrop(IM.k,ds.crop);return;}
-});
-
-/* ================= thumbnail crops ================= */
-let CROPS={};const CROPURL={};
 function cropSrc(kind,key){return kind==="char"?BANNER[key]:SFULL[key];}
 function loadImgSrc(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=src;});}
 async function cropBlob(src,c,size){const im=await loadImgSrc(src);const W=im.naturalWidth,H=im.naturalHeight;const side=c.cs*H;return canvasBlob(im,c.cx*W,c.cy*H,side,side,size,size,"image/webp",.85);}
 let cropRun=0;
-function cropSig(src,c){return [src.length,src.slice(-48),c.cx,c.cy,c.cs].join("|");}
+function cropSig(src,c){return [src,c.cx,c.cy,c.cs].join("|");}
 async function applyCrops(){
   const run=++cropRun;const todo=[];
   Object.values(CROPS).forEach(c=>{if(!c||!c.key)return;const src=cropSrc(c.kind,c.key);if(!src)return;const k=c.kind+"|"+c.key;
     if(CROPURL[k]&&CROPURL[k].sig===cropSig(src,c))(c.kind==="char"?IMG:SIMG)[c.key]=CROPURL[k].url;else todo.push([c,src,k]);});
   let changed=false;
-  for(const [c,src,k] of todo){try{const b=await cropBlob(src,c,128);if(run!==cropRun)return;if(CROPURL[k])URL.revokeObjectURL(CROPURL[k].url);CROPURL[k]={sig:cropSig(src,c),url:URL.createObjectURL(b)};(c.kind==="char"?IMG:SIMG)[c.key]=CROPURL[k].url;changed=true;}catch(e){}}
+  for(const [c,src,k] of todo){try{const b=await cropBlob(src,c,176);if(run!==cropRun)return;if(CROPURL[k])URL.revokeObjectURL(CROPURL[k].url);CROPURL[k]={sig:cropSig(src,c),url:URL.createObjectURL(b)};(c.kind==="char"?IMG:SIMG)[c.key]=CROPURL[k].url;changed=true;}catch(e){}}
   if(changed)rerender();
 }
-function autoCrop(W,H){if(W>H*1.2){const cs=.46;return{cs,cx:Math.max(0,.5-cs*H/W/2),cy:.08};}const s=Math.min(W,H)*.9;return{cs:s/H,cx:(W-s)/2/W,cy:Math.min(H-s,H*.04)/H};}
-const CR={kind:"",key:"",c:null,W:0,H:0,drag:null};
-function openCrop(kind,key){
-  const src=cropSrc(kind,key);if(!src){toast("元の画像がないため調整できません");return;}
-  const id="c_"+kind+"_"+hashId(key);const cur=CROPS[id];
-  const label=kind==="char"?(CHMAP[key]?CHMAP[key].name:key):key;
-  CR.kind=kind;CR.key=key;CR.id=id;CR.c=null;
-  document.getElementById("cropBody").innerHTML=`<h2>${esc(label)}</h2><p class="hint" style="margin:0 0 10px">四角をドラッグして顔の位置に合わせ、スライダーで大きさを変えてください。</p>
-  <div class="cropwrap" id="cropWrap"><img id="cropImg" src="${src}" alt="" draggable="false"><div id="cropBox"></div></div>
-  <div class="croprow"><label class="inl" for="cropSize">大きさ</label><input type="range" id="cropSize" min="12" max="100" step="1"><canvas id="cropPrev" width="96" height="96"></canvas></div>
-  <div class="foot">${cur?`<button class="btn" id="cropReset">自動の位置に戻す</button>`:""}<span style="flex:1"></span><button class="btn" data-close>キャンセル</button><button class="btn primary" id="cropSave">保存</button></div>`;
-  const dl=document.getElementById("dlgCrop");if(!dl.open)dl.showModal();
-  const img=document.getElementById("cropImg"),box=document.getElementById("cropBox"),sz=document.getElementById("cropSize");
-  const draw=()=>{if(!CR.c)return;const s=img.clientWidth/CR.W;box.style.left=CR.c.cx*CR.W*s+"px";box.style.top=CR.c.cy*CR.H*s+"px";box.style.width=box.style.height=CR.c.cs*CR.H*s+"px";
-    const cv=document.getElementById("cropPrev");const x=cv.getContext("2d");x.clearRect(0,0,96,96);const side=CR.c.cs*CR.H;x.drawImage(img,CR.c.cx*CR.W,CR.c.cy*CR.H,side,side,0,0,96,96);};
-  const clamp=()=>{const c=CR.c;const maxS=Math.min(1,CR.W/CR.H);c.cs=Math.min(Math.max(c.cs,.08),maxS);c.cx=Math.min(Math.max(c.cx,0),1-c.cs*CR.H/CR.W);c.cy=Math.min(Math.max(c.cy,0),1-c.cs);};
-  const init=()=>{CR.W=img.naturalWidth;CR.H=img.naturalHeight;CR.c=cur?{cx:cur.cx,cy:cur.cy,cs:cur.cs}:autoCrop(CR.W,CR.H);clamp();sz.value=Math.round(CR.c.cs/Math.min(1,CR.W/CR.H)*100);draw();};
-  if(img.complete&&img.naturalWidth)init();else img.onload=init;
-  const toImg=e=>{const r=img.getBoundingClientRect();return[(e.clientX-r.left)/r.width*CR.W,(e.clientY-r.top)/r.height*CR.H];};
-  const wrap=document.getElementById("cropWrap");
-  wrap.addEventListener("pointerdown",e=>{if(!CR.c)return;e.preventDefault();const[px,py]=toImg(e);const c=CR.c;const side=c.cs*CR.H;
-    const inside=px>=c.cx*CR.W&&px<=c.cx*CR.W+side&&py>=c.cy*CR.H&&py<=c.cy*CR.H+side;
-    if(!inside){c.cx=(px-side/2)/CR.W;c.cy=(py-side/2)/CR.H;clamp();draw();}
-    CR.drag={px,py,cx:c.cx,cy:c.cy};wrap.setPointerCapture(e.pointerId);});
-  wrap.addEventListener("pointermove",e=>{if(!CR.drag)return;const[px,py]=toImg(e);CR.c.cx=CR.drag.cx+(px-CR.drag.px)/CR.W;CR.c.cy=CR.drag.cy+(py-CR.drag.py)/CR.H;clamp();draw();});
-  wrap.addEventListener("pointerup",()=>{CR.drag=null;});wrap.addEventListener("pointercancel",()=>{CR.drag=null;});
-  sz.addEventListener("input",()=>{const c=CR.c;if(!c)return;const midx=c.cx*CR.W+c.cs*CR.H/2,midy=c.cy*CR.H+c.cs*CR.H/2;c.cs=sz.value/100*Math.min(1,CR.W/CR.H);c.cx=(midx-c.cs*CR.H/2)/CR.W;c.cy=(midy-c.cs*CR.H/2)/CR.H;clamp();draw();});
-  window.addEventListener("resize",draw);
-  document.getElementById("cropSave").addEventListener("click",async e=>{if(!DB||!CR.c)return;e.target.disabled=true;
-    try{await DB.doc("crops/"+CR.id).set({kind:CR.kind,key:CR.key,cx:+CR.c.cx.toFixed(4),cy:+CR.c.cy.toFixed(4),cs:+CR.c.cs.toFixed(4),at:new Date().toISOString()});dl.close();toast("サムネイルの位置を保存しました");}
-    catch(er){e.target.disabled=false;toast(dbErr(er));}});
-  const rs=document.getElementById("cropReset");if(rs)rs.addEventListener("click",async()=>{try{await DB.doc("crops/"+CR.id).delete();dl.close();toast("自動の位置に戻しました");}catch(er){toast(dbErr(er));}});
-}
 
-/* ================= static site export ================= */
-function dataBlob(src){const i=src.indexOf(",");const mime=src.slice(5,i).split(";")[0];const bin=atob(src.slice(i+1));const u=new Uint8Array(bin.length);for(let k=0;k<bin.length;k++)u[k]=bin.charCodeAt(k);return new Blob([u],{type:mime});}
-async function exportSite(btn){
-  if(!window.JSZip){toast("ZIPを作る部品を読み込めませんでした。ページを開き直してください",5000);return;}
-  if(!DLCAP){toast("この画面ではファイルを保存できません");return;}
-  btn.disabled=true;const label=btn.textContent;let n=0,fail=0;
-  try{
-    const zip=new JSZip();const map=new Map();
-    const EXT={"image/webp":"webp","image/png":"png","image/jpeg":"jpg","image/gif":"gif","image/svg+xml":"svg","image/avif":"avif"};
-    const put=async(src,pre)=>{if(!src)return "";if(map.has(src))return map.get(src);let b;
-      try{if(src.startsWith("data:"))b=dataBlob(src);else{const r=await fetch(src);if(!r.ok)throw 0;b=await r.blob();}}catch(e){fail++;return "";}
-      const p=`img/${pre}${(n++).toString(36)}.${EXT[b.type]||"png"}`;zip.file(p,b);map.set(src,p);if(n%25===0)btn.textContent=`画像をまとめています… ${n}`;return p;};
-    const out={thumbs:{},banners:{},icons:{},sthumbs:{},sfull:{},hero:""};
-    const each=async(obj,dst,pre)=>{for(const [k,v] of Object.entries(obj)){const p=await put(v,pre);if(p)dst[k]=p;}};
-    await each(IMG,out.thumbs,"t");await each(BANNER,out.banners,"b");await each(ICON,out.icons,"i");await each(SIMG,out.sthumbs,"s");await each(SFULL,out.sfull,"f");
-    out.hero=await put(HERO,"h");
-    const seed={chars:data("chars"),scripts:data("scripts"),babel:data("babel")};
-    const doc=new DOMParser().parseFromString(PRISTINE,"text/html");
-    doc.querySelectorAll("script").forEach(s=>{const keep=s.id==="seed"||s.id==="assets"||s.id==="app"||/jszip/.test(s.getAttribute("src")||"");if(!keep)s.remove();});
-    const J=o=>JSON.stringify(o).replace(/<\//g,"<\\/");
-    doc.getElementById("seed").textContent=J(seed);doc.getElementById("assets").textContent=J(out);
-    zip.file("index.html","<!DOCTYPE html>\n"+doc.documentElement.outerHTML);
-    btn.textContent="ZIPを作っています…";
-    const blob=await zip.generateAsync({type:"blob"});
-    await DLCAP.save({filename:"babel-tier-site.zip",data:blob});
-    toast(`公開用ZIPを書き出しました（画像${n}点${fail?`、読み込めなかった画像${fail}点`:""}）`,5000);
-  }catch(e){if(!(e&&e.code==="declined"))toast("書き出しに失敗しました："+(e&&(e.message||e.code)||""),5000);}
-  btn.disabled=false;btn.textContent=label;
+/* ================= public data (Firestore REST → static fallback) ================= */
+let SITE_LOADED=false;
+const FBC=(window.SITE&&window.SITE.firebase)||null;
+const FSURL=FBC?`https://firestore.googleapis.com/v1/projects/${FBC.projectId}/databases/(default)/documents`:"";
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),ms))]);
+async function fsGetJson(path){
+  const r=await withTimeout(fetch(`${FSURL}/${path}?key=${FBC.apiKey}&mask.fieldPaths=json`,{cache:"no-cache"}),7000);
+  if(!r.ok)throw new Error("fs "+r.status);
+  const d=await r.json();const v=d.fields&&d.fields.json&&d.fields.json.stringValue;if(!v)throw new Error("empty");
+  return JSON.parse(v);
 }
-
-/* ================= static site mode (GitHub Pages) ================= */
-let SITE_LOADED=!window.SITE;
+async function fsCommit(writes){
+  const r=await fetch(`${FSURL.replace(/\/documents$/,"/documents:commit")}?key=${FBC.apiKey}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({writes})});
+  if(!r.ok)throw new Error("fs "+r.status);
+}
+const fsDoc=p=>`projects/${FBC.projectId}/databases/(default)/documents/${p}`;
+function jstDay(t){return new Date((t||Date.now())+9*3600e3).toISOString().slice(0,10);}
+async function countVisit(){
+  if(!FBC||/^(localhost|127\.)/.test(location.hostname)&&!window.SITE.countLocal)return;
+  const day=jstDay();let uv=1;
+  try{if(localStorage.getItem("rxr-visit")===day)uv=0;localStorage.setItem("rxr-visit",day);}catch(e){}
+  try{if(sessionStorage.getItem("rxr-pv"))return;sessionStorage.setItem("rxr-pv","1");}catch(e){}
+  await fsCommit([{transform:{document:fsDoc("stats/"+day),fieldTransforms:[{fieldPath:"pv",increment:{integerValue:"1"}},{fieldPath:"uv",increment:{integerValue:String(uv)}}]}}]);
+}
+async function sendFeedback(o){
+  if(!FBC)throw new Error("no firebase");
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+  const sv=v=>({stringValue:String(v||"")});
+  await fsCommit([{update:{name:fsDoc("feedback/"+id),fields:{kind:sv(o.kind),text:sv(o.text),contact:sv(o.contact),page:sv(o.page),ua:sv(o.ua),status:sv("new")}},
+    updateTransforms:[{fieldPath:"at",setToServerValue:"REQUEST_TIME"}],currentDocument:{exists:false}}]);
+}
 async function loadSite(){
-  if(!window.SITE)return;
   const get=p=>fetch(p,{cache:"no-cache"}).then(r=>{if(!r.ok)throw new Error(p);return r.json();});
-  const [c,s,b,im]=await Promise.all(["data/chars.json","data/scripts.json","data/babel.json","data/images.json"].map(p=>get(p).catch(()=>null)));
-  if(c)LIVE.chars=c;if(s)LIVE.scripts=s;if(b)LIVE.babel=b;
+  const imP=get("data/images.json").catch(()=>null);
+  const st={};let crops=null;
+  await Promise.all(["chars","scripts","babel"].map(async k=>{
+    if(FBC){try{const v=await fsGetJson("public/"+k);if(v&&v.rows){st[k]=v;return;}}catch(e){}}
+    st[k]=await get(`data/${k}.json`).catch(()=>null);
+  }).concat(FBC?[fsGetJson("public/crops").then(v=>{crops=v;}).catch(()=>{})]:[]));
+  Object.entries(st).forEach(([k,v])=>{if(v)LIVE[k]={headers:v.headers,rows:v.rows};});
+  if(crops)CROPS=crops;
+  const im=await imP;
   if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});if(im.hero)BASE.HERO=im.hero;}
   SITE_LOADED=true;applyMedia();buildModels();render();
-  if(!c||!b)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
+  if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
+  countVisit().catch(()=>{});
+  if(location.hash==="#admin")openAdminModule();
 }
+let ADMIN_LOADING=false;
+async function openAdminModule(){
+  if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
+  if(ADMIN_LOADING)return;ADMIN_LOADING=true;
+  try{const m=await import("./js/admin.js");await m.start(window.RXR);}
+  catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
+  ADMIN_LOADING=false;
+}
+window.addEventListener("hashchange",()=>{if(location.hash==="#admin")openAdminModule();else if(window.RXR_ADMIN)window.RXR_ADMIN.close();});
 function loadAnalytics(){
   const c=window.SITE||{};
   if(c.cfBeacon){const s=document.createElement("script");s.defer=true;s.src="https://static.cloudflareinsights.com/beacon.min.js";s.setAttribute("data-cf-beacon",JSON.stringify({token:c.cfBeacon}));document.head.appendChild(s);}
   if(c.ga){const s=document.createElement("script");s.async=true;s.src="https://www.googletagmanager.com/gtag/js?id="+c.ga;document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};gtag("js",new Date());gtag("config",c.ga);}
 }
 function track(name,params){try{if(window.gtag)gtag("event",name,params||{});}catch(e){}}
+
+/* ================= feedback form ================= */
+const dlgF=document.getElementById("dlgFeedback");
+document.querySelectorAll("[data-feedback]").forEach(b=>b.addEventListener("click",ev=>{ev.preventDefault();
+  document.getElementById("fbText").value="";document.getElementById("fbContact").value="";document.getElementById("fbErr").textContent="";
+  document.getElementById("fbPage").textContent=feedbackPage();dlgF.showModal();}));
+function feedbackPage(){const f=curFloor();const t={tier:"階層別Tier表",sum:"全階層まとめ",chars:"キャラデータ",babel:"バベル一覧",scripts:"スクリプト",rank:"ランキング"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
+document.getElementById("fbSend").addEventListener("click",async e=>{
+  const text=document.getElementById("fbText").value.trim(),contact=document.getElementById("fbContact").value.trim(),kind=document.querySelector('input[name="fbKind"]:checked').value;
+  const err=document.getElementById("fbErr");
+  if(!text){err.textContent="内容を入力してください";return;}
+  if(text.length>2000){err.textContent="2000文字以内で入力してください";return;}
+  try{const last=+localStorage.getItem("fb-last")||0;if(Date.now()-last<60000){err.textContent="続けて送信できません。1分ほど待ってからもう一度送ってください";return;}}catch(_){}
+  e.target.disabled=true;e.target.textContent="送信中…";
+  try{await sendFeedback({kind,text,contact,page:feedbackPage(),ua:navigator.userAgent.slice(0,180)});
+    try{localStorage.setItem("fb-last",String(Date.now()));}catch(_){}
+    dlgF.close();toast("送信しました。ご協力ありがとうございます");}
+  catch(x){err.textContent="送信できませんでした。時間をおいてもう一度お試しください";}
+  e.target.disabled=false;e.target.textContent="送信する";
+});
+
+/* ================= bridge for admin module ================= */
+window.RXR={
+  get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
+  get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
+  IMG,BANNER,SIMG,SFULL,ICON,BASE,ATTRS,ROLES,RANKS,ORDERS,
+  get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},cropSrc,canvasBlob,
+  rebuild(){buildModels();},renderUser(){render();},
+  setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;},
+  jstDay,get SITE_LOADED(){return SITE_LOADED;},
+  dlg(id){return document.getElementById(id);},
+};
 setHero();
-buildModels();render();connect();loadSite();loadAnalytics();
+buildModels();render();loadSite();loadAnalytics();
 })();
 </script>
+
 </body>
 </html>

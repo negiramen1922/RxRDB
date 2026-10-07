@@ -1,0 +1,72 @@
+rules_version = '2';
+// RxRDB（バベルTier表）用 Firestore ルール
+// Firebase コンソール → Firestore Database → ルール に丸ごと貼り付けて「公開」
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function email() { return request.auth.token.email; }
+    function isOwner() { return signedIn() && email() == "bedrock1922@gmail.com"; }
+    function isEditor() {
+      return isOwner() || (signedIn() && exists(/databases/$(database)/documents/roles/$(email())));
+    }
+
+    // 公開データ（サイトが読む）: 誰でも読める / 編集者だけ書ける
+    match /public/{doc} {
+      allow read: if true;
+      allow write: if isEditor();
+    }
+
+    // 編集用の行データ（1行1ドキュメント）
+    match /tables/{t} {
+      allow read, write: if isEditor();
+      match /rows/{r} {
+        allow read, write: if isEditor();
+      }
+    }
+
+    // メンバー（編集者）: 追加・削除はオーナーだけ
+    match /roles/{e} {
+      allow read: if isEditor();
+      allow write: if isOwner();
+    }
+
+    // 変更履歴: 自分の名前でだけ追加できる。書き換え不可
+    match /log/{id} {
+      allow read: if isEditor();
+      allow create: if isEditor() && request.resource.data.by == email();
+      allow delete: if isOwner();
+    }
+
+    // 「いま編集中」の表示
+    match /editing/{uid} {
+      allow read: if isEditor();
+      allow write: if isEditor() && request.auth.uid == uid;
+    }
+
+    // 不具合・ご要望フォーム: 誰でも送信できる（中身は編集者だけが読める）
+    match /feedback/{id} {
+      allow create: if request.resource.data.keys().hasOnly(["kind", "text", "contact", "page", "ua", "at", "status"])
+        && request.resource.data.kind in ["bug", "request", "other"]
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+        && request.resource.data.contact is string && request.resource.data.contact.size() <= 200
+        && request.resource.data.page is string && request.resource.data.page.size() <= 100
+        && request.resource.data.ua is string && request.resource.data.ua.size() <= 200
+        && request.resource.data.status == "new"
+        && request.resource.data.at == request.time;
+      allow read, update, delete: if isEditor();
+    }
+
+    // アクセス数（日別）: 訪問ごとに +1 だけできる
+    match /stats/{day} {
+      allow read: if isEditor();
+      allow create: if day.matches("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+        && request.resource.data.keys().hasOnly(["pv", "uv"])
+        && request.resource.data.pv == 1
+        && request.resource.data.get("uv", 0) in [0, 1];
+      allow update: if request.resource.data.keys().hasOnly(["pv", "uv"])
+        && request.resource.data.pv == resource.data.pv + 1
+        && request.resource.data.get("uv", 0) in [resource.data.get("uv", 0), resource.data.get("uv", 0) + 1];
+    }
+  }
+}
