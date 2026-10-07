@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>バベル Tier表メーカー｜リバリバ</title>
+<meta name="description" content="リバースブルー×リバースエンド（リバリバ）のバベル階層別Tier表。各階層のおすすめキャラやボス情報、キャラ・スクリプトのデータが見られます。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="バベル Tier表メーカー｜リバリバ">
+<meta property="og:description" content="リバリバのバベル階層別Tier表。各階層のおすすめキャラがわかる、自分のTier表も作って共有できます。">
+<meta property="og:url" content="https://negiramen1922.github.io/RxRDB/">
+<meta property="og:image" content="https://negiramen1922.github.io/RxRDB/images/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -141,6 +148,10 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .trow:first-child{border-top:0}
 .offnote{margin:0 0 10px;padding:8px 14px;background:var(--panel);box-shadow:var(--shadow);border-left:4px solid var(--accent);font-size:13.5px;display:flex;gap:6px 14px;flex-wrap:wrap;align-items:center}
 .offnote .count{margin-left:auto}
+.sharebtn{margin-left:auto}
+.sharepv{background:var(--field);border:1px solid var(--line);padding:8px;max-height:60vh;overflow:auto;text-align:center}
+.sharepv img{max-width:100%;display:block;margin:0 auto}
+.sharebtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .viewbar{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .viewseg{display:inline-flex;background:var(--panel);box-shadow:var(--shadow);padding:4px;gap:4px}
 .viewseg button{border:0;background:none;padding:8px 18px;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
@@ -489,6 +500,12 @@ tr.rkrow-focus,tr.rkrow-focus td.first{background:rgba(255,201,60,.28)!important
 
 <dialog id="dlgCrop"><div class="dlg" id="cropBody"></div></dialog>
 <dialog id="dlgDetail"><div class="dlg" id="detailBody"></div></dialog>
+<dialog id="dlgShare"><div class="dlg">
+  <div class="newshead"><h2>画像で共有</h2><span style="flex:1"></span><button class="btn small" data-close>✕ 閉じる</button></div>
+  <div class="sharepv" id="sharePv"><p class="count">画像を作っています…</p></div>
+  <div class="sharebtns" id="shareBtns"></div>
+  <p class="hint" id="shareHint"></p>
+</div></dialog>
 <dialog id="dlgNews"><div class="dlg">
   <div class="newshead"><h2>お知らせ</h2><span style="flex:1"></span><button class="btn small" data-close>✕ 閉じる</button></div>
   <div id="newsList"></div>
@@ -635,7 +652,7 @@ const EMPTY_P=Object.freeze({});
 const MINE=()=>MODE!=="admin"&&S.view==="mine";
 const CANEDIT=()=>TIER_EDIT||MINE();
 const place=fk=>MINE()?((S.tiers||{})[fk]||EMPTY_P):(OFFICIAL[fk]||EMPTY_P);
-function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">公式Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${m&&tab==="tier"?`<div class="mytools"><button class="btn small" data-act="mycopy">公式の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
+function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">公式Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${m&&tab==="tier"?`<div class="mytools"><button class="btn small" data-act="mycopy">公式の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)));
 function switchTab(t){track("tab",{tab:t});tab=t;sel=null;document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.tab===t)));render();window.scrollTo(0,0);}
@@ -964,6 +981,7 @@ document.addEventListener("click",e=>{
   else if(a==="admin")enterAdmin();
   else if(a==="mycopy"){const fk=S.curFloor;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の公式Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、公式の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);save();render();toast("公式の配置をコピーしました。ここから自由に動かせます");}
   else if(a==="myclear"){const fk=S.curFloor;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];sel=null;save();render();toast("リセットしました");}
+  else if(a==="share")openShare();
   else if(a==="mytext"){const f=curFloor();const tx=f&&floorText(f);if(!tx){toast("まだ配置がありません");return;}navigator.clipboard.writeText(tx).then(()=>toast("テキストをコピーしました。SNSなどに貼り付けられます"),()=>toast("コピーできませんでした"));}
   else if(a==="allcols"){tstate.chars.all=!tstate.chars.all;renderChars();}
 });
@@ -1096,11 +1114,91 @@ async function loadSite(){
   renderNewsBadge();
   const im=await imP;
   if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});if(im.hero)BASE.HERO=im.hero;}
-  SITE_LOADED=true;applyMedia();buildModels();render();
+  SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
   countVisit().catch(()=>{});
   if(location.hash==="#admin")openAdminModule();
 }
+/* ================= 画像で共有 ================= */
+const SITE_URL=location.origin+location.pathname;
+let SHARE={blob:null,url:"",text:""};
+function loadImgEl(src){return new Promise(r=>{if(!src)return r(null);const im=new Image();im.onload=()=>r(im);im.onerror=()=>r(null);im.src=src;});}
+function rrect(x,c,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+const TCOLS=[["#7b5cff","#ff3fb4","#ffb33a"],["#ff3f8e","#ff9d3a","#ffe04a"],["#ff4d5e","#ff8a3c"],["#ffa62b","#ffd23f"],["#13b98a","#5be0b5"],["#1a7bff","#4cc8ff"],["#6b7a92","#a3b1c6"]];
+async function makeTierImage(f,P,mine){
+  try{await document.fonts.ready;}catch(e){}
+  const W=1200,PAD=28,LW=118,TS=92,GAP=8,NAMEH=22,CELLW=TS,CELLH=TS+NAMEH;
+  const perRow=Math.floor((W-PAD*2-LW-16+GAP)/(CELLW+GAP));
+  const rows=TIERS.map(t=>({t,cs:CH.filter(c=>P[c.id]===t)})).filter(r=>r.cs.length);
+  const rowH=r=>Math.max(1,Math.ceil(r.cs.length/perRow))*(CELLH+GAP)-GAP+20;
+  const HEAD=150,FOOT=86;
+  const H=HEAD+rows.reduce((a,r)=>a+rowH(r)+6,0)+(rows.length?0:120)+FOOT+PAD;
+  const cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
+  const JP='"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif',EN='"Oswald","Arial Narrow",sans-serif';
+  // background
+  let g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0a1d42");g.addColorStop(.45,"#1b6fe0");g.addColorStop(1,"#cfeaff");c.fillStyle=g;c.fillRect(0,0,W,H);
+  const hero=await loadImgEl(HERO);
+  if(hero){c.save();c.beginPath();c.rect(0,0,W,HEAD);c.clip();c.globalAlpha=.55;const s=Math.max(W/hero.width,HEAD/hero.height);c.drawImage(hero,(W-hero.width*s)/2,0,hero.width*s,hero.height*s);c.restore();
+    g=c.createLinearGradient(0,0,W,0);g.addColorStop(0,"rgba(5,20,55,.92)");g.addColorStop(.7,"rgba(5,20,55,.35)");g.addColorStop(1,"rgba(5,20,55,.1)");c.fillStyle=g;c.fillRect(0,0,W,HEAD);}
+  c.fillStyle="#cfe3ff";c.font=`600 15px ${EN}`;c.fillText("REVERSE BLUE × REVERSE END  /  BABEL TIER",PAD,36);
+  c.fillStyle="#fff";c.font=`900 40px ${JP}`;c.fillText(`${f.type}  ${f.floor}F`,PAD,86);
+  c.font=`700 26px ${JP}`;c.fillText(f.boss||"",PAD,124);
+  // badge
+  const label=mine?"自分のTier表":"公式Tier表";c.font=`700 18px ${JP}`;const bw=c.measureText(label).width+32;
+  g=c.createLinearGradient(W-PAD-bw,0,W-PAD,0);if(mine){g.addColorStop(0,"#a0379a");g.addColorStop(1,"#ff5fa2");}else{g.addColorStop(0,"#0d3b8c");g.addColorStop(1,"#1a86ff");}
+  c.fillStyle=g;rrect(W-PAD-bw,c,30,bw,36,4);c.fill();c.fillStyle="#fff";c.fillText(label,W-PAD-bw+16,55);
+  if(f.attr){c.font=`700 17px ${JP}`;c.fillStyle="#e6f0ff";const tx=`推奨属性 ${f.attr}`;c.fillText(tx,W-PAD-c.measureText(tx).width,124);}
+  // rows
+  let y=HEAD+8;
+  const imgs={};await Promise.all(rows.flatMap(r=>r.cs).map(async ch=>{imgs[ch.id]=await loadImgEl(IMG[ch.id]);}));
+  if(!rows.length){c.fillStyle="rgba(255,255,255,.9)";rrect(PAD,c,y,W-PAD*2,100,6);c.fill();c.fillStyle="#56719b";c.font=`700 22px ${JP}`;c.fillText("まだ配置がありません",PAD+30,y+60);y+=120;}
+  rows.forEach(r=>{
+    const h=rowH(r),i=TIERS.indexOf(r.t);
+    c.fillStyle="rgba(255,255,255,.92)";rrect(PAD,c,y,W-PAD*2,h,6);c.fill();
+    const cols=TCOLS[i];g=c.createLinearGradient(PAD,y,PAD+LW,y+h);cols.forEach((col,k)=>g.addColorStop(k/(cols.length-1),col));
+    c.save();rrect(PAD,c,y,LW,h,6);c.clip();c.fillStyle=g;c.fillRect(PAD,y,LW,h);c.restore();
+    c.fillStyle="#fff";c.font=`italic 700 ${r.t.length>2?38:46}px ${EN}`;c.shadowColor="rgba(0,0,0,.3)";c.shadowBlur=6;const tw=c.measureText(r.t).width;c.fillText(r.t,PAD+(LW-tw)/2,y+h/2+16);c.shadowBlur=0;
+    r.cs.forEach((ch,k)=>{const cx=PAD+LW+16+(k%perRow)*(CELLW+GAP),cy=y+10+Math.floor(k/perRow)*(CELLH+GAP);
+      c.save();rrect(cx,c,cy,TS,TS,6);c.clip();c.fillStyle="#dff1ff";c.fillRect(cx,cy,TS,TS);const im=imgs[ch.id];if(im){const s=Math.max(TS/im.width,TS/im.height);c.drawImage(im,cx+(TS-im.width*s)/2,cy+(TS-im.height*s)/2,im.width*s,im.height*s);}c.restore();
+      c.fillStyle=ch.attr==="破壊"?"#2f9e44":ch.attr==="衝撃"?"#1a7bff":ch.attr==="爆発"?"#e23d63":"#a3b1c6";c.fillRect(cx,cy+TS-4,TS,4);
+      c.fillStyle="#0d2346";c.font=`700 12.5px ${JP}`;let nm=ch.name;while(c.measureText(nm).width>CELLW&&nm.length>1)nm=nm.slice(0,-1);if(nm!==ch.name)nm=nm.slice(0,-1)+"…";c.fillText(nm,cx+(CELLW-c.measureText(nm).width)/2,cy+TS+16);});
+    y+=h+6;});
+  // footer
+  y=H-FOOT;g=c.createLinearGradient(0,y,0,H);g.addColorStop(0,"rgba(5,20,55,.0)");g.addColorStop(.35,"rgba(5,20,55,.85)");g.addColorStop(1,"rgba(5,20,55,.95)");c.fillStyle=g;c.fillRect(0,y,W,FOOT);
+  c.fillStyle="#fff";c.font=`900 22px ${JP}`;c.fillText("バベル Tier表メーカー｜リバリバ",PAD,H-38);
+  c.fillStyle="#9fd2ff";c.font=`600 20px ${EN}`;c.fillText(SITE_URL.replace(/^https?:\/\//,""),PAD,H-12);
+  c.fillStyle="#cfe3ff";c.font=`500 15px ${JP}`;const d=new Date();const ds=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;c.fillText(ds,W-PAD-c.measureText(ds).width,H-14);
+  return new Promise(r=>cv.toBlob(r,"image/png"));
+}
+async function openShare(){
+  const f=curFloor();if(!f)return;const mine=MINE();const P=place(f.key);
+  if(!Object.keys(P).length){toast(mine?"まだ配置がありません。キャラを配置してから共有してください":"この階層の公式Tier表はまだありません");return;}
+  const dl=document.getElementById("dlgShare");document.getElementById("sharePv").innerHTML='<p class="count">画像を作っています…</p>';document.getElementById("shareBtns").innerHTML="";document.getElementById("shareHint").textContent="";dl.showModal();
+  const link=`${SITE_URL}?floor=${encodeURIComponent(f.key)}`;
+  const text=`【リバリバ バベル】${f.type} ${f.floor}F ${f.boss||""} の${mine?"自分の":"公式"}Tier表\n#リバリバ #リバリババベル`;
+  let blob;try{blob=await makeTierImage(f,P,mine);}catch(e){document.getElementById("sharePv").innerHTML='<p class="err">画像を作れませんでした</p>';return;}
+  if(SHARE.url)URL.revokeObjectURL(SHARE.url);
+  SHARE={blob,url:URL.createObjectURL(blob),text,link,name:`babel-tier-${f.floor}F.png`,f};
+  document.getElementById("sharePv").innerHTML=`<img src="${SHARE.url}" alt="Tier表の画像">`;
+  const file=new File([blob],SHARE.name,{type:"image/png"});
+  const canFile=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+  const canCopy=!!(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write);
+  document.getElementById("shareBtns").innerHTML=(canFile?`<button class="btn primary" data-share="native">画像を共有（X・LINEなど）</button>`:"")+
+    `<button class="btn ${canFile?"":"primary"}" data-share="x">Xに投稿</button><button class="btn" data-share="save">画像を保存</button>${canCopy?`<button class="btn" data-share="copyimg">画像をコピー</button>`:""}<button class="btn" data-share="copytext">文とURLをコピー</button>`;
+  document.getElementById("shareHint").textContent=canFile?"「画像を共有」から X や LINE を選ぶと、画像と URL がいっしょに投稿できます。":"「Xに投稿」は文と URL が入った投稿画面が開きます。画像は「画像を保存」または「画像をコピー」してから、投稿に貼り付けてください。";
+  track("share_open",{floor:f.key,view:mine?"mine":"official"});
+}
+document.getElementById("dlgShare").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-share]");if(!b)return;const k=b.dataset.share;track("share",{method:k});
+  if(k==="native"){try{await navigator.share({files:[new File([SHARE.blob],SHARE.name,{type:"image/png"})],text:SHARE.text+"\n"+SHARE.link,title:"バベル Tier表"});}catch(er){}return;}
+  if(k==="x"){window.open(`https://x.com/intent/post?text=${encodeURIComponent(SHARE.text)}&url=${encodeURIComponent(SHARE.link)}`,"_blank","noopener");return;}
+  if(k==="save"){const a=document.createElement("a");a.href=SHARE.url;a.download=SHARE.name;document.body.appendChild(a);a.click();a.remove();return;}
+  if(k==="copyimg"){try{await navigator.clipboard.write([new ClipboardItem({"image/png":SHARE.blob})]);toast("画像をコピーしました。投稿欄に貼り付けられます");}catch(er){toast("コピーできませんでした。「画像を保存」を使ってください");}return;}
+  if(k==="copytext"){navigator.clipboard.writeText(SHARE.text+"\n"+SHARE.link).then(()=>toast("コピーしました"),()=>toast("コピーできませんでした"));return;}
+});
+/* 共有リンク（?floor=種類|階層）で開いたときはその階層を表示 */
+function applyFloorParam(){try{const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;S.curType=f.type;S.curFloor=f.key;S.view="official";tab="tier";document.querySelectorAll("#userTabs button").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.tab==="tier")));history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+
 /* ================= お知らせ ================= */
 let NEWS=[];
 const NCAT={info:"お知らせ",update:"アップデート",important:"重要"};
