@@ -5,11 +5,11 @@ import * as F from "./fb.js";
 let R = null;            // index.html 側の橋渡し (window.RXR)
 const AM = document.getElementById("admin");
 const NAV = document.getElementById("adminTabs");
-const TABLES = ["chars", "scripts", "babel", "people", "styles", "bosses", "events"];
-const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル", people: "騎士", styles: "スタイル", bosses: "ボス", events: "イベント", options: "選択肢" };
-const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"], people: ["名前"], styles: ["スタイル"], bosses: ["名前"], events: ["イベント名"] };
+const TABLES = ["chars", "scripts", "babel", "seals", "people", "styles", "bosses", "events"];
+const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル", seals: "封印戦", people: "騎士", styles: "スタイル", bosses: "ボス", events: "イベント", options: "選択肢" };
+const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"], seals: ["封印戦名"], people: ["名前"], styles: ["スタイル"], bosses: ["名前"], events: ["イベント名"] };
 // 画像を持つ表：種類と、画像のキーになる列
-const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], bosses: ["boss", "名前"], events: ["event", "イベント名"] };
+const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["seal", "封印戦名"], bosses: ["boss", "名前"], events: ["event", "イベント名"] };
 /* ---- 入力フォームの設計（列名 → 入力の種類）。ここにない列は「その他の列」に出る ---- */
 // t: text / num / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
 const SCHEMA = {
@@ -37,6 +37,11 @@ const SCHEMA = {
   people: [
     { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["性別", "opt:性別"], ["誕生日", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["CV", "text"]] },
     { g: "プロフィール", f: [["プロフィール", "long"]] },
+  ],
+  seals: [
+    { g: "基本", f: [["封印戦名", "text"], ["キャラ名", "text"], ["ダメージタイプ", "sel:物理|特殊"]] },
+    { g: "ステージ効果", note: "1行に1つの効果。「上昇」「低下」などから自動で ▲▼ を判定し、Tier表の未配置キャラの並び（適性順）に使います。", f: [["ステージ効果", "big"]] },
+    { g: "過去開催日", note: "開催されるたびに日付を追加してください。", f: [["過去開催日", "datelist"]] },
   ],
   bosses: [
     { g: "基本", f: [["名前", "text"], ["よみ", "text"], ["説明", "long"]] },
@@ -173,7 +178,7 @@ function startListeners() {
       T[k].rows = m; T[k].rowsReady = true; T[k].pending = q.metadata.hasPendingWrites; tableChanged(k);
     });
   });
-  ["chars", "scripts", "babel", "people", "styles", "crops", "news", "tiers", "options"].forEach(k => on(F.doc(F.db, "public", k), s => {
+  TABLES.concat(["crops", "news", "tiers", "options"]).forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
     if (k === "crops") { try { R.setCrops(d && d.json ? JSON.parse(d.json) : {}); } catch (e) { } }
@@ -205,7 +210,7 @@ function derive(k) {
 const seeded = k => T[k].hdrExists && T[k].rowsReady;
 const allReady = () => TABLES.every(k => T[k].hdrReady && T[k].rowsReady);
 function tableChanged(k) {
-  if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel")) { R.setLive(k, publicData(k)); R.rebuild(); }
+  if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel" || k === "seals")) { R.setLive(k, publicData(k)); R.rebuild(); }
   if (k === "people" && seeded("chars")) { R.setLive("chars", publicData("chars")); R.rebuild(); maybePublish("chars"); }
   // someone else changed the row I'm editing?
   if (ED.k === k && ED.id && !ED.isNew) {
@@ -367,8 +372,8 @@ function loadRow(k, id) {
   ED.base = Object.assign({}, r.c); ED.draft = Object.assign({}, r.c); ED.baseRev = r.rev;
   ED.dirty = false; ED.confirmDel = false; ED.remote = null; ED.gone = false; ED.conflict = null;
 }
-const EDORDER = ["babel", "chars", "scripts", "people", "styles", "bosses", "events", "options"];
-const EDGROUP = { babel: "", chars: "", scripts: "", people: "master", styles: "master", bosses: "master", events: "master", options: "master" };
+const EDORDER = ["babel", "seals", "chars", "scripts", "people", "styles", "bosses", "events", "options"];
+const EDGROUP = { babel: "", seals: "", chars: "", scripts: "", people: "master", styles: "master", bosses: "master", events: "master", options: "master" };
 let DLG = null;
 function edDialog() {
   if (DLG) return DLG;
@@ -427,7 +432,7 @@ function renderEdit(soft) {
     AM.innerHTML = userBar() + `<div class="toolbar">${seg}</div><div class="empty seedbox">${base3 ? `<h2>${TLABEL[k]}の表を作ります</h2><p>騎士（名前・ふりがな・性別・騎士団・階級など）・スタイル・ボスの表を、今のデータから自動で作ります（イベントは空の表を作ります）。<br>作ったあとは、キャラの騎士団・階級・性別は騎士の設定から自動で入るようになります。</p>` : `<h2>最初に、今のデータを管理画面に取り込みます</h2><p>公開サイトに出ているデータ（バベル ${countStatic("babel")}・キャラ ${countStatic("chars")}・スクリプト ${countStatic("scripts")}）は、まだ GitHub のファイルから表示している状態です。<br>下のボタンを1回押すと、それを編集用のデータベース（Firestore）に登録して、ここで編集できるようになります。</p>`}<div class="row2" style="justify-content:center"><button class="btn primary big" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : base3 ? "マスターの表を作る" : "今のデータを取り込んで編集を始める"}</button></div><p class="hint">公開サイトの表示は変わりません。</p></div>`;
     return;
   }
-  const custom = ["people", "styles", "bosses", "events", "options"].includes(k);
+  const custom = ["seals", "people", "styles", "bosses", "events", "options"].includes(k);
   const list = document.getElementById("admlist");
   if (soft && list) {
     const st = document.getElementById("adstatus"); if (st) st.innerHTML = statusBar();
@@ -450,6 +455,7 @@ function floorsOfBoss(name) { const n = bnorm(name); return rowsOf("babel").filt
 const splitList = v => String(v || "").split(/[,、，\n]+/).map(x => x.trim()).filter(Boolean);
 function eventsOfBoss(name) { const n = bnorm(name); return rowsOf("events").filter(c => splitList(c["登場ボス"]).some(b => bnorm(b) === n)); }
 function eventsOfChar(id) { return rowsOf("events").filter(c => splitList(c["実装キャラID"]).includes(id)); }
+const lastDate = c => Math.max(0, ...splitList((c || {})["過去開催日"]).map(d => { const m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(d); return m ? +m[1] * 1e4 + +m[2] * 100 + +m[3] : 0; }));
 const fmtD = v => { const m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(v || ""); return m ? `${m[1]}/${+m[2]}/${+m[3]}` : (v || ""); };
 function customList(k) {
   if (k === "options") return `<div class="toolbar"><h2><small>OPTIONS</small>選択肢</h2></div><p class="hint" style="margin:-6px 0 12px">入力フォームのプルダウンに出る候補です。新しい騎士団などが出たらここに追加してください。</p>` + renderOptions();
@@ -472,6 +478,14 @@ function customList(k) {
     <div class="pgrid">${list.map(r => { const c = r.c || {}; const fl = floorsOfBoss(c["名前"]); const ev = eventsOfBoss(c["名前"]); const im = R.BOSS[c["名前"]];
       return `<button class="pcard" data-adrow="${esc(r.id)}">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b>${c["よみ"] ? `<small>${esc(c["よみ"])}</small>` : ""}
       <span class="ptags">${fl.map(f => `<span>${esc(String(f["バベル種類"] || "").replace("バベル", ""))} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">バベル未登場</span>'}</span>${ev.length ? `<small class="count">イベント：${esc(ev.map(e => e["イベント名"]).join("、"))}</small>` : ""}</span></button>`; }).join("")}</div>`;
+  }
+  if (k === "seals") {
+    const list = [...T.seals.rows.values()].filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q))).sort((a, b) => lastDate(b.c) - lastDate(a.c));
+    return `<div class="toolbar"><h2><small>SEAL BATTLE</small>封印戦</h2><input class="search" id="clq" placeholder="封印戦名・キャラ名で検索" value="${esc(CL.q)}"><span class="count">${list.length}件</span></div>
+    ${list.length ? "" : `<div class="empty"><h2>まだ封印戦がありません</h2><p>右上の「＋ 封印戦を追加」から登録できます。Tier表は「Tier表」タブの「封印戦」で作ります。</p></div>`}
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const im = R.SEAL[c["封印戦名"]]; const ds = splitList(c["過去開催日"]); const n = Object.keys(R.OFFICIAL["封印戦|" + c["封印戦名"]] || {}).length;
+      return `<button class="pcard" data-adrow="${esc(r.id)}">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["封印戦名"] || "")}</b><small>${esc(c["キャラ名"] || "")}${c["ダメージタイプ"] ? ` ／ ${esc(c["ダメージタイプ"])}` : ""}</small>
+      <span class="ptags">${ds.slice(-3).map(d => `<span>${esc(fmtD(d))}</span>`).join("")}${ds.length > 3 ? `<span class="count">ほか${ds.length - 3}回</span>` : ""}</span><small class="count">Tier表 ${n ? n + "体配置" : "未作成"}</small></span></button>`; }).join("")}</div>`;
   }
   if (k === "events") {
     const list = [...T.events.rows.values()].map(r => r).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q))).sort((a, b) => String((b.c || {})["開始日"] || "").localeCompare(String((a.c || {})["開始日"] || ""), "ja", { numeric: true }));
@@ -631,6 +645,12 @@ function fieldHtml(name, type, i, both) {
     inner = dv || !v ? `<input id="${id}" type="date" data-field="${esc(name)}" value="${esc(dv)}">` : `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}">`;
   } else if (type === "cond") {
     inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_cond" placeholder="属性・騎士団・階級・スタイル・キャラ名・女性/男性">`;
+  } else if (type.startsWith("sel:")) {
+    inner = selectHtml(id, name, type.slice(4).split("|"), v);
+  } else if (type === "datelist") {
+    cls += " long"; const ds = splitList(v);
+    inner = `<div class="cpchips">${ds.map(d => `<span class="cpchip datechip">${esc(fmtD(d))}<button data-dlrm="${esc(name)}|${esc(d)}" aria-label="外す">✕</button></span>`).join("") || '<span class="count">まだありません</span>'}</div>
+      <div class="addcol"><input type="date" class="dlin" data-dlfield="${esc(name)}"><button class="btn small" data-dladd="${esc(name)}">日付を追加</button></div>`;
   } else if (type === "bossref") {
     inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_boss" placeholder="ボス名（一覧から選ぶか入力）">`;
   } else if (type === "charpick" || type === "bosspick") {
@@ -659,6 +679,7 @@ function linkInfo() {
     const fl = floorsOfBoss(ED.base["名前"]), ev = eventsOfBoss(ED.base["名前"]);
     return box("つながっているデータ（自動）", `<p class="hint fgnote">バベルの「ボス」・イベントの「登場ボス」に同じ名前があるものです。</p><div class="linkrow"><b>バベル</b>${fl.map(f => `<span class="tag">${esc(f["バベル種類"])} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">なし</span>'}</div><div class="linkrow"><b>イベント</b>${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("") || '<span class="count">なし</span>'}</div>`);
   }
+  if (ED.k === "seals") { const n = Object.keys(R.OFFICIAL["封印戦|" + ED.base["封印戦名"]] || {}).length; return box("Tier表", `<div class="linkrow"><span>${n ? `${n}体を配置済み` : "まだ配置していません"}</span><button class="btn small primary" data-a="sealtier">この封印戦のTier表を編集</button></div>`); }
   if (ED.k === "chars") { const ev = eventsOfChar(ED.base["ID"]); return ev.length ? box("実装イベント（自動）", `<div class="linkrow">${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("")}</div>`) : ""; }
   if (ED.k === "babel") { const b = rowsOf("bosses").find(c => bnorm(c["名前"]) === bnorm(ED.base["ボス"])); return box("ボス（自動）", b ? `<div class="linkrow">${R.BOSS[b["名前"]] ? `<img class="linkimg" src="${esc(R.BOSS[b["名前"]])}" alt="">` : ""}<b>${esc(b["名前"])}</b><span class="count">ボスの画像・説明は「ボス」で編集できます</span></div>` : `<p class="hint fgnote">「ボス」の一覧にこの名前がありません。ボスに追加すると画像などがつながります。</p>`); }
   return "";
@@ -992,11 +1013,12 @@ async function ioAction(a, btn) {
 
 /* ================= images ================= */
 const IM = { k: "char", files: [], busy: false, cq: "" };
-const IKIND = { char: "キャラ", script: "スクリプト", boss: "ボス", event: "イベント", icon: "アイコン", hero: "ヘッダー背景" };
+const IKIND = { char: "キャラ", script: "スクリプト", seal: "封印戦", boss: "ボス", event: "イベント", icon: "アイコン", hero: "ヘッダー背景" };
 const ICON_ALIAS = { "アタッカー": ["attacker", "attaker", "atk"], "シューター": ["shooter"], "ブレイカー": ["breaker"], "ヒーラー": ["healer"], "トリックスター": ["trickster", "trickstar"], "サポーター": ["supporter", "support"], "ブレイドライン": ["bladeline"], "千紫": ["colors", "senshi"], "Mazlab": ["maze", "mazlab", "mazelab"], "第六起源魔術教会": ["sixth"], "リンドブルム": ["lindwurm", "lindblum"], "オッター貿易": ["otter"], "アクシオンゲート": ["axiongate", "axion"], "ORANGE": ["orange"] };
 function targets(k) {
   if (k === "char") return R.CH.map(c => ({ key: c.id, label: c.name, alts: [c.id, c.name, c.base + (c.style || "")] }));
   if (k === "script") { const seen = new Set(); return R.SC.filter(s => s.name && !seen.has(s.name) && seen.add(s.name)).map(s => ({ key: s.name, label: s.name, alts: [s.name] })); }
+  if (k === "seal") return rowsOf("seals").map(c => ({ key: c["封印戦名"], label: c["封印戦名"], alts: [c["封印戦名"], c["キャラ名"] || ""].filter(Boolean) }));
   if (k === "boss") return rowsOf("bosses").map(c => ({ key: c["名前"], label: c["名前"], alts: [c["名前"], c["よみ"] || ""].filter(Boolean) }));
   if (k === "event") return rowsOf("events").map(c => ({ key: c["イベント名"], label: c["イベント名"], alts: [c["イベント名"]] }));
   if (k === "icon") return uniq(opts("属性"), opts("ロール"), opts("階級"), opts("騎士団")).map(x => ({ key: x, label: x, alts: [x, ...(ICON_ALIAS[x] || [])] }));
@@ -1023,7 +1045,7 @@ function sim(a, b) {
   return Math.min(s, 0.99);
 }
 function scoreFile(name, tg) { const n = norm(name); let best = 0; tg.alts.forEach(a => { best = Math.max(best, sim(n, norm(a))); }); return best; }
-function hasImage(k, key) { return k === "char" ? !!R.BASE.IMG[key] : k === "script" ? !!R.BASE.SIMG[key] : k === "boss" ? !!R.BASE.BOSS[key] : k === "event" ? !!R.BASE.EVT[key] : k === "icon" ? !!R.BASE.ICON[key] : !!R.BASE.HERO; }
+function hasImage(k, key) { return k === "char" ? !!R.BASE.IMG[key] : k === "script" ? !!R.BASE.SIMG[key] : k === "boss" ? !!R.BASE.BOSS[key] : k === "seal" ? !!R.BASE.SEAL[key] : k === "event" ? !!R.BASE.EVT[key] : k === "icon" ? !!R.BASE.ICON[key] : !!R.BASE.HERO; }
 function matchAll() {
   const tg = targets(IM.k);
   IM.files.forEach(f => { f.cands = tg.map(t => ({ key: t.key, label: t.label, s: scoreFile(f.name, t) })).sort((a, b) => b.s - a.s).slice(0, 8); });
@@ -1077,13 +1099,13 @@ async function processImage(kind, key, file) {
   if (kind === "icon") { const s = Math.min(1, 96 / Math.max(W, H)); const p = `images/icons/${nm}.png`; const b = await R.canvasBlob(im, 0, 0, W, H, W * s, H * s, "image/png"); files.push({ path: p, blob: b }); set.icons = p; local.icons = b; }
   else if (kind === "hero") { const [dw, dh] = fit(1800); const b = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82); files.push({ path: "images/hero.webp", blob: b }); set.hero = "images/hero.webp"; local.hero = b; }
   else {
-    const dir = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events" }[kind]; const [dw, dh] = fit({ char: 1200, script: 720, boss: 900, event: 1400 }[kind]);
+    const dir = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals" }[kind]; const [dw, dh] = fit({ char: 1200, script: 720, boss: 900, event: 1400, seal: 900 }[kind]);
     const full = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82);
     let side, sx, sy;
     if (W > H * 1.2) { side = H * 0.46; sx = W / 2 - side / 2; sy = H * 0.08; } else { side = Math.min(W, H) * 0.9; sx = (W - side) / 2; sy = Math.min(H - side, H * 0.04); }
     const thumb = await R.canvasBlob(im, sx, sy, side, side, 176, 176, "image/webp", .85);
     files.push({ path: `${dir}/${nm}.webp`, blob: full }, { path: `${dir}/thumb/${nm}.webp`, blob: thumb });
-    const SEC = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"] }[kind];
+    const SEC = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"], seal: ["sealfull", "seals"] }[kind];
     set[SEC[0]] = `${dir}/${nm}.webp`; set[SEC[1]] = `${dir}/thumb/${nm}.webp`; local[SEC[0]] = full; local[SEC[1]] = thumb;
   }
   return { kind, key, name: file.name, files, set, local };
@@ -1102,7 +1124,7 @@ function applyImagesJson(json, items) {
 }
 // アップロード直後は GitHub Pages の反映（1分ほど）を待たずに、手元の画像で表示する
 function showLocal(items) {
-  const MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF" };
+  const MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF", seals: "SEAL", sealfull: "SEALF" };
   items.forEach(it => Object.entries(it.local).forEach(([sec, b]) => { const u = URL.createObjectURL(b); if (sec === "hero") R.BASE.HERO = u; else R.BASE[MAP[sec]][it.key] = u; }));
   R.applyMedia(); R.rebuild();
 }
@@ -1299,7 +1321,7 @@ function applyOfficial(at) {
   TIERPEND.forEach(([fk, id, t]) => { const P = o[fk] || (o[fk] = {}); if (t) P[id] = t; else delete P[id]; });
   R.setOfficial(o, at);
 }
-function floorLabel(fk) { const [t, f] = String(fk).split("|"); return `${t} ${f}F`; }
+function floorLabel(fk) { const [t, f] = String(fk).split("|"); return t === "封印戦" ? `封印戦 ${f}` : `${t} ${f}F`; }
 const TIERQ = { busy: false, q: [] };
 function onTierMove(fk, id, tier, prev) {
   const op = [fk, id, tier]; TIERPEND.push(op);
@@ -1345,7 +1367,8 @@ function tierInfo() {
   const f = R.curFloor; const fk = f ? f.key : "";
   const local = R.LOCAL_TIERS; const nLocal = Object.values(local).reduce((a, p) => a + Object.keys(p || {}).length, 0);
   const n = Object.keys(R.OFFICIAL[fk] || {}).length;
-  return `<div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（数秒で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
+  const ctx = R.TIER_CTX;
+  return `<div class="toolbar"><div class="seg"><button data-tierctx="babel" aria-pressed="${ctx !== "seal"}">バベル</button><button data-tierctx="seal" aria-pressed="${ctx === "seal"}">封印戦</button></div></div><div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（数秒で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
   <span class="tieracts">${n ? (TT.confirm === fk ? `<span class="danger-q">${esc(floorLabel(fk))}の配置${n}件をすべて外しますか？</span><button class="btn small danger" data-a="tierclearyes">外す</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierclear">この階層の配置をすべて外す</button>`) : ""}
   ${nLocal ? (TT.confirm === "import" ? `<span class="danger-q">このブラウザの配置${nLocal}件で、同じキャラの公開中の配置を上書きします。</span><button class="btn small primary" data-a="tierimportyes">取り込む</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierimport">このブラウザに保存していた配置（${nLocal}件）を取り込む</button>`) : ""}</span></div>`;
 }
@@ -1439,8 +1462,8 @@ async function loadStats(force) {
   if (!force && STATS && now() - statsAt < 5 * 60e3) return;
   statsAt = now();
   try {
-    const q = await F.getDocs(F.query(F.collection(F.db, "stats"), F.orderBy(F.documentId(), "desc"), F.limit(90)));
-    STATS = q.docs.map(d => ({ day: d.id, pv: d.data().pv || 0, uv: d.data().uv || 0 }));
+    const q = await F.getDocs(F.collection(F.db, "stats"));
+    STATS = q.docs.map(d => ({ day: d.id, pv: d.data().pv || 0, uv: d.data().uv || 0 })).sort((a, b) => b.day.localeCompare(a.day)).slice(0, 120);
   } catch (e) { STATS = []; toast(fbErr(e)); }
   if (S.tab === "stats") renderStats(false);
 }
@@ -1536,7 +1559,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -1546,6 +1569,10 @@ function onAdminClick(e) {
   if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
   if (ds.cpadd) { pickAdd(ds.cpadd); return; }
+  if (ds.dladd) { const inp = document.querySelector(`#edBody .dlin[data-dlfield="${CSS.escape(ds.dladd)}"]`); const v = inp && fromDate(inp.value); if (!v) { toast("日付を選んでください"); return; } const cur = splitList(ED.draft[ds.dladd]); if (!cur.includes(v)) cur.push(v); cur.sort((a, b) => toDate(a).localeCompare(toDate(b))); ED.draft[ds.dladd] = cur.join("、"); ED.dirty = true; renderForm(); return; }
+  if (ds.dlrm) { const [f, x] = ds.dlrm.split("|"); ED.draft[f] = splitList(ED.draft[f]).filter(y => y !== x).join("、"); ED.dirty = true; renderForm(); return; }
+  if (ds.a === "sealtier") { const name = ED.base["封印戦名"]; if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("seal"); R.setCurSeal("封印戦|" + name); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
+  if (ds.tierctx) { R.setTierCtx(ds.tierctx); renderTierTab(false); return; }
   if (ds.cprm) { const [f, x] = ds.cprm.split("|"); const isC = f !== "登場ボス"; ED.draft[f] = (isC ? String(ED.draft[f] || "").split(/[,、，\s]+/).filter(Boolean) : splitList(ED.draft[f])).filter(y => y !== x).join(isC ? "," : "、"); ED.dirty = true; renderForm(); return; }
   if (ds.optadd) { const inp = AM.querySelector(`[data-optin="${CSS.escape(ds.optadd)}"]`); const v = (inp && inp.value || "").trim(); if (!v) return; const key = ds.optadd; saveOpts(o => { if (!o[key].includes(v)) o[key].push(v); }, `選択肢「${key}」に ${v} を追加`); return; }
   if (ds.optrm) { const [key, v] = ds.optrm.split("|"); saveOpts(o => { o[key] = o[key].filter(x => x !== v); }, `選択肢「${key}」から ${v} を外す`); return; }
@@ -1668,6 +1695,7 @@ function injectStyle() {
 #dlgEdit .formfoot{padding-bottom:14px}
 .seedbox{max-width:760px;margin:20px auto}
 .ghnewbar{display:flex;flex-direction:column;gap:6px}
+.datechip{padding:3px 4px 3px 8px}
 .opticon{display:inline-grid;place-items:center;width:24px;height:24px;border:1px dashed var(--line2);cursor:pointer;font-size:13px;color:#9fb3d1;margin:0!important;background:#0d2346}
 .opticon img{width:22px;height:22px;object-fit:contain}
 .evgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}

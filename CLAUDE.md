@@ -23,6 +23,10 @@
 - 無料枠: 読み取り 5万/日、書き込み 2万/日。画像は Firebase に置かない（Storage は有料プラン）。
 - ローカル確認では Firebase に届かないので、テストは gstatic と firestore.googleapis.com をモックして行う。
 
+## 封印戦
+- `seals`（封印戦名・キャラ名・ダメージタイプ・ステージ効果・過去開催日）。予備は data/seals.json。画像は images.json の seals/sealfull。
+- Tier表は public/tiers のキー `封印戦|封印戦名` に入る（バベルと同じ仕組み。管理画面の Tier表タブで「封印戦」に切り替えて編集）。公開サイトはメニュー「封印戦」。
+
 ## マスター
 - `bosses`（ボス: 名前・よみ・説明。画像は images.json の bosses/bossfull）と `events`（イベント名・開始日・終了日・実装キャラID・登場ボス・説明。テーマイラストは events/eventfull）。ボスはバベルの「ボス」・イベントの「登場ボス」と名前（空白・記号を無視）でつながる。予備は data/bosses.json・data/events.json。
 - 選択肢の騎士団・階級・ロール・属性のアイコンは images.json の icons（管理画面の選択肢から GitHub にアップロード）。
