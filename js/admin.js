@@ -737,7 +737,7 @@ function editForm() {
     h += `<section class="edimgs">${ED.isNew || !ikey ? `<p class="hint" style="margin:0">画像は、保存したあとにここから追加できます。</p>` : `
       <div class="edth">${th ? `<img src="${esc(th)}" alt="">` : `<span class="noimg"></span>`}<small>サムネイル${adj ? "（調整済み）" : ""}</small></div>
       ${full ? `<div class="edfull"><img src="${esc(full)}" alt=""><small>元の画像</small></div>` : ""}
-      <div class="edimgbtns">${ik === "event" ? '<b class="count">テーマイラスト</b>' : ""}${full ? `<button class="btn small" data-a="edcrop">サムネイルの切り抜きを調整</button>` : ""}<label class="btn small filebtn">${full ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label>
+      <div class="edimgbtns">${ik === "event" ? '<b class="count">テーマイラスト</b>' : ""}${full ? `<button class="btn small" data-a="edcrop">サムネイルの切り抜きを調整</button>` : ""}<label class="btn small filebtn">${full ? "画像を差し替え" : "画像を追加"}<input type="file" accept="image/*" id="edimg" hidden></label>${GH && (th || full) ? (IMGDEL === ik + "|" + ikey ? `<span class="danger-q">この画像を削除しますか？公開サイトからも消えます</span><button class="btn small danger" data-a="edimgdelyes" ${IMGDEL_BUSY ? "disabled" : ""}>${IMGDEL_BUSY ? "削除中…" : "削除する"}</button><button class="btn small" data-a="edimgdelno" ${IMGDEL_BUSY ? "disabled" : ""}>やめる</button>` : `<button class="btn small" data-a="edimgdel">画像を削除</button>`) : ""}
       <p class="hint" style="margin:4px 0 0">${GH ? "画像はサイズを整えて GitHub に保存され、公開サイトには1〜2分で反映されます。" : "画像のアップロードには、オーナーが「画像」タブで GitHub 連携を設定する必要があります。"}</p></div>`}</section>`;
   }
   if (r && !ED.isNew) h += `<p class="count" style="margin:-6px 0 10px">最終更新：${esc(shortName(r.by))}（${esc(fmtTime(r.t))}）</p>`;
@@ -1126,8 +1126,9 @@ function applyImagesJson(json, items) {
   return json;
 }
 // アップロード直後は GitHub Pages の反映（1分ほど）を待たずに、手元の画像で表示する
+const MEDIA_MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF", seals: "SEAL", sealfull: "SEALF" };
 function showLocal(items) {
-  const MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF", seals: "SEAL", sealfull: "SEALF" };
+  const MAP = MEDIA_MAP;
   items.forEach(it => Object.entries(it.local).forEach(([sec, b]) => { const u = URL.createObjectURL(b); if (sec === "hero") R.BASE.HERO = u; else R.BASE[MAP[sec]][it.key] = u; }));
   R.applyMedia(); R.rebuild();
 }
@@ -1164,6 +1165,44 @@ async function ghCommit(items, progress) {
     try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return c; }
     catch (e) { if (e.status === 422 && attempt < 2) continue; throw e; }
   }
+}
+/* ---- 画像の削除: images.json から外し、ほかから使われていないファイルも消す（1コミット） ---- */
+const IMG_SECS = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"], seal: ["sealfull", "seals"] };
+let IMGDEL = null, IMGDEL_BUSY = false;
+async function ghRemove(kind, key) {
+  const br = GH.branch || "main"; const secs = IMG_SECS[kind];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
+    const commit = await gh(`/git/commits/${base}`);
+    const json = JSON.parse(unb64((await gh(`/contents/data/images.json?ref=${base}`)).content));
+    const paths = [];
+    secs.forEach(sec => { const m = json[sec]; if (m && m[key] != null) { paths.push(m[key]); delete m[key]; } });
+    if (!paths.length) return null;
+    const used = new Set(); Object.values(json).forEach(m => { if (typeof m === "string") used.add(m); else if (m && typeof m === "object") Object.values(m).forEach(v => used.add(v)); });
+    const tree = [];
+    for (const p of new Set(paths)) {
+      if (!/^images\//.test(p) || used.has(p)) continue;
+      try { await gh(`/contents/${p.split("/").map(encodeURIComponent).join("/")}?ref=${base}`); tree.push({ path: p, mode: "100644", type: "blob", sha: null }); } catch (e) { if (e.status !== 404) throw e; }
+    }
+    tree.push({ path: "data/images.json", mode: "100644", type: "blob", content: JSON.stringify(json, null, 1) + "\n" });
+    const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree }) });
+    const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: `画像を削除：${key}\n\n管理画面から ${meName()}`, tree: t.sha, parents: [base] }) });
+    try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return c; }
+    catch (e) { if (e.status === 422 && attempt < 2) continue; throw e; }
+  }
+}
+async function removeImage(kind, key) {
+  if (!GH || !key) return;
+  IMGDEL_BUSY = true; renderForm();
+  try {
+    const c = await ghRemove(kind, key);
+    await F.setDoc(F.doc(F.db, "log", rid()), logDoc({ act: "image", k: kind === "char" ? "chars" : kind === "script" ? "scripts" : "", label: `画像を削除：${key}`, commit: c && c.sha }));
+    IMG_SECS[kind].forEach(sec => { const m = R.BASE[MEDIA_MAP[sec]]; if (m) delete m[key]; });
+    R.applyMedia(); R.rebuild();
+    toast(c ? "画像を削除しました。公開サイトには1〜2分で反映されます" : "この画像はすでに削除されていました", 5000);
+  } catch (e) { toast(e && e.status ? ghErr(e) : "画像を削除できませんでした：" + (e && e.message || ""), 7000); }
+  IMGDEL = null; IMGDEL_BUSY = false;
+  if (DLG && DLG.open) renderForm();
 }
 async function uploadItems(items, btn, label) {
   const old = btn ? btn.textContent : "";
@@ -1614,6 +1653,9 @@ function onAdminClick(e) {
   if (ds.a === "ghdel") { IM.ghconfirm = true; renderImg(); return; }
   if (ds.a === "ghdelno") { IM.ghconfirm = false; renderImg(); return; }
   if (ds.a === "ghdelyes") { IM.ghconfirm = false; delGhToken(); return; }
+  if (ds.a === "edimgdel") { const io = IMGOF[ED.k]; IMGDEL = io[0] + "|" + ED.base[io[1]]; renderForm(); return; }
+  if (ds.a === "edimgdelno") { IMGDEL = null; renderForm(); return; }
+  if (ds.a === "edimgdelyes") { const io = IMGOF[ED.k]; removeImage(io[0], ED.base[io[1]]); return; }
   if (ds.a === "edcrop") { const io = IMGOF[ED.k]; openCrop(io[0], ED.base[io[1]]); return; }
   if (ds.edk) { ED.k = ds.edk; resetEd(); CL.q = ""; renderEdit(false); return; }
   if (ds.ed) { edAction(ds.ed); return; }
