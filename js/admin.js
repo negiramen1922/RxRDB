@@ -11,10 +11,10 @@ const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類",
 // 画像を持つ表：種類と、画像のキーになる列
 const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["seal", "封印戦名"], bosses: ["boss", "名前"], events: ["event", "イベント名"] };
 /* ---- 入力フォームの設計（列名 → 入力の種類）。ここにない列は「その他の列」に出る ---- */
-// t: text / num / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
+// t: text / num / auto（自動で入る・編集不可） / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
 const SCHEMA = {
   chars: [
-    { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "text"], ["名前 ひらがな", "text"], ["No", "num"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
+    { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["No", "auto"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
     { g: "騎士の設定から（自動）", note: "騎士団・階級・性別は「騎士」の設定がそのまま使われます。変えるときは騎士のほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
     { g: "ステータス", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["HP最大値", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["攻撃力最大値", "num"], ["物理防御", "num"], ["特殊防御", "num"], ["攻撃速度", "opt:攻撃速度"], ["抵抗値", "num"]] },
     { g: "コスト", f: [["初期コスト", "num"], ["育成後コスト", "num"], ["再出撃コスト", "num"], ["再出撃時間(S)", "num"]] },
@@ -625,7 +625,6 @@ function renderForm() {
       let v = el.value;
       if (el.type === "date") v = fromDate(v);
       ED.draft[name] = v; ED.dirty = true; ED.leaveOk = false;
-      if (ED.k === "chars" && (name === "キャラ名" || name === "名前 ひらがな")) ED.manual[name] = true;
       const sb = document.getElementById("edsave"); if (sb) sb.disabled = false;
       const fe = el.closest(".field"); if (fe) fe.classList.toggle("changed", (ED.base[name] || "") !== v);
       if (ED.k === "chars" && (name === "キャラ" || name === "スタイル")) { autofillChar(); renderForm(); }
@@ -686,8 +685,8 @@ function autofillChar() {
   if (ED.isNew) {
     c["ID"] = ch ? `${ch}_${st.replace(/\s/g, "")}` : "";
     if (!c["スタイル"]) c["スタイル"] = "DEFAULT";
-    if (!ED.manual["キャラ名"]) c["キャラ名"] = ch ? `${ch} ${sty["略称"] || st}` : "";
-    if (!ED.manual["名前 ひらがな"]) c["名前 ひらがな"] = ch ? `${p["ふりがな"] || ""}${sty["よみ"] || ""}` : "";
+    c["キャラ名"] = ch ? `${ch} ${sty["略称"] || st}` : "";
+    c["名前 ひらがな"] = ch ? `${p["ふりがな"] || ""}${sty["よみ"] || ""}` : "";
     if (!c["No"]) c["No"] = String(maxNo() + 1);
   }
   MASTER_COLS.forEach(h => { if (p[h]) c[h] = p[h]; });
@@ -716,6 +715,9 @@ function fieldHtml(name, type, i, both) {
   if (type === "id") {
     cls += " idf";
     inner = `<input id="${id}" value="${esc(v)}" readonly tabindex="-1"><small class="count">${ED.isNew ? "キャラとスタイルから自動で付きます" : "Tier配置・画像の紐付けに使うため固定です"}</small>`;
+  } else if (type === "auto") {
+    cls += " idf";
+    inner = `<input id="${id}" value="${esc(v)}" readonly tabindex="-1"><small class="count">${ED.isNew ? (name === "No" ? "連番で自動で付きます" : "キャラとスタイルから自動で付きます") : "自動で付いた値です（編集できません）"}</small>`;
   } else if (type === "people") {
     inner = selectHtml(id, name, rowsOf("people").map(c => c["名前"]).filter(Boolean), v, "（キャラクターを選択）");
   } else if (type === "style") {
@@ -754,9 +756,9 @@ function fieldHtml(name, type, i, both) {
     if (long) { cls += " long"; inner = `<textarea id="${id}" data-field="${esc(name)}" rows="${Math.min(8, Math.ceil(v.length / 48) + 1)}">${esc(v)}</textarea>`; }
     else inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}"${ph}>`;
   }
-  if (changed && type !== "master" && type !== "id") cls += " changed";
+  if (changed && type !== "master" && type !== "id" && type !== "auto") cls += " changed";
   if (both.includes(name)) cls += " clash";
-  const key = KEYCOLS[ED.k] && KEYCOLS[ED.k].includes(name) && type !== "id";
+  const key = KEYCOLS[ED.k] && KEYCOLS[ED.k].includes(name) && type !== "id" && type !== "auto";
   return `<div class="${cls}"><label for="${id}">${label}${key ? ' <small class="req">必須</small>' : ""}</label>${inner}</div>`;
 }
 function linkInfo() {
@@ -853,6 +855,8 @@ function logDoc(o) { return Object.assign({ at: now(), by: meId(), name: meName(
 async function saveRow(force) {
   const k = ED.k;
   if (k === "chars") autofillChar();
+  // 自動で付く項目（ID・キャラ名・ひらがな・No など）は、既存の行では元の値のまま保存する
+  if (!ED.isNew && !ED.gone) (SCHEMA[k] || []).forEach(g => g.f.forEach(([n, t]) => { if (t === "id" || t === "auto") ED.draft[n] = ED.base[n] == null ? "" : ED.base[n]; }));
   const rn = RENAMES[k] || {};   // 編集中に列名が付け替わったときは、新しい列名で保存する
   Object.keys(rn).forEach(o => { if (o in ED.draft && !T[k].headers.includes(o)) { if (!String(ED.draft[rn[o]] || "")) ED.draft[rn[o]] = ED.draft[o]; delete ED.draft[o]; } });
   const extra = Object.keys(ED.draft).filter(h => !T[k].headers.includes(h) && String(ED.draft[h] || "") !== "");
