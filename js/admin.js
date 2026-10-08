@@ -19,7 +19,7 @@ const SCHEMA = {
     { g: "強いところ・弱いところ", note: "キャラ詳細の上の方に表示されます。改行もそのまま出ます。", f: [["強いところ", "long"], ["弱いところ", "long"]] },
     { g: "効果タグ", note: "キャラ一覧の絞り込み（攻撃・防御・HP・その他）に使います。説明文から自動で付いたものに「自動」と出ます。チェックで追加・外すことができ、説明文を直すと自動の分も変わります。", f: [["効果タグ", "tags"]] },
     { g: "おすすめセット", note: "一緒に使うと相性の良いキャラ。何人でも追加でき、キャラごとにシナジーの説明を書けます。相手のキャラ詳細にも「このキャラをおすすめに挙げているキャラ」として出ます。", f: [["おすすめセット", "synergy"]] },
-    { g: "ステータス", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["HP最大値", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["攻撃力最大値", "num"], ["物理防御", "num"], ["特殊防御", "num"], ["攻撃速度", "opt:攻撃速度"], ["抵抗値", "num"]] },
+    { g: "ステータス", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"], ["攻撃速度", "opt:攻撃速度"], ["抵抗値", "num"]] },
     { g: "コスト", f: [["初期コスト", "num"], ["育成後コスト", "num"], ["再出撃コスト", "num"], ["再出撃時間(S)", "num"]] },
     { g: "スキル", f: [["スキル名", "text"], ["スキルクールタイム", "num"], ["覚醒1 スキル効果", "long"], ["覚醒7 スキル効果", "long"], ["覚醒13 スキル効果", "long"]] },
     { g: "BLADE", f: [["BLADE名", "text"], ["BLADEゲージ", "num"], ["Lv1 BLADE効果", "long"], ["Lv7 BLADE効果", "long"], ["Lv13 BLADE効果", "long"]] },
@@ -27,7 +27,7 @@ const SCHEMA = {
   ],
   scripts: [
     { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"]] },
-    { g: "ステータス", f: [["HP初期値", "num"], ["HP最大値", "num"], ["攻撃力初期値", "num"], ["攻撃力最大値", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
+    { g: "ステータス", note: "スクリプトの Lv200 のステータスは星で変わりません。完凸（限界突破しきった状態）の値は分かるものだけ入れてください。", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
     { g: "スキル1", f: [["スキル1効果", "long"]] },
     { g: "スキル2", f: [["条件2", "cond"], ["スキル2効果", "long"]] },
     { g: "スキル3", f: [["条件3", "cond"], ["スキル3効果", "long"]] },
@@ -65,7 +65,7 @@ const SCHEMA = {
   ],
 };
 // 列名の変更（古い列名 → 新しい列名）。Firestore に古い列名が残っていれば、管理画面を開いたときに自動で付け替える
-const RENAMES = { babel: { "ポイント": "攻略のコツ" } };
+const RENAMES = { babel: { "ポイント": "攻略のコツ" }, chars: { "HP最大値": "完凸 HP", "攻撃力最大値": "完凸 攻撃力" }, scripts: { "HP最大値": "Lv200 HP", "攻撃力最大値": "Lv200 攻撃力" } };
 const PH = { "誕生日": "例：4月1日", "CV": "声優", "階層": "例：110", "略称": "例：聖典", "よみ": "例：せいてん" };
 const STALE = 5 * 60e3;
 
@@ -497,7 +497,7 @@ async function login() {
 }
 
 /* ================= data editing ================= */
-const ED = { manual: {}, k: "babel", q: "", id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, newCol: "", remote: null, gone: false, saving: false, conflict: null, leaveOk: false };
+const ED = { manual: {}, k: "chars", q: "", id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, newCol: "", remote: null, gone: false, saving: false, conflict: null, leaveOk: false };
 function resetEd() { Object.assign(ED, { manual: {}, id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, remote: null, gone: false, conflict: null }); }
 function keyOf(k, hd, r) { const g = n => { const i = hd.indexOf(n); return i >= 0 ? String(r[i] || "").trim() : ""; }; return KEYCOLS[k].map(g).join("|"); }
 function keyOfCells(k, c) { return KEYCOLS[k].map(n => String(c[n] || "").trim()).join("|"); }
@@ -521,7 +521,7 @@ function loadRow(k, id) {
   ED.base = Object.assign({}, r.c); ED.draft = Object.assign({}, r.c); ED.baseRev = r.rev;
   ED.dirty = false; ED.confirmDel = false; ED.remote = null; ED.gone = false; ED.conflict = null;
 }
-const EDORDER = ["babel", "teams", "seals", "chars", "scripts", "people", "styles", "bosses", "events", "options"];
+const EDORDER = ["chars", "scripts", "babel", "teams", "seals", "people", "styles", "bosses", "events", "options"];
 const EDGROUP = { babel: "", teams: "", seals: "", chars: "", scripts: "", people: "master", styles: "master", bosses: "master", events: "master", options: "master" };
 let DLG = null;
 function edDialog() {
