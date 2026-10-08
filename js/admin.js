@@ -1667,7 +1667,7 @@ async function flushTier() {
       batch.forEach(({ op: [fk, id, t] }) => { const P = tiers[fk] || (tiers[fk] = {}); if (t) P[id] = t; else delete P[id]; if (!Object.keys(P).length) delete tiers[fk]; });
       const json = JSON.stringify({ tiers, at: now() });
       tx.set(ref, { json, at: now(), count: Object.keys(tiers).length });
-      const name = id => R.CHMAP[id] ? R.CHMAP[id].name : id;
+      const name = k => { const m = /^(.*)~(\d)$/.exec(k); const id = m ? m[1] : k; return (R.CHMAP[id] ? R.CHMAP[id].name : id) + (m ? " ★" + m[2] : ""); };
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "tier", label: batch.map(({ op: [fk, id, t], prev }) => `${floorLabel(fk)} ${name(id)}：${prev || "未配置"} → ${t || "未配置"}`).join(" ／ ").slice(0, 600) }));
     });
   } catch (e) {
