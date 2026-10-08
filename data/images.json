@@ -820,5 +820,11 @@
   "幕間くらいは穏やかに": "images/events/thumb/幕間くらいは穏やかに.webp",
   "Deadly Escape:Identity": "images/events/thumb/Deadly_Escape_Identity.webp",
   "ムテキでカワイイ★小悪魔ですので！": "images/events/thumb/ムテキでカワイイ★小悪魔ですので！.webp"
+ },
+ "bossfull": {
+  "死神王 アイゼ＝ウォルン": "images/bosses/死神王_アイゼ＝ウォルン.webp"
+ },
+ "bosses": {
+  "死神王 アイゼ＝ウォルン": "images/bosses/thumb/死神王_アイゼ＝ウォルン.webp"
  }
 }
