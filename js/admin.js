@@ -540,8 +540,10 @@ async function checkGhNew(k) {
   GHNEW[k] = { at: now(), added: [], changed: 0, busy: true };
   try {
     const d = await staticJson(`data/${k}.json`);
+    const sig = R.hashId(JSON.stringify(d));
+    let hidden = false; try { hidden = localStorage.getItem("rxr-ghnew-hide-" + k) === sig; } catch (e) { }
     const df = diffTables(k, curData(k), d);
-    GHNEW[k] = { at: now(), file: d, added: df.added, changed: df.changed.length };
+    GHNEW[k] = { at: now(), file: d, sig, added: hidden ? [] : df.added, changed: df.changed.length };
   } catch (e) { GHNEW[k] = { at: now(), added: [], changed: 0 }; }
   const gn = document.getElementById("ghnew"); if (gn && ED.k === k) gn.innerHTML = ghNewHtml(k);
 }
@@ -549,8 +551,9 @@ function ghNewHtml(k) {
   if (!TABLES.includes(k) || !seeded(k)) return "";
   const g = GHNEW[k]; if (!g) { checkGhNew(k); return ""; }
   if (!g.added || !g.added.length) return "";
-  return `<div class="astatus warn ghnewbar"><b>GitHub の data/${k}.json に、まだ取り込んでいない${TLABEL[k]}が ${g.added.length} 件あります</b><span class="count">${esc(g.added.slice(0, 6).join("、"))}${g.added.length > 6 ? " ほか" : ""}${g.changed ? `（内容が違う行も ${g.changed} 件）` : ""}</span>
-  <span class="row2"><button class="btn small primary" data-a="ghimport" ${g.busy ? "disabled" : ""}>${g.busy ? "取り込み中…" : `${g.added.length}件を追加${g.changed ? `・${g.changed}件を更新` : ""}する`}</button><button class="btn small" data-a="ghimportnew" ${g.busy ? "disabled" : ""}>追加だけする</button></span></div>`;
+  // GitHub のファイルは予備（古いことが多い）。内容が違う行を上書きすると管理画面の編集が消えるので、ここでは「無い行の追加」だけにする
+  return `<div class="astatus warn ghnewbar"><b>GitHub の data/${k}.json に、管理画面に無い${TLABEL[k]}が ${g.added.length} 件あります</b><span class="count">${esc(g.added.slice(0, 6).join("、"))}${g.added.length > 6 ? " ほか" : ""}（管理画面で削除・名前変更した行の古いデータのこともあります）</span>
+  <span class="row2"><button class="btn small primary" data-a="ghimportnew" ${g.busy ? "disabled" : ""}>${g.busy ? "追加中…" : `${g.added.length}件を追加する`}</button><button class="btn small" data-a="ghhide" ${g.busy ? "disabled" : ""}>このお知らせを消す</button></span></div>`;
 }
 async function ghImport(onlyNew) {
   const k = ED.k; const g = GHNEW[k]; if (!g || !g.file) return;
@@ -1969,7 +1972,7 @@ function onAdminClick(e) {
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
   if (ds.a === "reload") { location.reload(); return; }
   if (ds.a === "seed") { seedAll(); return; }
-  if (ds.a === "ghimport") { ghImport(false); return; }
+  if (ds.a === "ghhide") { const g = GHNEW[ED.k]; if (g && g.sig) { try { localStorage.setItem("rxr-ghnew-hide-" + ED.k, g.sig); } catch (e) { } g.added = []; } const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(ED.k); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
