@@ -47,7 +47,7 @@ const SCHEMA = {
     { g: "プロフィール", f: [["プロフィール", "long"]] },
   ],
   seals: [
-    { g: "基本", f: [["封印戦名", "text"], ["キャラ名", "text"], ["ダメージタイプ", "sel:物理|特殊"]] },
+    { g: "基本", f: [["封印戦名", "text"], ["キャラ名", "knref"], ["ダメージタイプ", "sel:物理|特殊"]] },
     { g: "ステージ効果", note: "1行に1つの効果。「上昇」「低下」などから自動で ▲▼ を判定し、Tier表の未配置キャラの並び（適性順）に使います。", f: [["ステージ効果", "big"]] },
     { g: "過去開催日", note: "開催されるたびに日付を追加してください。", f: [["過去開催日", "datelist"]] },
   ],
@@ -743,7 +743,10 @@ function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement(
   return PKDLG; }
 // kind: char / script（編成例） / syn（おすすめセット。slot が "new" なら行を追加）
 // cp: キャラを複数選ぶ欄（イベントの実装キャラなど。slot は列名）。押すたびに追加／外す、ダイアログは開いたまま
-function openPick(kind, slot) { if (kind === "boss1" || kind === "bossn") { PK.kind = "boss"; PK.multi = kind === "bossn"; PK.field = slot; PK.syn = false; PK.cp = null; PK.q = ""; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
+// 騎士（キャラ本人）の顔：立ち絵 → そのキャラの DEFAULT のサムネイル → どれかのスタイルのサムネイル
+const knFaceOf = n => !n ? "" : (R.KN && R.KN[n]) || R.IMG[n + "_DEFAULT"] || R.CH.filter(c => c.base === n).map(c => R.IMG[c.id]).find(Boolean) || "";
+function openPick(kind, slot) { if (kind === "kn1") { PK.kind = "knight"; PK.field = slot; PK.syn = false; PK.cp = null; PK.q = ""; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
+  if (kind === "boss1" || kind === "bossn") { PK.kind = "boss"; PK.multi = kind === "bossn"; PK.field = slot; PK.syn = false; PK.cp = null; PK.q = ""; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
   if (kind === "bossev") { PK.kind = "event"; PK.syn = false; PK.cp = null; PK.q = ""; PK.busy = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
   PK.syn = kind === "syn"; PK.cp = kind === "cp" ? slot : null; PK.kind = PK.syn || PK.cp ? "char" : kind; PK.slot = PK.cp ? -1 : slot === "new" ? -1 : +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
 function pickList() {
@@ -808,10 +811,23 @@ function bossPickRender(body) {
     <div class="formfoot"><span class="count">${PK.multi ? "カードを押すと追加、もう一度押すと外れます。" : "カードを押すと選ばれます。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
   const qi = document.getElementById("pkQ"); R.liveInput(qi, () => { PK.q = qi.value; const p = qi.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
 }
+/* 騎士（キャラ本人）を一覧から1人選ぶ（封印戦のキャラ名） */
+function knPickRender(body) {
+  const q = PK.q.trim().toLowerCase(); const cur = String(ED.draft[PK.field] || "").trim();
+  const all = rowsOf("people").filter(p => p["名前"]);
+  const l = q ? all.filter(p => (String(p["名前"]) + String(p["ふりがな"] || "") + String(p["騎士団"] || "")).toLowerCase().includes(q)) : all;
+  const cards = l.map(p => { const n = p["名前"]; const img = (R.KNF && R.KNF[n]) || knFaceOf(n); const sel = n === cur;
+    return `<button class="ccard pkcard${sel ? " pkcur" : ""}" data-pk="${esc(n)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${p["騎士団"] ? R.ic(p["騎士団"], "ord") : ""}${p["階級"] ? R.ic(p["階級"]) : ""}</span><span class="ccname"><b>${esc(n)}</b>${p["騎士団"] ? `<small>${esc(p["騎士団"])}</small>` : ""}</span>${sel ? '<span class="ccbadges"><span class="ccown">いまのキャラ</span></span>' : ""}</button>`; }).join("");
+  body.innerHTML = `<div class="pkhead"><h2>キャラを選ぶ<small class="count">（${esc(PK.field)}）</small></h2><input class="search" id="pkQ" placeholder="名前・ふりがな・騎士団で検索" value="${esc(PK.q)}"><span class="count">${l.length}人</span></div>
+    <div class="pkgrid"><div class="ccards">${cards || '<p class="count">騎士が登録されていません（「騎士」で追加できます）</p>'}</div></div>
+    <div class="formfoot"><span class="count">カードを押すと選ばれます。</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
+  const qi = document.getElementById("pkQ"); R.liveInput(qi, () => { PK.q = qi.value; const p = qi.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
+}
 function pickRender() {
   const body = document.getElementById("pkBody"); if (!body) return;
   if (PK.kind === "event") { evPickRender(body); return; }
-  if (PK.kind === "boss") { bossPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
+  if (PK.kind === "boss") { bossPickRender(body); return; }
+  if (PK.kind === "knight") { knPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
   const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
       return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.cp ? "選択中" : PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
     : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
@@ -826,6 +842,7 @@ function pickRender() {
 }
 function pickApply(v) {
   if (PK.kind === "event") { toggleBossEvent(v); return; }
+  if (PK.kind === "knight") { ED.draft[PK.field] = v; ED.dirty = true; ED.leaveOk = false; PKDLG.close(); renderForm(); return; }
   if (PK.kind === "boss") {
     if (PK.multi) { const l = splitList(ED.draft[PK.field]); const i = l.findIndex(b => bnorm(b) === bnorm(v)); if (i >= 0) l.splice(i, 1); else l.push(v); ED.draft[PK.field] = l.join("、"); }
     else ED.draft[PK.field] = v;
@@ -1102,6 +1119,9 @@ function fieldHtml(name, type, i, both) {
     cls += " long"; const ds = splitList(v);
     inner = `<div class="cpchips">${ds.map(d => `<span class="cpchip datechip">${esc(fmtD(d))}<button data-dlrm="${esc(name)}|${esc(d)}" aria-label="外す">✕</button></span>`).join("") || '<span class="count">まだありません</span>'}</div>
       <div class="addcol"><input type="date" class="dlin" data-dlfield="${esc(name)}"><button class="btn small" data-dladd="${esc(name)}">日付を追加</button></div>`;
+  } else if (type === "knref") {
+    const face = knFaceOf(v);
+    inner = `<div class="addcol">${face ? `<img class="linkimg" src="${esc(face)}" alt="">` : ""}<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_kn" placeholder="キャラ名（一覧から選ぶか入力）"><datalist id="dl_kn">${rowsOf("people").map(p => `<option value="${esc(p["名前"] || "")}">`).join("")}</datalist><button class="btn small primary" data-pkopen="kn1|${esc(name)}">一覧から選ぶ</button></div>`;
   } else if (type === "bossref") {
     const bi = R.BOSS[v] ? v : (rowsOf("bosses").find(b => bnorm(b["名前"]) === bnorm(v)) || {})["名前"];
     inner = `<div class="addcol">${v && R.BOSS[bi] ? `<img class="linkimg" src="${esc(R.BOSS[bi])}" alt="">` : ""}<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_boss" placeholder="ボス名（一覧から選ぶか入力）"><button class="btn small primary" data-pkopen="boss1|${esc(name)}">一覧から選ぶ</button></div>`;
