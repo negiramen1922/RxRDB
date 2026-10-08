@@ -798,9 +798,11 @@
  },
  "hero": "images/hero.webp",
  "eventfull": {
-  "サマービート コマンドメンツ": "images/events/サマービート_コマンドメンツ.webp"
+  "サマービート コマンドメンツ": "images/events/サマービート_コマンドメンツ.webp",
+  "S.D.G": "images/events/S.D.G.webp"
  },
  "events": {
-  "サマービート コマンドメンツ": "images/events/thumb/サマービート_コマンドメンツ.webp"
+  "サマービート コマンドメンツ": "images/events/thumb/サマービート_コマンドメンツ.webp",
+  "S.D.G": "images/events/thumb/S.D.G.webp"
  }
 }
