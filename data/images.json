@@ -912,7 +912,8 @@
   "アルケ": "images/bosses/アルケ.webp",
   "シスト": "images/bosses/シスト.webp",
   "サイエ": "images/bosses/サイエ.webp",
-  "オンセンスラッグ": "images/bosses/オンセンスラッグ.webp"
+  "オンセンスラッグ": "images/bosses/オンセンスラッグ.webp",
+  "メサ": "images/bosses/メサ.webp"
  },
  "bosses": {
   "死神王 アイゼ＝ウォルン": "images/bosses/thumb/死神王_アイゼ＝ウォルン.webp",
@@ -931,7 +932,8 @@
   "アルケ": "images/bosses/thumb/アルケ.webp",
   "シスト": "images/bosses/thumb/シスト.webp",
   "サイエ": "images/bosses/thumb/サイエ.webp",
-  "オンセンスラッグ": "images/bosses/thumb/オンセンスラッグ.webp"
+  "オンセンスラッグ": "images/bosses/thumb/オンセンスラッグ.webp",
+  "メサ": "images/bosses/thumb/メサ.webp"
  },
  "knightfull": {
   "カノン": "images/knights/カノン.webp",
