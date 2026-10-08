@@ -517,7 +517,8 @@
   "StrawberryHamburgSandwich": "images/scripts/thumb/StrawberryHamburgSandwich.webp",
   "職質しちゃうぞ？": "images/scripts/thumb/職質しちゃうぞ？.webp",
   "ラズベリーとチョコミント": "images/scripts/thumb/ラズベリーとチョコミント.webp",
-  "オンリー・イン・ラストオーダー": "images/scripts/thumb/オンリー・イン・ラストオーダー.webp"
+  "オンリー・イン・ラストオーダー": "images/scripts/thumb/オンリー・イン・ラストオーダー.webp",
+  "ただいま充電中。": "images/scripts/thumb/ただいま充電中。.webp"
  },
  "sfull": {
   "鼓動天換": "images/scripts/鼓動天換.webp",
@@ -760,7 +761,8 @@
   "StrawberryHamburgSandwich": "images/scripts/StrawberryHamburgSandwich.webp",
   "職質しちゃうぞ？": "images/scripts/職質しちゃうぞ？.webp",
   "ラズベリーとチョコミント": "images/scripts/ラズベリーとチョコミント.webp",
-  "オンリー・イン・ラストオーダー": "images/scripts/オンリー・イン・ラストオーダー.webp"
+  "オンリー・イン・ラストオーダー": "images/scripts/オンリー・イン・ラストオーダー.webp",
+  "ただいま充電中。": "images/scripts/ただいま充電中。.webp"
  },
  "hero": "images/hero.webp"
 }
