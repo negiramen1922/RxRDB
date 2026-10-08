@@ -15,7 +15,7 @@
   - babel: `バベル種類` + `階層` が識別子。`攻略のコツ`（旧 `ポイント`。Firestore に古い列名が残っていれば管理画面が自動で付け替える＝js/admin.js の RENAMES）。`解析データ` は1行1効果、`【味方】`などの見出し行で区切る。`おすすめキャラID` はカンマ区切りのキャラID。
   - teams（編成例）: `バベル種類`+`階層`+`編成名` が識別子。`メンバー` は1行1人「キャラID|星|スクリプト名」（最大6人）、`コメント`。管理画面のバベル編集画面か「編成例」で編集し、公開サイトは階層ページに表示。星の下限はキャラの `レアリティ`（R=★1・SR=★2・SSR=★3）。予備は data/teams.json。
 - `data/images.json` … 画像の対応表。`thumbs`/`banners`（キャラID→パス）、`sthumbs`/`sfull`（スクリプト名→パス）、`icons`（属性・ロール・階級・騎士団名→パス）、`hero`。
-- ホーム画面に追加：`manifest.webmanifest` と `images/app/`（icon-192/512・apple-touch-icon・favicon-32。元デザインは images/app/icon-source.html を Chromium で 512px に撮って縮小）。ホームの「📲 ホーム画面に追加」で Android/PC はインストール、iPhone は手順を表示。
+- ホーム画面に追加：`manifest.webmanifest` と `images/app/`（icon-192/512・apple-touch-icon・favicon-32。元デザインは images/app/icon-source.html（斜め配置。別案 icon-source-b.html）を Chromium で 512px に撮って縮小）。ホームの「📲 ホーム画面に追加」で Android/PC はインストール、iPhone は手順を表示。
 - `images/` … Web用に縮小した画像（元画像は RxRDBbot/images）。サムネイルは 176px 正方形 webp。
 
 ## Firebase（プロジェクト my-log-vh3o3b / 表示名 RxRbabelDB、Spark プラン）
