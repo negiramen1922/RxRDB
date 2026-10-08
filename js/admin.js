@@ -743,7 +743,8 @@ function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement(
   return PKDLG; }
 // kind: char / script（編成例） / syn（おすすめセット。slot が "new" なら行を追加）
 // cp: キャラを複数選ぶ欄（イベントの実装キャラなど。slot は列名）。押すたびに追加／外す、ダイアログは開いたまま
-function openPick(kind, slot) { PK.syn = kind === "syn"; PK.cp = kind === "cp" ? slot : null; PK.kind = PK.syn || PK.cp ? "char" : kind; PK.slot = PK.cp ? -1 : slot === "new" ? -1 : +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
+function openPick(kind, slot) { if (kind === "bossev") { PK.kind = "event"; PK.syn = false; PK.cp = null; PK.q = ""; PK.busy = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
+  PK.syn = kind === "syn"; PK.cp = kind === "cp" ? slot : null; PK.kind = PK.syn || PK.cp ? "char" : kind; PK.slot = PK.cp ? -1 : slot === "new" ? -1 : +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
 function pickList() {
   const slots = PK.cp ? cpIds(PK.cp).map(id => ({ id })) : PK.syn ? synRows(ED.draft["おすすめセット"]) : teamSlots(ED.draft["メンバー"]); const cur = slots[PK.slot] || {}; const q = PK.q.trim().toLowerCase();
   if (PK.kind === "char") {
@@ -759,8 +760,43 @@ function pickList() {
   l.sort((a, b) => ({ SSR: 3, SR: 2, R: 1 }[b.rar] || 0) - ({ SSR: 3, SR: 2, R: 1 }[a.rar] || 0));
   return { items: l, c, cur };
 }
+/* ボスの「登場イベント」：イベント一覧から選ぶ。押すたびにそのイベントの「登場ボス」に追加／外して、すぐ保存する */
+function evPickRender(body) {
+  const boss = ED.base["名前"] || ""; const q = PK.q.trim().toLowerCase();
+  const rows = [...T.events.rows.values()].filter(r => r.c).sort((a, b) => String((b.c || {})["開始日"] || "").localeCompare(String((a.c || {})["開始日"] || "")));
+  const l = q ? rows.filter(r => String(r.c["イベント名"] || "").toLowerCase().includes(q)) : rows;
+  const on = r => splitList(r.c["登場ボス"]).some(b => bnorm(b) === bnorm(boss));
+  const cards = l.map(r => { const n = r.c["イベント名"] || ""; const img = R.EVTF[n] || R.EVT[n]; const sel = on(r);
+    return `<button class="ccard scard2 pkcard${sel ? " pkused" : ""}" data-pk="${esc(r.id)}" ${PK.busy ? "disabled" : ""}>${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n || "(名前なし)")}</b><small>${esc(fmtD(r.c["開始日"]))}${r.c["終了日"] ? " 〜 " + esc(fmtD(r.c["終了日"])) : ""}</small></span>${sel ? '<span class="ccbadges"><span class="ccown">登場</span></span>' : ""}</button>`; }).join("");
+  body.innerHTML = `<div class="pkhead"><h2>登場イベントを選ぶ<small class="count">（${esc(boss)}：${rows.filter(on).length}件）</small></h2><input class="search" id="pkQ" placeholder="イベント名で検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
+    <div class="pkgrid"><div class="ccards">${cards || '<p class="count">イベントがありません</p>'}</div></div>
+    <div class="formfoot"><span class="count">${PK.busy ? "保存中…" : "カードを押すと、そのイベントの「登場ボス」に追加（もう一度押すと外す）して、すぐ保存します。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
+  const qi = document.getElementById("pkQ"); R.liveInput(qi, () => { PK.q = qi.value; const p = qi.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
+}
+async function toggleBossEvent(rowId) {
+  const boss = ED.base["名前"] || ""; if (!boss || PK.busy) return;
+  const ref = F.doc(F.db, "tables", "events", "rows", rowId);
+  PK.busy = true; pickRender();
+  try {
+    let added = false, name = "";
+    await F.runTransaction(F.db, async tx => {
+      const s = await tx.get(ref); if (!s.exists()) throw { code: "gone" };
+      const cur = s.data(); const c = Object.assign({}, cur.c || {}); name = c["イベント名"] || "";
+      const list = splitList(c["登場ボス"]); const i = list.findIndex(b => bnorm(b) === bnorm(boss));
+      if (i >= 0) list.splice(i, 1); else { list.push(boss); added = true; }
+      const before = String(c["登場ボス"] || ""); c["登場ボス"] = list.join("、");
+      tx.set(ref, Object.assign({}, cur, { c, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }));
+      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "update", k: "events", rowid: rowId, label: name, ch: { "登場ボス": [before, c["登場ボス"]] } }));
+    });
+    toast(`${name} の登場ボスに${added ? "追加" : "から外"}しました`);
+  } catch (e) { toast(e && e.code === "gone" ? "このイベントはほかのメンバーが削除していました" : fbErr(e), 5000); }
+  PK.busy = false;
+  const g = PKDLG.querySelector(".pkgrid"), y = g ? g.scrollTop : 0; pickRender(); const g2 = PKDLG.querySelector(".pkgrid"); if (g2) g2.scrollTop = y;
+  if (DLG && DLG.open) renderForm();
+}
 function pickRender() {
-  const body = document.getElementById("pkBody"); if (!body) return; const L = pickList(); const isC = PK.kind === "char";
+  const body = document.getElementById("pkBody"); if (!body) return;
+  if (PK.kind === "event") { evPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
   const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
       return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.cp ? "選択中" : PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
     : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
@@ -774,6 +810,7 @@ function pickRender() {
   const q = document.getElementById("pkQ"); R.liveInput(q, () => { PK.q = q.value; const p = q.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
 }
 function pickApply(v) {
+  if (PK.kind === "event") { toggleBossEvent(v); return; }
   if (PK.cp) {
     const ids = cpIds(PK.cp); const i = ids.indexOf(v); if (i >= 0) ids.splice(i, 1); else ids.push(v);
     ED.draft[PK.cp] = ids.join(","); ED.dirty = true; ED.leaveOk = false; renderForm();
@@ -1069,7 +1106,7 @@ function linkInfo() {
   const box = (t, inner) => `<section class="fgroup linkbox"><h3 class="fgh">${t}</h3>${inner}</section>`;
   if (ED.k === "bosses") {
     const fl = floorsOfBoss(ED.base["名前"]), ev = eventsOfBoss(ED.base["名前"]);
-    return box("つながっているデータ（自動）", `<p class="hint fgnote">バベルの「ボス」・イベントの「登場ボス」に同じ名前があるものです。</p><div class="linkrow"><b>バベル</b>${fl.map(f => `<span class="tag">${esc(f["バベル種類"])} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">なし</span>'}</div><div class="linkrow"><b>イベント</b>${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("") || '<span class="count">なし</span>'}</div>`);
+    return box("つながっているデータ（自動）", `<p class="hint fgnote">バベルの「ボス」・イベントの「登場ボス」に同じ名前があるものです。</p><div class="linkrow"><b>バベル</b>${fl.map(f => `<span class="tag">${esc(f["バベル種類"])} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">なし</span>'}</div><div class="linkrow"><b>イベント</b>${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("") || '<span class="count">なし</span>'}${seeded("events") && ED.base["名前"] ? `<button class="btn small primary" data-pkopen="bossev|0">一覧から選ぶ</button>` : ""}</div>`);
   }
   const tierBox = (fk, what) => { const n = Object.keys(R.OFFICIAL[fk] || {}).length; return box("運営Tier表", `<div class="linkrow"><span>${n ? `${n}体を配置済み` : "まだ配置していません"}</span><button class="btn small primary" data-a="${ED.k === "seals" ? "sealtier" : "babeltier"}">この${what}のTier表を作る・編集する</button></div>`); };
   const teamsBox = (fk, what) => { const ts = seeded("teams") ? [...T.teams.rows.values()].filter(r => keyOfCells("babel", r.c || {}) === fk).sort((a, b) => a.o - b.o) : [];
