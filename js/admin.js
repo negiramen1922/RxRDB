@@ -716,13 +716,63 @@ function teamField(v) {
     const name = m.id ? (R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id) : "";
     return `<div class="tmslot"><span class="tmno">${i + 1}</span>
       <span class="tmimg">${m.id && R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="">` : '<span class="noimg"></span>'}</span>
-      <input class="tmin" data-tm="${i}|id" list="dl_chars" value="${esc(name)}" placeholder="キャラ名">
+      <button class="btn small tmpick" data-pkopen="char|${i}">${name ? esc(name) : "キャラを選ぶ"}</button>
       <select data-tm="${i}|star"><option value="">★</option>${[1, 2, 3, 4, 5].filter(n => n >= min || String(n) === m.star).map(n => `<option value="${n}" ${String(n) === m.star ? "selected" : ""}>★${n}</option>`).join("")}</select>
       <span class="tmimg">${m.sc && R.SIMG[m.sc] ? `<img src="${esc(R.SIMG[m.sc])}" alt="">` : '<span class="noimg"></span>'}</span>
-      <input class="tmin" data-tm="${i}|sc" list="dl_scripts" value="${esc(m.sc)}" placeholder="スクリプト名">
+      <button class="btn small tmpick" data-pkopen="script|${i}" ${m.id ? "" : "disabled title=\"先にキャラを選んでください\""}>${m.sc ? esc(m.sc) : "スクリプトを選ぶ"}</button>
       ${m.id || m.sc ? `<button class="btn small" data-tmclear="${i}" aria-label="この枠を空にする">✕</button>` : ""}
-      ${m.id && !cr ? '<small class="err">見つからないキャラ</small>' : ""}${m.sc && !R.SC.some(x => x.name === m.sc) ? '<small class="err">見つからないスクリプト</small>' : ""}</div>`;
+      ${m.id && !cr ? '<small class="err">見つからないキャラ</small>' : ""}${m.sc && !R.SC.some(x => x.name === m.sc) ? '<small class="err">見つからないスクリプト</small>' : ""}${m.sc && m.id && !scRoleOk(m.id, m.sc) ? '<small class="err">キャラとロールが違うスクリプトです</small>' : ""}</div>`;
   }).join("")}</div>`;
+}
+/* ---- 編成例：キャラ・スクリプトを公開サイトと同じカードから選ぶ ----
+   スクリプトは、そのキャラと同じロール（とワイルド）のものだけを出す */
+const PK = { kind: "char", slot: 0, q: "", role: null, attr: null, all: false };
+const scRoleOk = (id, sc) => { const c = R.CHMAP[id], s = R.SC.find(x => x.name === sc); return !c || !s || !s.role || !c.role || s.role === c.role || s.role === "ワイルド"; };
+let PKDLG = null;
+function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement("dialog"); PKDLG.id = "dlgPick"; PKDLG.className = "wide"; PKDLG.innerHTML = `<div class="dlg" id="pkBody"></div>`; document.body.appendChild(PKDLG);
+  PKDLG.addEventListener("click", e => { if (e.target === PKDLG) { PKDLG.close(); return; } const b = e.target.closest("[data-pk],[data-pkrole],[data-pkattr],[data-pkall],[data-pkclose]"); if (!b) return; const ds = b.dataset;
+    if (ds.pkclose) { PKDLG.close(); return; }
+    if (ds.pk !== undefined) { pickApply(ds.pk); return; }
+    if (ds.pkrole) PK.role = PK.role === ds.pkrole ? null : ds.pkrole; if (ds.pkattr) PK.attr = PK.attr === ds.pkattr ? null : ds.pkattr; if (ds.pkall) PK.all = !PK.all;
+    pickRender(); });
+  return PKDLG; }
+function openPick(kind, slot) { PK.kind = kind; PK.slot = +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
+function pickList() {
+  const slots = teamSlots(ED.draft["メンバー"]); const cur = slots[PK.slot] || {}; const q = PK.q.trim().toLowerCase();
+  if (PK.kind === "char") {
+    const inTeam = new Set(slots.map(x => x.id).filter(Boolean));
+    let l = R.CH.slice(); if (PK.role) l = l.filter(c => c.role === PK.role); if (PK.attr) l = l.filter(c => c.attr === PK.attr);
+    if (q) { const hi = R.data("chars").headers.indexOf("名前 ひらがな"); l = l.filter(c => (c.name + c.id + (hi >= 0 ? c.row[hi] || "" : "")).toLowerCase().includes(q)); }
+    return { items: l, inTeam, cur };
+  }
+  const c = R.CHMAP[cur.id]; let l = R.SC.slice();
+  if (c && c.role && !PK.all) l = l.filter(s => !s.role || s.role === c.role || s.role === "ワイルド");
+  if (PK.attr) l = l.filter(s => s.conds.includes(PK.attr));
+  if (q) l = l.filter(s => s.row.some(x => String(x || "").toLowerCase().includes(q)));
+  l.sort((a, b) => ({ SSR: 3, SR: 2, R: 1 }[b.rar] || 0) - ({ SSR: 3, SR: 2, R: 1 }[a.rar] || 0));
+  return { items: l, c, cur };
+}
+function pickRender() {
+  const body = document.getElementById("pkBody"); if (!body) return; const L = pickList(); const isC = PK.kind === "char";
+  const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
+      return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? '<span class="ccbadges"><span class="ccown">編成中</span></span>' : ""}</button>`; }).join("")
+    : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
+      return `<button class="ccard scard2 pkcard${s.name === L.cur.sc ? " pkcur" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span></button>`; }).join("");
+  const head = isC ? `<div class="chips">${R.ROLES.map(r => `<button class="chip" data-pkrole="${esc(r)}" aria-pressed="${PK.role === r}">${R.ic(r)}${esc(r)}</button>`).join("")}</div>`
+    : (L.c && L.c.role ? `<span class="count">${esc(L.c.name)} は <b>${R.ic(L.c.role)}${esc(L.c.role)}</b> なので、${esc(L.c.role)}（とワイルド）のスクリプトだけを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : "");
+  body.innerHTML = `<div class="pkhead"><h2>${isC ? "キャラを選ぶ" : "スクリプトを選ぶ"}<small class="count">（${PK.slot + 1}人目）</small></h2><input class="search" id="pkQ" placeholder="${isC ? "名前・ひらがなで検索" : "名前・効果・条件で検索"}" value="${esc(PK.q)}"><span class="count">${L.items.length}件</span></div>
+    <div class="pkfil">${head}<div class="chips">${R.ATTRS.map(a => `<button class="chip" data-pkattr="${esc(a)}" aria-pressed="${PK.attr === a}">${R.ic(a)}${isC ? "" : "条件："}${esc(a)}</button>`).join("")}</div></div>
+    <div class="pkgrid"><div class="ccards">${cards || '<p class="count">該当するものがありません</p>'}</div></div>
+    <div class="formfoot"><span class="count">カードを押すと選ばれます。</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
+  const q = document.getElementById("pkQ"); R.liveInput(q, () => { PK.q = q.value; const p = q.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
+}
+function pickApply(v) {
+  const slots = teamSlots(ED.draft["メンバー"]); const m = slots[PK.slot];
+  if (PK.kind === "char") { m.id = v; const cr = charRow(v); const min = cr ? (RARSTAR[cr["レアリティ"]] || 1) : 1; if (!m.star || +m.star < min) m.star = String(min);
+    if (m.sc && !scRoleOk(v, m.sc)) { m.sc = ""; toast("ロールが違うのでスクリプトを外しました"); } }
+  else m.sc = v;
+  ED.draft["メンバー"] = slotsStr(slots); ED.dirty = true; ED.leaveOk = false; PKDLG.close(); renderForm();
+  if (PK.kind === "char" && !m.sc) setTimeout(() => openPick("script", PK.slot), 50);   // 続けてスクリプトも選べるように
 }
 // 入力欄の値をメンバー列に反映（キャラ名 → キャラID）
 function teamInput(el) {
@@ -2059,7 +2109,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-pkopen],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2077,6 +2127,7 @@ function onAdminClick(e) {
     if (!seeded("teams")) { toast("編成例の表を準備しています。数秒後にもう一度押してください"); return; }
     const t = ED.base["バベル種類"], f = ED.base["階層"]; ED.k = "teams"; resetEd(); edAction("new"); ED.draft["バベル種類"] = t; ED.draft["階層"] = f; renderForm(); return;
   }
+  if (ds.pkopen) { const [k, i] = ds.pkopen.split("|"); openPick(k, i); return; }
   if (ds.synadd) { const rows = synRows(ED.draft["おすすめセット"]); rows.push({ id: "?", t: "" }); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); const ins = document.querySelectorAll('#edBody [data-syn$="|id"]'); if (ins.length) { ins[ins.length - 1].value = ""; ins[ins.length - 1].focus(); } return; }
   if (ds.synrm !== undefined) { const rows = synRows(ED.draft["おすすめセット"]); rows.splice(+ds.synrm, 1); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); return; }
   if (ds.tmclear !== undefined) { const sl = teamSlots(ED.draft["メンバー"]); sl[+ds.tmclear] = { id: "", star: "", sc: "" }; ED.draft["メンバー"] = slotsStr(sl); ED.dirty = true; renderForm(); return; }
@@ -2305,6 +2356,15 @@ function injectStyle() {
 .tdmiss{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 0 32px}.tdmiss .tag{cursor:pointer;border:1px solid var(--line2);background:var(--field)}
 .tdform{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 10px;margin:8px 0 0 32px}.tdform .wide{grid-column:1/-1}.tdform label{display:grid;gap:2px;font-size:12px}
 @media (max-width:820px){.tdhead{grid-template-columns:22px minmax(0,1fr) 44px}.tdhead .tdbar,.tdhead .tdlab{grid-column:2/-1}.tdmeta,.tdsub,.tdfields,.tdmiss,.tdform{margin-left:0}}
+.tmpick{min-width:9em;max-width:16em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;justify-content:flex-start}
+#dlgPick{width:min(1100px,calc(100% - 24px));margin-top:4vh;margin-bottom:auto}
+.pkhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.pkhead h2{margin:0}.pkhead .search{flex:1;min-width:200px}
+.pkfil{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.pkgrid{height:min(58vh,560px);overflow:auto;padding:2px}
+.pkgrid .ccards{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.pkcard .ccname b{font-size:15px}
+.pkcur{outline:4px solid #ffd54a;outline-offset:-4px}
+.pkused{opacity:.55}
 .synrows{display:grid;gap:6px}
 .synrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);background:var(--field);padding:6px 8px;border-radius:3px}
 .synin{flex:1;display:grid;gap:4px}
