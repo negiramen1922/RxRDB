@@ -480,6 +480,7 @@ dialog{overflow:auto;overscroll-behavior:contain}
 .bdcard.today{border-color:#ff8a3c;box-shadow:inset 4px 0 0 #ff8a3c}.bdsoon{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin:0 0 14px}.bdcard small,.bdleft{display:block;font-size:11.5px;color:var(--muted)}
 .knhead{display:flex;gap:14px;align-items:center;margin:0 0 10px}.knhead img{width:96px;height:96px;object-fit:cover}.knhead h2{margin:0}
 .knprof{white-space:pre-wrap;line-height:1.8}
+.knart{display:block;max-width:100%;max-height:70vh;margin:0 auto 10px;object-fit:contain}
 .metarow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .metarow span.m{border:1px solid var(--line2);background:var(--field);padding:1px 9px;font-size:12.5px;display:inline-flex;align-items:center;gap:4px}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
@@ -810,8 +811,8 @@ const PRISTINE="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
 const SEED=JSON.parse(document.getElementById("seed").textContent);
 const ASSETS=JSON.parse(document.getElementById("assets").textContent);
 const IMG=Object.assign({},ASSETS.thumbs),BANNER=Object.assign({},ASSETS.banners),ICON=Object.assign({},ASSETS.icons),SIMG=Object.assign({},ASSETS.sthumbs),SFULL=Object.assign({},ASSETS.sfull);
-const BOSS={},BOSSF={},EVT={},EVTF={},SEAL={},SEALF={};
-const BASE={SIMG:ASSETS.sthumbs||{},SFULL:ASSETS.sfull||{},IMG:ASSETS.thumbs||{},BANNER:ASSETS.banners||{},ICON:ASSETS.icons||{},HERO:ASSETS.hero||"",BOSS:{},BOSSF:{},EVT:{},EVTF:{},SEAL:{},SEALF:{}};let HERO=BASE.HERO;
+const BOSS={},BOSSF={},EVT={},EVTF={},SEAL={},SEALF={},KN={},KNF={};
+const BASE={SIMG:ASSETS.sthumbs||{},SFULL:ASSETS.sfull||{},IMG:ASSETS.thumbs||{},BANNER:ASSETS.banners||{},ICON:ASSETS.icons||{},HERO:ASSETS.hero||"",BOSS:{},BOSSF:{},EVT:{},EVTF:{},SEAL:{},SEALF:{},KN:{},KNF:{}};let HERO=BASE.HERO;
 const ic=(k,cls)=>ICON[k]?`<img class="ic ${cls||""}" src="${ICON[k]}" alt="${esc(k)}" title="${esc(k)}">`:"";
 const KEY="babel-tier-v2";
 const TIERS=["SSS","SS","S","A","B","C","D"];
@@ -820,7 +821,7 @@ const TCOL=["linear-gradient(120deg,#7b5cff,#ff3fb4 40%,#ffb33a 75%,#fff27a)","l
 const ATTRS=["破壊","衝撃","爆発"];
 const ROLES=["アタッカー","シューター","ブレイカー","ヒーラー","トリックスター","サポーター"];
 const ROLE_SHORT={"アタッカー":"アタ","シューター":"シュ","ブレイカー":"ブレ","ヒーラー":"ヒラ","トリックスター":"トリ","サポーター":"サポ"};
-const RANKS=["KING","QUEEN","FORTRESS","WIZARD","KNIGHT","JOKER"];
+const RANKS=["KING","QUEEN","FORTRESS","KNIGHT","WIZARD","JOKER"];
 const ORDERS=["ブレイドライン","千紫","Mazlab","第六起源魔術教会","リンドブルム","オッター貿易","アクシオンゲート","ORANGE"];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -1783,7 +1784,7 @@ function applyMedia(){
   for(const k in BANNER)delete BANNER[k];Object.assign(BANNER,BASE.BANNER);
   for(const k in ICON)delete ICON[k];Object.assign(ICON,BASE.ICON);
   for(const k in SIMG)delete SIMG[k];Object.assign(SIMG,BASE.SIMG);for(const k in SFULL)delete SFULL[k];Object.assign(SFULL,BASE.SFULL);
-  [[BOSS,"BOSS"],[BOSSF,"BOSSF"],[EVT,"EVT"],[EVTF,"EVTF"],[SEAL,"SEAL"],[SEALF,"SEALF"]].forEach(([m,k])=>{for(const x in m)delete m[x];Object.assign(m,BASE[k]);});
+  [[BOSS,"BOSS"],[BOSSF,"BOSSF"],[EVT,"EVT"],[EVTF,"EVTF"],[SEAL,"SEAL"],[SEALF,"SEALF"],[KN,"KN"],[KNF,"KNF"]].forEach(([m,k])=>{for(const x in m)delete m[x];Object.assign(m,BASE[k]);});
   HERO=BASE.HERO;setHero();applyCrops();
 }
 let rerenderT=null,ADMIN_RENDER=null,ADMIN_LIST=null;
@@ -1791,8 +1792,8 @@ function rerender(){clearTimeout(rerenderT);rerenderT=setTimeout(()=>{buildModel
 function enterAdmin(){location.hash="#admin";}
 function canvasBlob(im,sx,sy,sw,sh,dw,dh,type,q){const c=document.createElement("canvas");c.width=Math.round(dw);c.height=Math.round(dh);const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height);
   return new Promise(r=>c.toBlob(b=>{if(b&&b.type===type)r(b);else c.toBlob(r,"image/png");},type,q));}
-function cropSrc(kind,key){return kind==="char"?BANNER[key]:kind==="boss"?BOSSF[key]:kind==="event"?EVTF[key]:kind==="seal"?SEALF[key]:SFULL[key];}
-const thumbMap=kind=>kind==="char"?IMG:kind==="boss"?BOSS:kind==="event"?EVT:kind==="seal"?SEAL:SIMG;
+function cropSrc(kind,key){return kind==="char"?BANNER[key]:kind==="boss"?BOSSF[key]:kind==="event"?EVTF[key]:kind==="seal"?SEALF[key]:kind==="knight"?KNF[key]:SFULL[key];}
+const thumbMap=kind=>kind==="char"?IMG:kind==="boss"?BOSS:kind==="event"?EVT:kind==="seal"?SEAL:kind==="knight"?KN:SIMG;
 function loadImgSrc(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=src;});}
 async function cropBlob(src,c,size){const im=await loadImgSrc(src);const W=im.naturalWidth,H=im.naturalHeight;const side=c.cs*H;return canvasBlob(im,c.cx*W,c.cy*H,side,side,size,size,"image/webp",.85);}
 let cropRun=0;
@@ -1859,7 +1860,7 @@ async function loadSite(){
   if(crops)CROPS=crops;
   renderNewsBadge();
   const im=await imP;
-  if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});Object.assign(BASE.SEAL,im.seals||{});Object.assign(BASE.SEALF,im.sealfull||{});if(im.hero)BASE.HERO=im.hero;}
+  if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});Object.assign(BASE.SEAL,im.seals||{});Object.assign(BASE.SEALF,im.sealfull||{});Object.assign(BASE.KN,im.knights||{});Object.assign(BASE.KNF,im.knightfull||{});if(im.hero)BASE.HERO=im.hero;}
   SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
   countVisit().catch(()=>{});
@@ -1941,8 +1942,10 @@ async function showShare(make,text,link,name,title){
 }
 
 /* ================= 騎士（キャラクター本人の情報）・誕生日一覧 ================= */
-const KNF={view:"list",order:null,q:""};
-const knFace=k=>IMG[`${k.name}_DEFAULT`]||CH.filter(c=>c.base===k.name).map(c=>IMG[c.id]).find(Boolean)||"";
+const KNFL={view:"list",order:null,q:""};
+/* 騎士団の中の並び（選択肢の「階級」の順番とは別に固定） */
+const KN_RANK=["KING","QUEEN","FORTRESS","KNIGHT","WIZARD","JOKER"];
+const knFace=k=>KN[k.name]||IMG[`${k.name}_DEFAULT`]||CH.filter(c=>c.base===k.name).map(c=>IMG[c.id]).find(Boolean)||"";
 const knStyles=k=>CH.filter(c=>c.base===k.name).sort((a,b)=>a.date-b.date);
 function knCard(k){const f=knFace(k);return `<button class="kncard" data-knight="${esc(k.name)}">${f?`<img src="${f}" alt="" loading="lazy">`:'<span class="noimg"></span>'}<span><b>${esc(k.name)}</b><small>${esc(k.kana)}</small><span class="kntags">${k.order?`<span>${ic(k.order,"ord")}${esc(k.order)}</span>`:""}${k.rank?`<span>${ic(k.rank)}${esc(k.rank)}</span>`:""}${k.bday?`<span>🎂 ${esc(k.bday)}</span>`:""}</span></span></button>`;}
 function jstToday(){const d=new Date(Date.now()+9*3600e3);return {m:d.getUTCMonth()+1,d:d.getUTCDate(),y:d.getUTCFullYear()};}
@@ -1950,8 +1953,8 @@ function daysUntil(k){const t=jstToday();const now=Date.UTC(t.y,t.m-1,t.d);let b
 function bdCard(k,left){const f=knFace(k);const n=daysUntil(k);return `<button class="bdcard${n===0?" today":""}" data-knight="${esc(k.name)}"><span class="bdd">${k.bm}/${k.bd}</span>${f?`<img src="${f}" alt="" loading="lazy">`:'<span class="noimg"></span>'}<span><b>${esc(k.name)}</b>${n===0?' 🎂<small class="bdleft">今日が誕生日！</small>':left?`<small class="bdleft">あと${n}日</small>`:`<small class="bdleft">${esc(k.order||"")}</small>`}</span></button>`;}
 function renderKnights(){
   if(!PEOPLE.length){main.innerHTML=`<div class="empty"><h2>騎士のデータがまだありません</h2><p>運営がデータを登録すると、ここに表示されます。</p></div>`;return;}
-  let h=`<div class="toolbar"><h2><small>KNIGHTS</small>騎士</h2><div class="seg"><button data-kview="list" aria-pressed="${KNF.view==="list"}">騎士一覧</button><button data-kview="bday" aria-pressed="${KNF.view==="bday"}">誕生日一覧</button></div>`;
-  if(KNF.view==="bday"){
+  let h=`<div class="toolbar"><h2><small>KNIGHTS</small>騎士</h2><div class="seg"><button data-kview="list" aria-pressed="${KNFL.view==="list"}">騎士一覧</button><button data-kview="bday" aria-pressed="${KNFL.view==="bday"}">誕生日一覧</button></div>`;
+  if(KNFL.view==="bday"){
     const ks=PEOPLE.filter(k=>k.bm&&k.bd).sort((a,b)=>a.bm-b.bm||a.bd-b.bd);const t=jstToday();
     h+=`<span class="count">${ks.length}人</span></div>`;
     const soon=ks.slice().sort((a,b)=>daysUntil(a)-daysUntil(b)).slice(0,3);
@@ -1959,22 +1962,23 @@ function renderKnights(){
     for(let m=1;m<=12;m++){const l=ks.filter(k=>k.bm===m);if(!l.length)continue;h+=`<section class="bdmonth"><h3>${m}月${m===t.m?' <span class="count">今月</span>':""}</h3><div class="bdlist">${l.map(k=>bdCard(k)).join("")}</div></section>`;}
     const no=PEOPLE.filter(k=>!(k.bm&&k.bd));if(no.length)h+=`<p class="hint">誕生日が未登録：${no.map(k=>esc(k.name)).join("・")}</p>`;
     main.innerHTML=h;return;}
-  const q=KNF.q.toLowerCase();
-  let list=PEOPLE.filter(k=>(!KNF.order||k.order===KNF.order)&&(!q||(k.name+k.kana+k.cv).toLowerCase().includes(q)));
+  const q=KNFL.q.toLowerCase();
+  let list=PEOPLE.filter(k=>(!KNFL.order||k.order===KNFL.order)&&(!q||(k.name+k.kana+k.cv).toLowerCase().includes(q)));
   const ords=ORDERS.filter(o=>PEOPLE.some(k=>k.order===o)).concat([...new Set(PEOPLE.map(k=>k.order).filter(o=>o&&!ORDERS.includes(o)))]);
-  h+=`<input class="search" id="knQ" placeholder="名前・ふりがな・CVで検索" value="${esc(KNF.q)}"><span class="count">${list.length} / ${PEOPLE.length}</span></div>
-  <div class="chips" style="margin:0 0 12px">${ords.map(o=>`<button class="chip" data-korder="${esc(o)}" aria-pressed="${KNF.order===o}">${ic(o,"ord")}${esc(o)}</button>`).join("")}</div>`;
-  const rk=k=>{const i=RANKS.indexOf(k.rank);return i<0?99:i;};
+  h+=`<input class="search" id="knQ" placeholder="名前・ふりがな・CVで検索" value="${esc(KNFL.q)}"><span class="count">${list.length} / ${PEOPLE.length}</span></div>
+  <div class="chips" style="margin:0 0 12px">${ords.map(o=>`<button class="chip" data-korder="${esc(o)}" aria-pressed="${KNFL.order===o}">${ic(o,"ord")}${esc(o)}</button>`).join("")}</div>`;
+  const rk=k=>{const i=KN_RANK.indexOf(String(k.rank).toUpperCase());return i<0?99:i;};
   ords.concat([""]).forEach(o=>{const l=list.filter(k=>(k.order||"")===o).sort((a,b)=>rk(a)-rk(b)||a.i-b.i);if(!l.length)return;
     h+=`<section class="kngroup"><h3>${o?`${ic(o,"ord")}${esc(o)}`:"騎士団 未登録"} <span class="count">${l.length}</span></h3><div class="kngrid">${l.map(knCard).join("")}</div></section>`;});
   if(!list.length)h+=`<div class="empty"><h2>該当する騎士がいません</h2></div>`;
   main.innerHTML=h;
-  const qi=document.getElementById("knQ");liveInput(qi,()=>{KNF.q=qi.value;const p=qi.selectionStart;renderKnights();const n=document.getElementById("knQ");n.focus();n.setSelectionRange(p,p);});
+  const qi=document.getElementById("knQ");liveInput(qi,()=>{KNFL.q=qi.value;const p=qi.selectionStart;renderKnights();const n=document.getElementById("knQ");n.focus();n.setSelectionRange(p,p);});
 }
 function openKnight(name){
   const k=PMAP[name];if(!k)return;const f=knFace(k);const st=knStyles(k);
   const cell=(l,val)=>`<div><small>${esc(l)}</small><span>${val||'<span class="dash">—</span>'}</span></div>`;
-  let h=`<div class="knhead">${f?`<img src="${f}" alt="">`:""}<div><div class="type">KNIGHT</div><h2>${esc(k.name)}</h2><small class="count">${esc(k.kana)}</small></div></div>
+  let h=KNF[k.name]?`<img class="knart" src="${KNF[k.name]}" alt="">`:"";
+  h+=`<div class="knhead">${f?`<img src="${f}" alt="">`:""}<div><div class="type">KNIGHT</div><h2>${esc(k.name)}</h2><small class="count">${esc(k.kana)}</small></div></div>
   <div class="prof">${cell("騎士団",k.order?`${ic(k.order,"ord")} ${esc(k.order)}`:"")}${cell("階級",k.rank?`${ic(k.rank)} ${esc(k.rank)}`:"")}${cell("性別",esc(k.gender))}${cell("誕生日",k.bday?esc(k.bday)+(k.bm&&daysUntil(k)===0?" 🎂":""):"")}${cell("CV",esc(k.cv))}</div>`;
   if(k.profile)h+=`<h3>プロフィール</h3><p class="knprof">${esc(k.profile)}</p>`;
   if(st.length)h+=`<h3>スタイル（${st.length}）</h3><div class="ccards">${st.map(charCard).join("")}</div>`;
@@ -1985,8 +1989,8 @@ document.addEventListener("click",e=>{
   const b=e.target.closest("[data-knight],[data-kview],[data-korder],[data-kgo]");if(!b||(MODE==="admin"&&!b.closest("#dlgDetail")))return;const ds=b.dataset;
   if(ds.knight){e.stopPropagation();openKnight(ds.knight);return;}
   if(ds.kgo){document.getElementById("dlgDetail").close();if(tab!=="knights")goSub("knights");return;}
-  if(ds.kview){KNF.view=ds.kview;renderKnights();return;}
-  if(ds.korder){KNF.order=KNF.order===ds.korder?null:ds.korder;renderKnights();return;}
+  if(ds.kview){KNFL.view=ds.kview;renderKnights();return;}
+  if(ds.korder){KNFL.order=KNFL.order===ds.korder?null:ds.korder;renderKnights();return;}
 });
 /* ================= 所持率チェッカー（キャラ＝own／スクリプト＝sown） ================= */
 const OWNF={q:"",attr:null,role:null,show:"all",sort:"date"},SOWNF={q:"",attr:null,role:null,show:"all",sort:"date"};
@@ -2097,7 +2101,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=36");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=37");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -2133,7 +2137,7 @@ document.getElementById("fbSend").addEventListener("click",async e=>{
 window.RXR={
   get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
   KEYWORDS,tagCats,autoTagsOf,applyTagEdits,effCols,get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
-  IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,SEAL,SEALF,BASE,ATTRS,ROLES,RANKS,ORDERS,
+  IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,SEAL,SEALF,KN,KNF,BASE,ATTRS,ROLES,RANKS,ORDERS,
   get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,
   rebuild(){buildModels();},renderUser(){render();},
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},
