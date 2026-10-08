@@ -527,7 +527,8 @@
   "COLD or HOT？": "images/scripts/thumb/COLD_or_HOT？.webp",
   "とある魔王たちの祝祭": "images/scripts/thumb/とある魔王たちの祝祭.webp",
   "チョコミント　シュガー　ドーナッツ": "images/scripts/thumb/チョコミント_シュガー_ドーナッツ.webp",
-  "とある魔王たちの祝祭　MAZE Lab.": "images/scripts/thumb/とある魔王たちの祝祭_MAZE_Lab..webp"
+  "とある魔王たちの祝祭　MAZE Lab.": "images/scripts/thumb/とある魔王たちの祝祭_MAZE_Lab..webp",
+  "わざとだよ？": "images/scripts/thumb/わざとだよ？.webp"
  },
  "sfull": {
   "鼓動天換": "images/scripts/鼓動天換.webp",
@@ -780,7 +781,8 @@
   "COLD or HOT？": "images/scripts/COLD_or_HOT？.webp",
   "とある魔王たちの祝祭": "images/scripts/とある魔王たちの祝祭.webp",
   "チョコミント　シュガー　ドーナッツ": "images/scripts/チョコミント_シュガー_ドーナッツ.webp",
-  "とある魔王たちの祝祭　MAZE Lab.": "images/scripts/とある魔王たちの祝祭_MAZE_Lab..webp"
+  "とある魔王たちの祝祭　MAZE Lab.": "images/scripts/とある魔王たちの祝祭_MAZE_Lab..webp",
+  "わざとだよ？": "images/scripts/わざとだよ？.webp"
  },
  "hero": "images/hero.webp"
 }
