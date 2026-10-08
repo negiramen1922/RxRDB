@@ -4,7 +4,7 @@
 
 ## 構成
 - `index.html` … 公開サイト本体（HTML/CSS/JS 1ファイル）。`window.SITE` に GA4 の ID と Firebase（apiKey / projectId）を設定する。一般の閲覧では Firebase SDK は読み込まず、Firestore REST で `public/all`（公開データ一式）を1回読むだけ（読めなければ `public/*` を個別に、それも駄目なら data/*.json）。
-- 公開サイトのメニュー：ホーム（入口・お知らせ・前回の続き）／使い方ガイド／Q&A（`GUIDE`・`FAQ` 配列。index.html 内）、キャラクター、スクリプト、バベル、封印戦。最初はホーム（ホームの「前回見ていたページを開く」で前回のページから）。ヘッダー背景はキャラ＝ランダムな覚醒イラスト（banners）、スクリプト＝ランダムなスクリプトイラスト（sfull）、封印戦＝その封印戦のテーマイラスト（sealfull/seals）、ほか＝hero（`tabHero`）。
+- 公開サイトのメニュー：ホーム（入口・お知らせ・前回の続き）／使い方ガイド／Q&A（運営が管理画面の「ガイド・Q&A」で編集。`public/guide`＝`json`={guide:[{id,title,body}],faq:[{id,q,a}]}、予備は data/guide.json。本文は空行で段落・「・」で箇条書き・「1. 」で番号・**太字**）、キャラクター、スクリプト、バベル、封印戦。最初はホーム（ホームの「前回見ていたページを開く」で前回のページから）。ヘッダー背景はキャラ＝ランダムな覚醒イラスト（banners）、スクリプト＝ランダムなスクリプトイラスト（sfull）、封印戦＝その封印戦のテーマイラスト（sealfull/seals）、ほか＝hero（`tabHero`）。
 - `js/admin.js` … 管理画面（`#admin` / フッターの「管理者ログイン」で読み込む ES module）。Google ログイン、データ編集、読み込み・書き出し、画像、変更履歴、ご意見、アクセス、メンバー。
 - `js/fb.js` … Firebase 初期化（gstatic 10.12.2）とオーナーのメールアドレス。
 - `firestore.rules` … Firestore のセキュリティルール。変えたら Firebase コンソールのルールにも貼る。
@@ -19,7 +19,7 @@
 
 ## Firebase（プロジェクト my-log-vh3o3b / 表示名 RxRbabelDB、Spark プラン）
 - データの正本は Firestore。`tables/{chars|scripts|babel|teams|seals|people|styles|bosses|events}`（headers）＋ `tables/{k}/rows/{id}`（`c`=列名→値, `o`=並び順, `t`, `by`, `rev`）。
-- 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、さらに公開サイト用の一式 `public/all`（`json`={chars,scripts,babel,teams,seals,crops,options,news,tiers} をまとめたもの, `sig`）を作り直す。公開サイトは public/all を読む（読み取り回数の節約）。サムネイル位置は `public/crops`、プルダウンの選択肢は `public/options`（`json`={騎士団:[...],階級:[...],ロール:[...],...}）、公式Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID:Tier}}, at}`。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
+- 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、さらに公開サイト用の一式 `public/all`（`json`={chars,scripts,babel,teams,seals,crops,options,news,tiers,guide} をまとめたもの, `sig`）を作り直す。公開サイトは public/all を読む（読み取り回数の節約）。サムネイル位置は `public/crops`、プルダウンの選択肢は `public/options`（`json`={騎士団:[...],階級:[...],ロール:[...],...}）、公式Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID:Tier}}, at}`。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
 - 同時編集: 行ごとに `rev` を比べて衝突を検出（トランザクション）。`editing/{uid}` で「編集中」を表示。`log` に変更履歴（元に戻せる）。
 - `feedback`（誰でも作成のみ）、`stats/{YYYY-MM-DD}`（pv/uv を +1 だけ）、`roles/{email}`（編集者。読み書きはオーナーのみ、本人は自分の分だけ読める）、`names/{uid}`（表示名）。メールアドレスはオーナー以外に見せない：行・履歴・公開データなどの `by` は uid（公開データには書かない）、表示は names の名前。
 - 無料枠: 読み取り 5万/日、書き込み 2万/日（日本時間16時／冬は17時にリセット）。読み取りを使い切ると保存も公開サイトの読み込みも失敗する（公開サイトは data/*.json の古い内容になる）ので、読み取りを増やす変更は避ける。画像は Firebase に置かない（Storage は有料プラン）。

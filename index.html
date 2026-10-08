@@ -306,8 +306,9 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .faq summary{cursor:pointer;padding:12px 0;font-weight:700;font-size:14.5px;list-style:none}
 .faq summary::before{content:"Q.";color:var(--accent);font-family:var(--display);font-weight:700;margin-right:8px}
 .faq[open] summary{border-bottom:1px solid var(--line)}
-.faq p{margin:0;padding:10px 0 14px;font-size:14px;line-height:1.75}
-.faq p::before{content:"A.";color:#e0a400;font-family:var(--display);font-weight:700;margin-right:8px}
+.faqa{padding:10px 0 14px 1.9em;position:relative;font-size:14px;line-height:1.75}
+.faqa::before{content:"A.";color:#e0a400;font-family:var(--display);font-weight:700;position:absolute;left:0;top:10px}
+.faqa p{margin:0 0 6px}.faqa ul,.faqa ol{margin:4px 0;padding-left:1.4em}
 @media (max-width:820px){.hgrid,.hgrid2{grid-template-columns:1fr}.hcimg{height:100px}}
 /* ===== tables ===== */
 .tscroll{overflow:auto;max-height:75vh}
@@ -910,38 +911,32 @@ function renderHome(){
   main.innerHTML=h;
   const cb=document.getElementById("startLast");cb.addEventListener("change",()=>{S.startLast=cb.checked;save();toast(cb.checked?"次から前回のページを開きます（ホームはメニューの「ホーム」から）":"次からホームを開きます");});
 }
-/* 使い方ガイド・Q&A（草案） */
-const GUIDE=[
-  ["このサイトでできること",`<ul><li><b>バベル</b>：階層ごとの公式Tier表・解析データ・攻略のコツ・おすすめキャラ・編成例</li><li><b>キャラクター</b>：全キャラのステータス・スキル・BLADE・特性。所持率チェッカー、ステータスのランキング</li><li><b>スクリプト</b>：スクリプトの効果と、スキルの条件に合うキャラ</li><li><b>封印戦</b>：封印戦ごとのTier表・ステージ効果・過去の開催日</li></ul><p>ログインや登録は不要で、無料で使えます。</p>`],
-  ["バベルのTier表を見る",`<ol><li>メニューの「バベル」→「攻略・Tier表」を開きます。</li><li>上のボタンで <b>リバースバベル／アナザーバベル／バベルリビルド</b> を切り替え、塔の階層ボタンで階層を選びます（スマホでは横に並んでいます）。</li><li>階層の情報（ボス・推奨属性・解析データ・攻略のコツ・おすすめキャラ・編成例）の下に、運営がつけた<b>公式Tier表</b>が出ます。</li><li>キャラのアイコンをタップすると、そのキャラの詳細と、この階層との相性（解析データとの一致）が見られます。</li></ol><p>解析データの緑の行は味方に有利、赤の行は不利な効果です。</p>`],
-  ["編成例を見る",`<p>階層のページの下の方に、運営が登録した<b>編成例</b>が出ます。キャラ・星の数・スクリプトの組み合わせとコメントを参考にしてください。キャラやスクリプトをタップすると詳細が開きます。</p>`],
-  ["自分のTier表をつくる",`<ol><li>Tier表の上の「<b>自分のTier表をつくる</b>」に切り替えます。</li><li>下の一覧からキャラを選び、出てきたバーでTierを選ぶか、ドラッグで好きなTierに動かします。</li><li>作ったTier表は<b>このブラウザの中だけ</b>に保存されます（ほかの人には見えません）。</li><li>「画像で共有」で画像にしてSNSに投稿したり、テキストでコピーしたりできます。</li></ol>`],
-  ["持っているキャラだけで考える",`<ol><li>「キャラクター」→「所持率チェッカー」で、持っているキャラをタップして登録します。</li><li>Tier表の上の「持っているキャラだけ」を押すと、手持ちのキャラだけで表示されます。</li></ol><p>所持率は画像にして共有することもできます。</p>`],
-  ["キャラ・スクリプトの一覧",`<ul><li>検索欄にはスキルの効果なども入力できます（例：「クールタイム」）。</li><li>属性・ロールなどのボタンで絞り込み、表の見出しをタップで並び替えができます。</li><li>表は<b>横にスクロール</b>できます。表の上の ◀ ▶ ボタンでも動かせます。</li><li>キャラ名・スクリプト名をタップすると詳細が開きます。スクリプトの詳細では、条件に合うキャラも確認できます。</li></ul>`],
-  ["全階層まとめ・階層一覧",`<ul><li><b>全階層まとめ</b>：キャラごとに、各階層のTierと平均（SSS=7 … D=1）を一覧で比べられます。</li><li><b>階層一覧</b>：各階層のボス・推奨属性・解析データを表で見られます。行をタップするとその階層のTier表が開きます。</li></ul>`],
-  ["封印戦",`<p>メニューの「封印戦」で、左の一覧から封印戦を選ぶと、ステージ効果・過去の開催日・Tier表が見られます。</p>`],
-];
-const FAQ=[
-  ["公式Tier表は誰が決めていますか？","このサイトの運営メンバーが、解析データや実際の使用感をもとに決めています。あくまで目安として、手持ちや育成状況に合わせて調整してください。"],
-  ["ゲームの公式サイトですか？","いいえ、ファンが作っている非公式のサイトです。ゲーム内の画像・テキストの権利は各権利者に帰属します。"],
-  ["ログインや料金は必要ですか？","どちらも不要です。どなたでも無料で使えます。"],
-  ["自分のTier表は、ほかの人に見られますか？","見られません。自分のTier表・所持キャラ・自分用メモは、お使いのブラウザの中だけに保存されます。人に見せたいときは「画像で共有」やテキストのコピーを使ってください。"],
-  ["スマホとPCで、自分のTier表を同じにできますか？","いまは端末（ブラウザ）ごとに別々に保存されます。別の端末で使いたいときは、テキストで書き出して控えておいてください。"],
-  ["自分のTier表や所持キャラが消えてしまいました","ブラウザの履歴・サイトデータを消したり、シークレットモードで開いたりすると消えてしまいます。大切なTier表は画像やテキストで保存しておくのがおすすめです。"],
-  ["新しいキャラやバベルの階層はいつ反映されますか？","運営メンバーが登録しだい反映します。実装直後は少しお待ちください。"],
-  ["データが間違っています／載っていない情報があります","お手数ですが、ページ下の「不具合・ご要望を送る」から教えてください。どのページのどの情報かを書いていただけると助かります。"],
-  ["表の右側が見切れています","表は横にスクロールできます。指で左右になぞるか、表の上の ◀ ▶ ボタンを使ってください。"],
-  ["表示が古いままです","ページを再読み込みしてください。それでも直らないときは、時間をおいて開き直すか、お問い合わせからお知らせください。"],
-];
+/* 使い方ガイド・Q&A：運営が管理画面の「ガイド・Q&A」で編集（public/guide。予備は data/guide.json）
+   本文の書き方：空行で段落、「・」「- 」で始まる行は箇条書き、「1. 」で始まる行は番号付き、**太字**、URL は自動でリンク */
+let DOCS={guide:[],faq:[]};
+function docInline(t){return esc(t).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>');}
+function docHtml(text){
+  const out=[];let list=null;
+  const close=()=>{if(list){out.push(`<${list.t}>${list.items.map(x=>`<li>${x}</li>`).join("")}</${list.t}>`);list=null;}};
+  String(text||"").split("\n").forEach(l=>{
+    const ul=/^\s*(?:・|-\s|•)\s*(.*)$/.exec(l),ol=/^\s*\d+[.．)）]\s*(.*)$/.exec(l);
+    if(ul||ol){const t=ul?"ul":"ol";if(!list||list.t!==t){close();list={t,items:[]};}list.items.push(docInline((ul||ol)[1]));return;}
+    close();if(l.trim())out.push(`<p>${docInline(l)}</p>`);
+  });
+  close();return out.join("");
+}
+function setDocs(v){DOCS={guide:Array.isArray(v&&v.guide)?v.guide:[],faq:Array.isArray(v&&v.faq)?v.faq:[]};if(tab==="guide"||tab==="faq")render();}
 function renderGuide(){
   main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>GUIDE</small>使い方ガイド</h2></div>
-  <nav class="doctoc">${GUIDE.map(([t],i)=>`<a href="#g${i}" data-toc="g${i}">${esc(t)}</a>`).join("")}</nav>
-  ${GUIDE.map(([t,b],i)=>`<article class="docsec" id="g${i}"><h3>${esc(t)}</h3>${b}</article>`).join("")}
+  ${DOCS.guide.length?"":'<div class="empty"><h2>準備中です</h2></div>'}
+  <nav class="doctoc">${DOCS.guide.map((g,i)=>`<a href="#g${i}" data-toc="g${i}">${esc(g.title)}</a>`).join("")}</nav>
+  ${DOCS.guide.map((g,i)=>`<article class="docsec" id="g${i}"><h3>${esc(g.title)}</h3>${docHtml(g.body)}</article>`).join("")}
   <p class="hint">わからないことがあれば <a href="#" data-gosub="faq">Q&amp;A</a> か <a href="#" data-feedback>お問い合わせ</a> へ。</p></section>`;
 }
 function renderFaq(){
   main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>Q&amp;A</small>よくある質問</h2></div>
-  ${FAQ.map(([q,a])=>`<details class="faq"><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join("")}
+  ${DOCS.faq.length?"":'<div class="empty"><h2>準備中です</h2></div>'}
+  ${DOCS.faq.map(x=>`<details class="faq"><summary>${esc(x.q)}</summary><div class="faqa">${docHtml(x.a)}</div></details>`).join("")}
   <div class="hbox hlinks" style="margin-top:16px"><button data-feedback><b>✉ 解決しないときはお問い合わせ</b><span>不具合・データの間違い・ご要望を送れます</span></button></div></section>`;
 }
 document.addEventListener("click",e=>{
@@ -1424,6 +1419,7 @@ async function loadSite(){
     part("crops").then(v=>{crops=v;}).catch(()=>{}),
     part("options").then(setOptions).catch(()=>{}),
     part("news").catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
+    part("guide").catch(()=>get("data/guide.json")).then(v=>{setDocs(v);}).catch(()=>{}),
     part("tiers").catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_AT=v.at||0;}}).catch(()=>{})
   ]));
   Object.entries(st).forEach(([k,v])=>{if(v)LIVE[k]={headers:v.headers,rows:v.rows};});
@@ -1610,7 +1606,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=21");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=22");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1656,7 +1652,7 @@ window.RXR={
   setTierCtx(c){TIER_CTX=c==="seal"?"seal":"babel";sel=null;},get TIER_CTX(){return TIER_CTX;},get SEALS(){return SEALS;},setCurSeal(k){S.curSeal=k;},
   setTierEdit(on,hook){TIER_EDIT=!!on;TIER_HOOK=hook||null;sel=null;renderActionBar();},renderTier(){renderTier();renderActionBar();},
   get curFloor(){return curFloor();},
-  get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
+  get DOCS(){return DOCS;},setDocs,docHtml,get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
   setOptions,
   liveInput,
   jstDay,get SITE_LOADED(){return SITE_LOADED;},

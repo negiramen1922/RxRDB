@@ -204,13 +204,14 @@ function startListeners() {
       T[k].rows = m; T[k].rowsReady = true; T[k].pending = q.metadata.hasPendingWrites; tableChanged(k);
     }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
   });
-  TABLES.concat(["crops", "news", "tiers", "options"]).forEach(k => on(F.doc(F.db, "public", k), s => {
+  TABLES.concat(["crops", "news", "tiers", "options", "guide"]).forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
     if (BUNDLE_KEYS.includes(k)) { PUBRAW[k] = d && typeof d.json === "string" ? d.json : null; scheduleBundle(); }
     if (k === "crops") { try { R.setCrops(d && d.json ? JSON.parse(d.json) : {}); } catch (e) { } }
     else if (k === "tiers") { let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
     else if (k === "options") { try { OPTS = d && d.json ? JSON.parse(d.json) : null; } catch (e) { OPTS = null; } if (OPTS) R.setOptions(OPTS); softRender(); return; }
+    else if (k === "guide") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } GUIDEDOC = v; GUIDEAT = d ? d.at || 0 : 0; if (v) R.setDocs(v); if (!GD.dirty) GD.draft = null; if (S.tab === "guide") softRender(); return; }
     else if (k === "news") { try { NEWSLIST = d && d.json ? JSON.parse(d.json) : []; } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
     else maybePublish(k);
     softRender();
@@ -324,7 +325,7 @@ async function publish(k, force) {
 }
 /* ---- public/all：公開サイトが読む データ一式（1回の読み取りで済ませ、Firestore の無料枠を節約する） ----
    public/{chars,scripts,babel,teams,seals,crops,options,news,tiers} の json をまとめたもの。どれかが変わるたびに作り直す */
-const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "crops", "options", "news", "tiers"];
+const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "crops", "options", "news", "tiers", "guide"];
 const PUBRAW = {};       // k -> public/{k} の json（文字列）。ドキュメントがなければ null
 let ALLSIG;              // public/all の sig（undefined = まだ読んでいない）
 const BUNDLE = { t: null, pending: false, busy: false, failed: false };
@@ -373,7 +374,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["news", "お知らせ"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = FEEDBACK.filter(f => f.status === "new").length;
@@ -408,6 +409,7 @@ function renderAdmin(soft) {
   else if (S.tab === "img") { if (!(soft && IM.files.length)) renderImg(); }
   else if (S.tab === "tier") renderTierTab(soft);
   else if (S.tab === "news") { if (!(soft && NW.edit)) renderNews(); }
+  else if (S.tab === "guide") { if (!(soft && GD.dirty)) renderGuideTab(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
   else if (S.tab === "stats") renderStats(soft);
@@ -1153,6 +1155,7 @@ async function ioAction(a, btn) {
   if (a === "ghdata") {
     try { const Z = await loadJSZip(); const z = new Z(); TABLES.forEach(t => { const d = curData(t); if (d.headers.length) z.file(`data/${t}.json`, JSON.stringify({ headers: d.headers, rows: d.rows }, null, 1)); });
       z.file("data/news.json", JSON.stringify(NEWSLIST, null, 1));
+      if (GUIDEDOC) z.file("data/guide.json", JSON.stringify(GUIDEDOC, null, 1));
       z.file("data/tiers.json", JSON.stringify({ tiers: TIERPUB, at: now() }, null, 1));
       download(`rxrdb-data-${R.jstDay()}.zip`, await z.generateAsync({ type: "blob" })); toast("data/*.json を書き出しました"); }
     catch (e) { toast("ZIP を作れませんでした。通信状態を確認してください", 5000); } return;
@@ -1504,7 +1507,7 @@ function openCrop(kind, key) {
 
 /* ================= change log ================= */
 const LG = { k: "", open: null };
-const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", image: "画像", news: "お知らせ", tier: "Tier表", options: "選択肢" };
+const ACT = { create: "追加", update: "編集", delete: "削除", import: "読み込み", seed: "初期登録", restore: "置き換え", columns: "列", crop: "サムネイル", revert: "元に戻す", members: "メンバー", guide: "ガイド", image: "画像", news: "お知らせ", tier: "Tier表", options: "選択肢" };
 function renderLog() {
   const list = LOG.filter(l => !LG.k || l.k === LG.k);
   let h = userBar() + `<div class="toolbar"><h2><small>HISTORY</small>変更履歴</h2><div class="seg"><button data-lgk="" aria-pressed="${!LG.k}">すべて</button>${TABLES.map(k => `<button data-lgk="${k}" aria-pressed="${LG.k === k}">${TLABEL[k]}</button>`).join("")}</div><span class="count">新しい順に最大150件</span></div>`;
@@ -1673,6 +1676,67 @@ async function delNews(id) {
   } catch (er) { toast(fbErr(er), 5000); }
 }
 
+/* ================= guide / Q&A（使い方ガイドとよくある質問） ================= */
+let GUIDEDOC = null, GUIDEAT = 0;   // public/guide の中身（なければ null → data/guide.json を下書きに使う）
+const GD = { k: "guide", draft: null, baseAt: 0, dirty: false, busy: false, confirm: null };
+async function gdLoad() {
+  if (GD.draft) return;
+  let v = GUIDEDOC; if (!v) { try { v = await staticJson("data/guide.json"); } catch (e) { v = null; } }
+  GD.draft = JSON.parse(JSON.stringify({ guide: (v && v.guide) || [], faq: (v && v.faq) || [] })); GD.baseAt = GUIDEAT; GD.dirty = false; GD.confirm = null;
+}
+function gdItem(it, i, n) {
+  const g = GD.k === "guide";
+  const t = g ? it.title : it.q, b = g ? it.body : it.a;
+  return `<section class="apanel gditem" data-gdi="${i}"><div class="gdhead"><b class="count">${i + 1}</b><input class="gdt" data-gdf="${i}|${g ? "title" : "q"}" value="${esc(t || "")}" placeholder="${g ? "見出し" : "質問"}" maxlength="120">
+    <button class="btn small" data-gdmv="${i}|-1" ${i ? "" : "disabled"} aria-label="上へ">↑</button><button class="btn small" data-gdmv="${i}|1" ${i < n - 1 ? "" : "disabled"} aria-label="下へ">↓</button>
+    ${GD.confirm === i ? `<span class="danger-q">消しますか？</span><button class="btn small danger" data-gddelyes="${i}">消す</button><button class="btn small" data-gddelno="1">やめる</button>` : `<button class="btn small" data-gddel="${i}">削除</button>`}</div>
+    <div class="gdbody"><textarea data-gdf="${i}|${g ? "body" : "a"}" rows="${Math.min(14, Math.max(3, String(b || "").split("\n").length + 1))}" maxlength="5000" placeholder="${g ? "本文" : "答え"}">${esc(b || "")}</textarea><div class="gdprev docsec" id="gdp${i}">${R.docHtml(b)}</div></div></section>`;
+}
+function renderGuideTab() {
+  if (!GD.draft) { AM.innerHTML = userBar() + `<div class="empty"><h2>読み込み中…</h2></div>`; gdLoad().then(() => { if (S.tab === "guide") renderGuideTab(); }); return; }
+  const list = GD.draft[GD.k];
+  const remoteNew = GUIDEAT && GUIDEAT !== GD.baseAt;
+  AM.innerHTML = userBar() + `<div class="toolbar"><h2><small>GUIDE / Q&amp;A</small>ガイド・Q&amp;A</h2><div class="seg"><button data-gdk="guide" aria-pressed="${GD.k === "guide"}">使い方ガイド ${GD.draft.guide.length}</button><button data-gdk="faq" aria-pressed="${GD.k === "faq"}">Q&amp;A ${GD.draft.faq.length}</button></div><span style="flex:1"></span>
+    ${GD.dirty ? `<button class="btn" data-gd="reset">変更を取り消す</button>` : ""}<button class="btn primary" data-gd="save" ${GD.dirty && !GD.busy ? "" : "disabled"}>${GD.busy ? "保存中…" : "保存して公開"}</button></div>
+  <p class="hint" style="margin:-4px 0 12px">公開サイトの「ホーム」→「使い方ガイド」「Q&amp;A」に出ます。${GUIDEDOC ? "" : "<b>まだ公開していません</b>（いまは GitHub の data/guide.json の内容が出ています）。"}<br>書き方：空行で段落、「・」で始まる行は箇条書き、「1. 」で始まる行は番号付き、**太字**、URL は自動でリンクになります。右側がプレビューです。</p>
+  ${remoteNew && GD.dirty ? `<div class="astatus warn">ほかのメンバーがガイド・Q&amp;Aを更新しました。保存すると相手の変更を上書きします。<button class="btn small" data-gd="reset">相手の内容を読み込む（自分の変更は消えます）</button></div>` : ""}
+  <div class="gdlist">${list.map((it, i) => gdItem(it, i, list.length)).join("") || '<p class="count">まだありません。</p>'}</div>
+  <div class="row2" style="margin-top:10px"><button class="btn" data-gd="add">＋ ${GD.k === "guide" ? "ガイドの項目" : "質問"}を追加</button></div>`;
+  AM.querySelectorAll("[data-gdf]").forEach(el => el.addEventListener("input", () => {
+    const [i, f] = el.dataset.gdf.split("|"); GD.draft[GD.k][+i][f] = el.value;
+    if (!GD.dirty) { GD.dirty = true; const sb = AM.querySelector('[data-gd="save"]'); if (sb) sb.disabled = false; }
+    if (f === "body" || f === "a") { const pv = document.getElementById("gdp" + i); if (pv) pv.innerHTML = R.docHtml(el.value); }
+  }));
+}
+async function saveGuide() {
+  const d = { guide: GD.draft.guide.filter(x => (x.title || "").trim() || (x.body || "").trim()).map(x => ({ id: x.id || "g" + rid(), title: (x.title || "").trim(), body: x.body || "" })),
+    faq: GD.draft.faq.filter(x => (x.q || "").trim() || (x.a || "").trim()).map(x => ({ id: x.id || "q" + rid(), q: (x.q || "").trim(), a: x.a || "" })) };
+  if (d.guide.some(x => !x.title) || d.faq.some(x => !x.q)) return toast(d.guide.some(x => !x.title) ? "見出しが空の項目があります" : "質問が空の項目があります", 4000);
+  GD.busy = true; renderGuideTab();
+  try {
+    const at = now();
+    await F.runTransaction(F.db, async tx => {
+      const ref = F.doc(F.db, "public", "guide"); await tx.get(ref);
+      tx.set(ref, { json: JSON.stringify(d), at, count: d.guide.length + d.faq.length });
+      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "guide", label: `ガイド ${d.guide.length}項目・Q&A ${d.faq.length}問を公開` }));
+    });
+    GD.draft = JSON.parse(JSON.stringify(d)); GD.baseAt = at; GUIDEAT = at; GD.dirty = false; toast("ガイド・Q&Aを公開しました");
+  } catch (e) { toast(fbErr(e), 6000); }
+  GD.busy = false; renderGuideTab();
+}
+function gdAction(ds) {
+  const list = GD.draft && GD.draft[GD.k]; if (!list) return;
+  const touch = () => { GD.dirty = true; renderGuideTab(); };
+  if (ds.gdk) { GD.k = ds.gdk; GD.confirm = null; renderGuideTab(); return; }
+  if (ds.gd === "add") { list.push(GD.k === "guide" ? { id: "g" + rid(), title: "", body: "" } : { id: "q" + rid(), q: "", a: "" }); touch(); const els = AM.querySelectorAll(".gdt"); if (els.length) els[els.length - 1].focus(); return; }
+  if (ds.gd === "save") { saveGuide(); return; }
+  if (ds.gd === "reset") { GD.draft = null; GD.dirty = false; renderGuideTab(); return; }
+  if (ds.gdmv) { const [i, d] = ds.gdmv.split("|").map(Number); const j = i + d; if (j < 0 || j >= list.length) return; [list[i], list[j]] = [list[j], list[i]]; touch(); return; }
+  if (ds.gddel !== undefined) { GD.confirm = +ds.gddel; renderGuideTab(); return; }
+  if (ds.gddelno) { GD.confirm = null; renderGuideTab(); return; }
+  if (ds.gddelyes !== undefined) { list.splice(+ds.gddelyes, 1); GD.confirm = null; touch(); return; }
+}
+
 /* ================= feedback ================= */
 const FB = { st: "open", confirm: null };
 const FKIND = { bug: "不具合", request: "ご要望", other: "その他" };
@@ -1809,7 +1873,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -1817,6 +1881,7 @@ function onAdminClick(e) {
   if (ds.a === "seed") { seedAll(); return; }
   if (ds.a === "ghimport") { ghImport(false); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
+  if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
   if (ds.teamedit || ds.teamfloor || ds.a === "teamadd") {
     if (ED.dirty && !ED.isNew) { toast("先にこの画面の変更を保存するか、取り消してください", 4000); return; }
@@ -1886,7 +1951,7 @@ function onAdminClick(e) {
   if (ds.nwdel) { NW.confirm = ds.nwdel; renderNews(); return; }
   if (ds.nwdelyes) { delNews(ds.nwdelyes); return; }
 }
-window.addEventListener("beforeunload", e => { if (S.open && (ED.dirty || BUNDLE.busy || (BUNDLE.pending && !BUNDLE.failed))) { e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("beforeunload", e => { if (S.open && (ED.dirty || GD.dirty || BUNDLE.busy || (BUNDLE.pending && !BUNDLE.failed))) { e.preventDefault(); e.returnValue = ""; } });
 
 /* ================= styles (admin only) ================= */
 function injectStyle() {
@@ -2016,6 +2081,15 @@ function injectStyle() {
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
 .pcard{display:flex;gap:12px;align-items:flex-start;text-align:left;border:0;background:var(--panel);box-shadow:var(--shadow);padding:10px;cursor:pointer;color:var(--ink);position:relative}
 .pcard:hover{background:var(--soft)}
+.gdlist{display:grid;gap:10px}
+.gditem{padding:10px 12px}
+.gdhead{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.gdhead .gdt{flex:1 1 220px;font-weight:700}
+.gdbody{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.gdbody textarea{width:100%;min-height:80px;font-size:13.5px;line-height:1.6}
+.gdprev{box-shadow:none;border:1px dashed var(--line2);padding:8px 12px;font-size:13.5px}
+.gdprev p,.gdprev li{font-size:13.5px}
+@media (max-width:820px){.gdbody{grid-template-columns:1fr}}
 .teamcard .tmfaces{display:flex;gap:3px;flex-wrap:wrap;margin:4px 0}
 .teamcard .tmfaces img{width:34px;height:34px;border-radius:5px;object-fit:cover}
 .tmslots{display:grid;gap:6px}
