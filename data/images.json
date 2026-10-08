@@ -843,7 +843,8 @@
   "死神": "images/bosses/死神.webp",
   "勇者シドウ（サマー）": "images/bosses/勇者シドウ（サマー）.webp",
   "ラヴィアンローズ": "images/bosses/ラヴィアンローズ.webp",
-  "鶴喰耶纒": "images/bosses/鶴喰耶纒.webp"
+  "鶴喰耶纒": "images/bosses/鶴喰耶纒.webp",
+  "鬼姫：さくら": "images/bosses/鬼姫：さくら.webp"
  },
  "bosses": {
   "死神王 アイゼ＝ウォルン": "images/bosses/thumb/死神王_アイゼ＝ウォルン.webp",
@@ -851,6 +852,7 @@
   "死神": "images/bosses/thumb/死神.webp",
   "勇者シドウ（サマー）": "images/bosses/thumb/勇者シドウ（サマー）.webp",
   "ラヴィアンローズ": "images/bosses/thumb/ラヴィアンローズ.webp",
-  "鶴喰耶纒": "images/bosses/thumb/鶴喰耶纒.webp"
+  "鶴喰耶纒": "images/bosses/thumb/鶴喰耶纒.webp",
+  "鬼姫：さくら": "images/bosses/thumb/鬼姫：さくら.webp"
  }
 }
