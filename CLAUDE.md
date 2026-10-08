@@ -6,6 +6,8 @@
 - `index.html` … 公開サイト本体（HTML/CSS/JS 1ファイル）。`window.SITE` に GA4 の ID と Firebase（apiKey / projectId）を設定する。一般の閲覧では Firebase SDK は読み込まず、Firestore REST で `public/all`（公開データ一式）を1回読むだけ（読めなければ `public/*` を個別に、それも駄目なら data/*.json）。
 - 公開サイトのメニュー：ホーム（入口・お知らせ・前回の続き）／使い方ガイド／Q&A（運営が管理画面の「ガイド・Q&A」で編集。`public/guide`＝`json`={guide:[{id,title,body}],faq:[{id,q,a}]}、予備は data/guide.json。本文は空行で段落・「・」で箇条書き・「1. 」で番号・**太字**）、キャラクター、スクリプト、バベル、封印戦。最初はホーム（ホームの「前回見ていたページを開く」で前回のページから）。ヘッダー背景はキャラ＝ランダムな覚醒イラスト（banners）、スクリプト＝ランダムなスクリプトイラスト（sfull）、封印戦＝その封印戦のテーマイラスト（sealfull/seals）、ホーム＝キャラとスクリプトのイラストからランダム、バベル＝hero（`tabHero`）。縦長のイラストはサムネイルの切り抜き位置（顔のあたり）がヘッダーの見える範囲に来るよう位置合わせ（`heroFocus`）。キャラ詳細には `強いところ`・`弱いところ` を表示。
 - `js/admin.js` … 管理画面（`#admin` / フッターの「管理者ログイン」で読み込む ES module）。Google ログイン、データ編集、読み込み・書き出し、画像、変更履歴、ご意見、アクセス、メンバー。
+- 管理画面「やること」タブ：公開までの進捗。各項目の進み具合はデータから自動で数え（admin.js の `todoItems`）、担当・メモ・手動の進捗・追加の項目は `tables/todo`（1ドキュメント、タブを開いたときだけ読む）。未入力の一覧から編集画面を開ける。
+- 限定バッジ：キャラ・スクリプトの列 `限定`（限定／周年限定）。images.json の icons に「限定」「周年限定」の画像があれば画像、なければ文字のバッジ（index.html の `limBadge`）。
 - `js/fb.js` … Firebase 初期化（gstatic 10.12.2）とオーナーのメールアドレス。
 - `firestore.rules` … Firestore のセキュリティルール。変えたら Firebase コンソールのルールにも貼る。
 - `data/chars.json` / `data/scripts.json` / `data/babel.json` … `{headers:[...], rows:[[...]]}` 形式の表データ。列名で参照しているので列の追加・並べ替えは自由。

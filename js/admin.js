@@ -14,7 +14,7 @@ const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["s
 // t: text / num / auto（自動で入る・編集不可） / floor（バベルの階層を選ぶ） / hide（フォームに出さない） / team（編成のキャラ6人） / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
 const SCHEMA = {
   chars: [
-    { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["No", "auto"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
+    { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["No", "auto"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定|周年限定"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
     { g: "騎士の設定から（自動）", note: "騎士団・階級・性別は「騎士」の設定がそのまま使われます。変えるときは騎士のほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
     { g: "強いところ・弱いところ", note: "キャラ詳細の上の方に表示されます。改行もそのまま出ます。", f: [["強いところ", "long"], ["弱いところ", "long"]] },
     { g: "効果タグ", note: "キャラ一覧の絞り込み（攻撃・防御・HP・その他）に使います。説明文から自動で付いたものに「自動」と出ます。チェックで追加・外すことができ、説明文を直すと自動の分も変わります。", f: [["効果タグ", "tags"]] },
@@ -26,7 +26,7 @@ const SCHEMA = {
     { g: "特性", f: [["特性名称", "text"], ["Lv1 特性効果", "long"], ["Lv3 特性効果", "long"], ["Lv5 特性効果", "long"], ["特性開放 ★4", "long"], ["特性開放 ★5", "long"]] },
   ],
   scripts: [
-    { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"]] },
+    { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定|周年限定"], ["ロール", "opt:ロール"], ["実装日", "date"]] },
     { g: "ステータス", note: "スクリプトの Lv200 のステータスは星で変わりません。完凸（限界突破しきった状態）の値は分かるものだけ入れてください。", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
     { g: "スキル1", f: [["スキル1効果", "long"]] },
     { g: "スキル2", f: [["条件2", "cond"], ["スキル2効果", "long"]] },
@@ -192,7 +192,7 @@ async function resolveRole(u) {
 }
 
 /* ================= live listeners ================= */
-function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = false; }
+function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = false; TODODOC = null; }
 function startListeners() {
   const on = (ref, fn, opt) => S.unsubs.push(F.onSnapshot(ref, opt || {}, fn, err => {
     console.warn(ref.path, err);
@@ -222,7 +222,7 @@ function startListeners() {
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
   initName().then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
-  S.on = on; LAZY.log = LAZY.fb = false;
+  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = false; TODODOC = null;
   // ご意見・変更履歴は、そのタブを開いたときに読む（未対応のご意見の数だけは件数クエリで数える＝1回の読み取り）
   F.getCountFromServer(F.query(F.collection(F.db, "feedback"), F.where("status", "==", "new"))).then(c => { S.fbNew = c.data().count; renderNav(); }).catch(e => console.warn("fbcount", e));
   S.unsubs.push(F.onSnapshot(F.doc(F.db, "secrets", "github"), s => { GH = s.exists() && s.data().token ? s.data() : null; softRender(); }, () => { GH = null; }));
@@ -272,7 +272,7 @@ function listenRows(k, on) {
     }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
   }
 }
-const LAZY = { log: false, fb: false };
+const LAZY = { log: false, fb: false, todo: false };
 function ensureLazy(tab) {
   if (!S.on) return;
   if (tab === "log" && !LAZY.log) { LAZY.log = true; S.on(F.query(F.collection(F.db, "log"), F.orderBy("at", "desc"), F.limit(150)), q => { LOG = q.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.tab === "log") softRender(); }); }
@@ -424,7 +424,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["todo", "やること"], ["tier", "Tier表"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = S.fbNew || 0;
@@ -460,6 +460,7 @@ function renderAdmin(soft) {
   else if (S.tab === "img") { if (!(soft && IM.files.length)) renderImg(); }
   else if (S.tab === "tier") renderTierTab(soft);
   else if (S.tab === "news") { if (!(soft && NW.edit)) renderNews(); }
+  else if (S.tab === "todo") { if (!(soft && TD.edit)) renderTodo(); }
   else if (S.tab === "guide") { if (!(soft && GD.dirty)) renderGuideTab(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
@@ -1772,6 +1773,95 @@ async function delNews(id) {
   } catch (er) { toast(fbErr(er), 5000); }
 }
 
+/* ================= やること（公開までの進捗） =================
+   進捗はデータから自動で数える。担当・メモ・手動の完了・追加の項目は tables/todo（1ドキュメント）に保存し、このタブを開いたときだけ読む */
+let TODODOC = null; const TD = { open: null, edit: null };
+const nonEmpty = v => { const s = String(v == null ? "" : v).trim(); return !!s && s !== "—" && s !== "-"; };
+function rowsCheck(k, fields, okFn, label) {
+  const rows = [...(T[k] ? T[k].rows.values() : [])].sort((a, b) => a.o - b.o);
+  const per = {}; (fields || []).forEach(f => per[f] = 0);
+  const missing = [];
+  rows.forEach(r => { const c = r.c || {}; let ok = true;
+    (fields || []).forEach(f => { if (nonEmpty(c[f])) per[f]++; else ok = false; });
+    if (okFn && !okFn(c)) ok = false;
+    if (!ok) missing.push({ id: r.id, k, label: label ? label(c) : labelOf(k, c), lack: (fields || []).filter(f => !nonEmpty(c[f])) }); });
+  return { done: rows.length - missing.length, total: rows.length, per, missing };
+}
+function todoItems() {
+  const floorNo = c => parseFloat(String(c["階層"] || "").replace(/[^\d.]/g, ""));
+  const mid = c => { const n = floorNo(c); return n >= 55 && n <= 100; };
+  const babelMid = () => [...T.babel.rows.values()].filter(r => mid(r.c || {})).sort((a, b) => a.o - b.o);
+  const midCheck = (name, fn) => { const rs = babelMid(); const miss = rs.filter(r => !fn(r.c || {})); return { done: rs.length - miss.length, total: rs.length, missing: miss.map(r => ({ id: r.id, k: "babel", label: labelOf("babel", r.c || {}) })), sub: name }; };
+  const teamKeys = new Set([...T.teams.rows.values()].map(r => keyOfCells("babel", r.c || {})));
+  return [
+    { id: "cimg", g: "公開まで", t: "キャラ画像のインポート", note: "サムネイルと覚醒イラストの両方", r: () => rowsCheck("chars", null, c => R.IMG[c["ID"]] && R.BANNER[c["ID"]], c => c["キャラ名"] || c["ID"]), lackNote: c => [!R.IMG[c["ID"]] && "サムネイル", !R.BANNER[c["ID"]] && "覚醒イラスト"].filter(Boolean) },
+    { id: "simg", g: "公開まで", t: "スクリプト画像のインポート", note: "サムネイルとイラストの両方", r: () => rowsCheck("scripts", null, c => R.SIMG[c["名前"]] && R.SFULL[c["名前"]]) },
+    { id: "cdata", g: "公開まで", t: "キャラデータの入力", note: "完凸時の HP・攻撃力、防御、攻撃速度などの基本ステータス", r: () => rowsCheck("chars", ["完凸 HP", "完凸 攻撃力", "物理防御", "特殊防御", "攻撃速度", "抵抗値"]) },
+    { id: "sdata", g: "公開まで", t: "スクリプトデータの入力", note: "Lv200 の HP・攻撃力と、各スキルの条件・効果", r: () => rowsCheck("scripts", ["Lv200 HP", "Lv200 攻撃力", "スキル1効果", "スキル2効果", "スキル3効果"]) },
+    { id: "beff", g: "公開まで", t: "全バベルのステージ効果", note: "解析データ（ステージ効果）", r: () => rowsCheck("babel", ["解析データ"]) },
+    { id: "btier", g: "公開まで", t: "各バベル 55〜100 の Tier表・おすすめ編成・コツ", note: "Tier表の配置・編成例・攻略のコツがそろった階層", multi: () => [
+      midCheck("Tier表", c => Object.keys(R.OFFICIAL[keyOfCells("babel", c)] || {}).length > 0),
+      midCheck("おすすめ編成", c => teamKeys.has(keyOfCells("babel", c))),
+      midCheck("攻略のコツ", c => nonEmpty(c["攻略のコツ"]))] },
+    { id: "seal", g: "公開まで", t: "各封印戦の画像と特性", note: "テーマイラストとステージ効果", r: () => rowsCheck("seals", ["ステージ効果"], c => R.SEAL[c["封印戦名"]] || R.SEALF[c["封印戦名"]]) },
+    { id: "csw", g: "追加", t: "全キャラの強いところ・弱いところ", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
+    { id: "misc", g: "追加", t: "もろもろの各データ", note: "進捗は手動で更新してください", manual: true },
+  ];
+}
+function todoProgress(it) {
+  if (it.manual) { const m = (TODODOC && TODODOC.items && TODODOC.items[it.id]) || {}; return { pct: m.done ? 100 : (+m.pct || 0), label: m.done ? "完了" : (m.pct ? m.pct + "%" : "未着手") }; }
+  if (it.multi) { const ps = it.multi(); const tot = ps.reduce((a, p) => a + p.total, 0), dn = ps.reduce((a, p) => a + p.done, 0); return { pct: tot ? Math.round(dn / tot * 100) : 0, label: tot ? `${dn} / ${tot}` : "対象なし", parts: ps }; }
+  const r = it.r(); return { pct: r.total ? Math.round(r.done / r.total * 100) : 0, label: r.total ? `${r.done} / ${r.total}` : "未登録", r };
+}
+function todoBar(pct) { return `<span class="tdbar"><i style="width:${pct}%;background:${pct >= 100 ? "var(--good)" : pct >= 50 ? "var(--accent)" : "#e0a400"}"></i></span>`; }
+function renderTodo() {
+  if (TODODOC === null && S.on && !LAZY.todo) { LAZY.todo = true; S.on(F.doc(F.db, "tables", "todo"), s => { TODODOC = s.exists() ? s.data() : {}; if (S.tab === "todo" && !TD.edit) renderTodo(); }); }
+  const items = todoItems().concat(((TODODOC && TODODOC.extra) || []).map(x => Object.assign({ manual: true, g: "追加", t: x.t, extra: true }, x)));
+  const main = items.filter(i => i.g === "公開まで").map(todoProgress);
+  const overall = main.length ? Math.round(main.reduce((a, p) => a + p.pct, 0) / main.length) : 0;
+  const meta = id => (TODODOC && TODODOC.items && TODODOC.items[id]) || {};
+  const row = it => { const p = todoProgress(it); const m = it.extra ? it : meta(it.id); const open = TD.open === it.id; const ed = TD.edit === it.id;
+    let det = "";
+    if (open && !it.manual) {
+      if (p.parts) det = p.parts.map(x => `<div class="tdsub"><b>${esc(x.sub)}</b>${todoBar(x.total ? Math.round(x.done / x.total * 100) : 0)}<span class="count">${x.done} / ${x.total}</span></div>${x.missing.length ? `<div class="tdmiss">${x.missing.slice(0, 60).map(mm => `<button class="tag" data-tdgo="${mm.k}|${esc(mm.id)}">${esc(mm.label)}</button>`).join("")}${x.missing.length > 60 ? `<span class="count">ほか ${x.missing.length - 60}</span>` : ""}</div>` : ""}`).join("");
+      else if (p.r) { const r = p.r;
+        det = (Object.keys(r.per).length ? `<div class="tdfields">${Object.entries(r.per).map(([f, n]) => `<span>${esc(f)} <b>${n}</b>/${r.total}</span>`).join("")}</div>` : "") +
+          (r.missing.length ? `<p class="count" style="margin:6px 0 4px">まだのもの（押すと編集画面が開きます）</p><div class="tdmiss">${r.missing.slice(0, 80).map(mm => `<button class="tag" data-tdgo="${mm.k}|${esc(mm.id)}" title="${esc((mm.lack || []).join("・"))}">${esc(mm.label)}${mm.lack && mm.lack.length && mm.lack.length < 4 ? `<small> ${esc(mm.lack.join("・"))}</small>` : ""}</button>`).join("")}${r.missing.length > 80 ? `<span class="count">ほか ${r.missing.length - 80}件</span>` : ""}</div>` : `<p class="count">すべて入力済みです 🎉</p>`); }
+    }
+    const form = ed ? `<div class="tdform"><label>担当 <input id="tdWho" maxlength="40" value="${esc(m.who || "")}" placeholder="例：ねぎ・すず"></label>${it.manual ? `<label>進捗 <select id="tdPct">${[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(n => `<option value="${n}" ${(+m.pct || 0) === n ? "selected" : ""}>${n}%</option>`).join("")}</select></label>` : ""}${it.extra ? `<label>項目名 <input id="tdT" maxlength="80" value="${esc(it.t)}"></label>` : ""}<label class="wide">メモ <textarea id="tdMemo" rows="2" maxlength="500">${esc(m.memo || "")}</textarea></label>
+      <div class="row2"><button class="btn small primary" data-tdsave="${esc(it.id)}">保存</button><button class="btn small" data-tdcancel="1">やめる</button>${it.extra ? `<span style="flex:1"></span><button class="btn small danger" data-tddel="${esc(it.id)}">この項目を削除</button>` : ""}</div></div>` : "";
+    return `<div class="tdrow${p.pct >= 100 ? " done" : ""}"><button class="tdhead" data-tdopen="${esc(it.id)}"><span class="tdchk">${p.pct >= 100 ? "✔" : ""}</span><span class="tdt"><b>${esc(it.t)}</b>${it.note ? `<small>${esc(it.note)}</small>` : ""}</span>${todoBar(p.pct)}<span class="tdpct">${p.pct}%</span><span class="count tdlab">${esc(p.label)}</span></button>
+      <div class="tdmeta">${m.who ? `<span class="tag">担当：${esc(m.who)}</span>` : ""}${m.memo ? `<span class="count">${esc(m.memo)}</span>` : ""}<button class="btn small" data-tdedit="${esc(it.id)}">担当・メモ</button></div>${det}${form}</div>`; };
+  const grp = g => items.filter(i => i.g === g).map(row).join("");
+  AM.innerHTML = userBar() + `<div class="toolbar"><h2><small>TODO</small>やること（公開までの進捗）</h2></div>
+  <section class="apanel tdall"><b>公開までの進捗</b>${todoBar(overall)}<span class="tdbig">${overall}%</span><span class="count">「公開まで」の ${main.length} 項目の平均。データから自動で数えています（「もろもろ」などは手動）。</span></section>
+  <h3 class="fgh">公開まで</h3><div class="tdlist">${grp("公開まで")}</div>
+  <h3 class="fgh">追加</h3><div class="tdlist">${grp("追加")}</div>
+  <div class="row2" style="margin-top:10px"><button class="btn" data-tdadd="1">＋ やることを追加</button></div>`;
+}
+async function saveTodo(id) {
+  const who = (document.getElementById("tdWho") || {}).value || "", memo = (document.getElementById("tdMemo") || {}).value || "";
+  const pctEl = document.getElementById("tdPct"), tEl = document.getElementById("tdT");
+  try {
+    const extra = ((TODODOC && TODODOC.extra) || []).slice(); const ei = extra.findIndex(x => x.id === id);
+    if (ei >= 0) { extra[ei] = Object.assign({}, extra[ei], { who, memo, pct: pctEl ? +pctEl.value : 0, done: pctEl ? +pctEl.value >= 100 : false, t: tEl ? tEl.value.trim() || extra[ei].t : extra[ei].t }); await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); }
+    else await F.setDoc(F.doc(F.db, "tables", "todo"), { items: { [id]: Object.assign({ who, memo }, pctEl ? { pct: +pctEl.value, done: +pctEl.value >= 100 } : {}) }, at: now(), by: meId() }, { merge: true });
+    TD.edit = null; toast("保存しました");
+  } catch (e) { toast(fbErr(e), 5000); }
+  renderTodo();
+}
+async function todoAction(ds) {
+  if (ds.tdopen) { TD.open = TD.open === ds.tdopen ? null : ds.tdopen; renderTodo(); return; }
+  if (ds.tdedit) { TD.edit = TD.edit === ds.tdedit ? null : ds.tdedit; renderTodo(); return; }
+  if (ds.tdcancel) { TD.edit = null; renderTodo(); return; }
+  if (ds.tdsave) { saveTodo(ds.tdsave); return; }
+  if (ds.tdgo) { const [k, id] = ds.tdgo.split("|"); S.tab = "edit"; ED.k = k; ED.listK = k; renderAll(); openEditor(k, id); return; }
+  if (ds.tdadd) { const t = prompt("追加するやることの名前"); if (!t || !t.trim()) return; const extra = ((TODODOC && TODODOC.extra) || []).concat([{ id: "x" + rid(), t: t.trim().slice(0, 80), who: "", memo: "", pct: 0 }]);
+    try { await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); toast("追加しました"); } catch (e) { toast(fbErr(e), 5000); } return; }
+  if (ds.tddel) { if (!confirm("この項目を削除しますか？")) return; const extra = ((TODODOC && TODODOC.extra) || []).filter(x => x.id !== ds.tddel);
+    try { await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); TD.edit = null; } catch (e) { toast(fbErr(e), 5000); } return; }
+}
+
 /* ================= guide / Q&A（使い方ガイドとよくある質問） ================= */
 let GUIDEDOC = null, GUIDEAT = 0;   // public/guide の中身（なければ null → data/guide.json を下書きに使う）
 const GD = { k: "guide", draft: null, baseAt: 0, dirty: false, busy: false, confirm: null };
@@ -1969,7 +2059,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -1977,6 +2067,7 @@ function onAdminClick(e) {
   if (ds.a === "seed") { seedAll(); return; }
   if (ds.a === "ghhide") { const g = GHNEW[ED.k]; if (g && g.sig) { try { localStorage.setItem("rxr-ghnew-hide-" + ED.k, g.sig); } catch (e) { } g.added = []; } const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(ED.k); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
+  if (ds.tdopen || ds.tdedit || ds.tdcancel || ds.tdsave || ds.tdgo || ds.tdadd || ds.tddel) { todoAction(ds); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
   if (ds.teamedit || ds.teamfloor || ds.a === "teamadd") {
@@ -2197,6 +2288,23 @@ function injectStyle() {
 .tagopt.on{border-color:var(--accent);background:var(--soft)}
 .tagopt.edited{outline:2px dashed #e0a400;outline-offset:1px}
 .tagopt small{font-size:10px;color:var(--muted);border:1px solid var(--line2);padding:0 3px;border-radius:2px}
+.tdall{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px}
+.tdall .tdbar{flex:1 1 240px;height:14px}.tdbig{font-family:var(--display);font-size:26px;font-weight:700;color:var(--accent-ink)}
+.tdlist{display:grid;gap:6px;margin-bottom:12px}
+.tdrow{background:var(--panel);box-shadow:var(--shadow);padding:8px 12px}
+.tdrow.done{opacity:.8}
+.tdhead{display:grid;grid-template-columns:22px minmax(0,1fr) minmax(90px,200px) 44px auto;gap:10px;align-items:center;width:100%;border:0;background:none;text-align:left;cursor:pointer;color:var(--ink);padding:2px 0}
+.tdchk{width:20px;height:20px;border:2px solid var(--line2);display:grid;place-items:center;color:#fff;font-weight:900;font-size:12px}
+.tdrow.done .tdchk{background:var(--good);border-color:var(--good)}
+.tdt{display:grid}.tdt small{color:var(--muted);font-size:12px}
+.tdbar{display:block;height:10px;background:var(--soft);border-radius:6px;overflow:hidden}.tdbar i{display:block;height:100%;border-radius:6px}
+.tdpct{font-family:var(--display);font-weight:700;text-align:right}
+.tdmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0 0 32px}
+.tdsub{display:grid;grid-template-columns:8em minmax(90px,240px) auto;gap:8px;align-items:center;margin:8px 0 2px 32px}
+.tdfields{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0 32px;font-size:12.5px}
+.tdmiss{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 0 32px}.tdmiss .tag{cursor:pointer;border:1px solid var(--line2);background:var(--field)}
+.tdform{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 10px;margin:8px 0 0 32px}.tdform .wide{grid-column:1/-1}.tdform label{display:grid;gap:2px;font-size:12px}
+@media (max-width:820px){.tdhead{grid-template-columns:22px minmax(0,1fr) 44px}.tdhead .tdbar,.tdhead .tdlab{grid-column:2/-1}.tdmeta,.tdsub,.tdfields,.tdmiss,.tdform{margin-left:0}}
 .synrows{display:grid;gap:6px}
 .synrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);background:var(--field);padding:6px 8px;border-radius:3px}
 .synin{flex:1;display:grid;gap:4px}
