@@ -1,11 +1,10 @@
 <!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=block" rel="stylesheet">
 <style>
-html,body{margin:0;background:transparent}
-.ic{width:512px;height:512px;position:relative;overflow:hidden;background:linear-gradient(150deg,#071a44 0%,#0d3b8c 45%,#1a86ff 100%);font-family:Oswald,sans-serif}
-.band{position:absolute;left:-100px;right:-100px;top:196px;height:150px;background:linear-gradient(90deg,rgba(25,211,255,0),rgba(25,211,255,.28),rgba(25,211,255,0));transform:rotate(-24deg)}
-.g{position:absolute;inset:0;transform:rotate(-24deg)}
-.t{position:absolute;left:0;right:0;top:130px;text-align:center;color:#fff;font-weight:700;font-size:200px;line-height:1;letter-spacing:-4px;text-shadow:0 8px 24px rgba(0,0,0,.35)}
-.t span{color:#19d3ff}
-.w{position:absolute;left:0;right:0;top:336px;text-align:center;font-weight:700;font-size:54px;letter-spacing:10px;color:transparent;-webkit-text-stroke:3px #fff}
-</style></head><body><div class="ic" id="ic"><div class="band"></div><div class="g"><div class="t">R<span>x</span>R</div><div class="w">WIKI</div></div></div></body></html>
+html,body{margin:0}
+.ic{width:512px;height:512px;position:relative;overflow:hidden;background:linear-gradient(180deg,rgba(0,0,0,0) 80%,#0b2a66 86%),url(face.webp) 50% -78px/100% no-repeat;background-color:#0b2a66;font-family:Oswald,sans-serif}
+.ic::after{content:"";position:absolute;left:0;right:0;bottom:0;height:34%;background:linear-gradient(180deg,rgba(7,26,68,0),rgba(7,26,68,.75) 45%,#0b2a66 80%)}
+.w{position:absolute;z-index:2;left:0;right:0;bottom:34px;text-align:center;color:#fff;font-weight:700;font-style:italic;font-size:124px;line-height:1;letter-spacing:2px;transform:skewX(-8deg);-webkit-text-stroke:12px #0d3b8c;paint-order:stroke fill;text-shadow:0 6px 18px rgba(0,0,0,.45)}
+.r{position:absolute;z-index:2;left:0;right:0;text-align:center;bottom:158px;letter-spacing:4px;color:#fff;font-weight:700;font-style:italic;font-size:48px;line-height:1;transform:skewX(-8deg);-webkit-text-stroke:7px #0d3b8c;paint-order:stroke fill}
+.r span{color:#19d3ff}
+</style></head><body><div class="ic" id="ic"><div class="w">WIKI</div></div></body></html>
