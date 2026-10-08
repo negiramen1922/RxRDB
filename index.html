@@ -1419,13 +1419,15 @@ function heroFocus(){
 }
 addEventListener("resize",()=>{clearTimeout(heroFocus.t);heroFocus.t=setTimeout(heroFocus,150);});
 /* ヘッダーの背景：キャラ＝ランダムな覚醒イラスト、スクリプト＝ランダムなスクリプトイラスト、
-   封印戦＝その封印戦のテーマイラスト（images.json の sealfull / seals。なければ通常の画像）、ほか＝通常の画像。
+   封印戦＝その封印戦のテーマイラスト（images.json の sealfull / seals。なければ通常の画像）、ホーム＝キャラとスクリプトのイラストからランダム、バベル＝通常の画像。
    タブを開くたび・再読み込みのたびに選び直す */
 let HEROKEY=null;
 function tabHero(){
   if(MODE==="admin")return;
   const top=topOf(tab);const rnd=o=>{const ks=Object.keys(o).filter(k=>o[k]);return ks.length?ks[Math.floor(Math.random()*ks.length)]:"";};
   if(top==="chara"||top==="script"){if(HEROKEY===top)return;HEROKEY=top;const m=top==="chara"?BANNER:SFULL,k=rnd(m);if(k)showHero(m[k],top==="chara"?"char":"script",k);else showHero(HERO);return;}
+  if(top==="home"){if(HEROKEY==="home")return;HEROKEY="home";const pool=Object.keys(BANNER).filter(k=>BANNER[k]).map(k=>["char",k,BANNER[k]]).concat(Object.keys(SFULL).filter(k=>SFULL[k]).map(k=>["script",k,SFULL[k]]));
+    if(pool.length){const [kind,k,u]=pool[Math.floor(Math.random()*pool.length)];showHero(u,kind,k);}else showHero(HERO);return;}
   if(top==="seal"){const f=curFloor();const k="seal|"+(f?f.key:"");if(HEROKEY===k)return;HEROKEY=k;if(f&&SEALF[f.floor])showHero(SEALF[f.floor],"seal",f.floor);else showHero(f&&SEAL[f.floor]||HERO);return;}
   if(HEROKEY==="base")return;HEROKEY="base";showHero(HERO);
 }
