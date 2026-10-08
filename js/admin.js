@@ -9,7 +9,7 @@ const TABLES = ["chars", "scripts", "babel", "teams", "seals", "people", "styles
 const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル", teams: "編成例", seals: "封印戦", people: "騎士", styles: "スタイル", bosses: "ボス", events: "イベント", options: "選択肢" };
 const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"], teams: ["バベル種類", "階層", "編成名"], seals: ["封印戦名"], people: ["名前"], styles: ["スタイル"], bosses: ["名前"], events: ["イベント名"] };
 // 画像を持つ表：種類と、画像のキーになる列
-const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["seal", "封印戦名"], bosses: ["boss", "名前"], events: ["event", "イベント名"] };
+const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["seal", "封印戦名"], people: ["knight", "名前"], bosses: ["boss", "名前"], events: ["event", "イベント名"] };
 /* ---- 入力フォームの設計（列名 → 入力の種類）。ここにない列は「その他の列」に出る ---- */
 // t: text / num / auto（自動で入る・編集不可） / floor（バベルの階層を選ぶ） / hide（フォームに出さない） / team（編成のキャラ6人） / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
 const SCHEMA = {
@@ -43,7 +43,7 @@ const SCHEMA = {
     { g: "コメント", f: [["コメント", "long"]] },
   ],
   people: [
-    { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["性別", "opt:性別"], ["誕生日", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["CV", "text"]] },
+    { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["性別", "opt:性別"], ["誕生日", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["CV", "text"], ["立ち絵", "sel:なし"]] },
     { g: "プロフィール", f: [["プロフィール", "long"]] },
   ],
   seals: [
@@ -623,7 +623,7 @@ function customList(k) {
     const list = [...T.people.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
     return `<div class="toolbar"><h2><small>KNIGHTS</small>騎士</h2><input class="search" id="clq" placeholder="名前・騎士団などで検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.people.rows.size}</span></div>
     <p class="hint" style="margin:-6px 0 12px">スタイルに関係なく、そのキャラ自身の情報です。ここの騎士団・階級・性別が、各スタイルのキャラデータに自動で使われます。</p>
-    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = R.IMG[`${c["名前"]}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean);
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = R.KN[c["名前"]] || R.IMG[`${c["名前"]}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean);
       const who = othersOn("people", r.id);
       return `<button class="pcard" data-adrow="${esc(r.id)}">${face ? `<img src="${esc(face)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b><small>${esc(c["ふりがな"] || "")}</small>
       <span class="ptags">${c["騎士団"] ? `<span>${R.ic(c["騎士団"], "ord")}${esc(c["騎士団"])}</span>` : '<span class="miss">騎士団未設定</span>'}${c["階級"] ? `<span>${R.ic(c["階級"])}${esc(c["階級"])}</span>` : ""}${c["性別"] ? `<span>${esc(c["性別"])}</span>` : ""}${c["誕生日"] ? `<span>🎂${esc(c["誕生日"])}</span>` : ""}</span>
@@ -1112,7 +1112,7 @@ function editForm() {
   const both = ED.conflict ? ED.conflict.both : [];
   const io = IMGOF[ED.k]; const ik = io ? io[0] : null;
   const ikey = io ? (ED.base[io[1]] || "") : "";
-  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : ik === "boss" ? R.BOSS[ikey] : ik === "event" ? R.EVT[ikey] : null;
+  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : ik === "boss" ? R.BOSS[ikey] : ik === "event" ? R.EVT[ikey] : ik === "knight" ? R.KN[ikey] : null;
   const full = ik && ikey ? R.cropSrc(ik, ikey) : null;
   const adj = ik && ikey && R.CROPS["c_" + ik + "_" + R.hashId(ikey)];
   let h = `<div class="edhead"><h2>${ED.isNew ? `${TLABEL[ED.k]}を追加` : esc(labelOf(ED.k, ED.draft))}</h2><span class="count">${TLABEL[ED.k]}</span></div><div id="edbanner">${bannerHtml()}</div>`;
@@ -1411,11 +1411,12 @@ async function ioAction(a, btn) {
 
 /* ================= images ================= */
 const IM = { k: "char", files: [], busy: false, cq: "" };
-const IKIND = { char: "キャラ", script: "スクリプト", seal: "封印戦", boss: "ボス", event: "イベント", icon: "アイコン", hero: "ヘッダー背景" };
+const IKIND = { char: "キャラ", script: "スクリプト", knight: "騎士（立ち絵）", seal: "封印戦", boss: "ボス", event: "イベント", icon: "アイコン", hero: "ヘッダー背景" };
 const ICON_ALIAS = { "アタッカー": ["attacker", "attaker", "atk"], "シューター": ["shooter"], "ブレイカー": ["breaker"], "ヒーラー": ["healer"], "トリックスター": ["trickster", "trickstar"], "サポーター": ["supporter", "support"], "ブレイドライン": ["bladeline"], "千紫": ["colors", "senshi"], "Mazlab": ["maze", "mazlab", "mazelab"], "第六起源魔術教会": ["sixth"], "リンドブルム": ["lindwurm", "lindblum"], "オッター貿易": ["otter"], "アクシオンゲート": ["axiongate", "axion"], "ORANGE": ["orange"] };
 function targets(k) {
   if (k === "char") return R.CH.map(c => ({ key: c.id, label: c.name, alts: [c.id, c.name, c.base + (c.style || "")] }));
   if (k === "script") { const seen = new Set(); return R.SC.filter(s => s.name && !seen.has(s.name) && seen.add(s.name)).map(s => ({ key: s.name, label: s.name, alts: [s.name] })); }
+  if (k === "knight") return rowsOf("people").filter(c => c["名前"]).map(c => ({ key: c["名前"], label: c["名前"], alts: [c["名前"], c["ふりがな"] || ""].filter(Boolean) }));
   if (k === "seal") return rowsOf("seals").map(c => ({ key: c["封印戦名"], label: c["封印戦名"], alts: [c["封印戦名"], c["キャラ名"] || ""].filter(Boolean) }));
   if (k === "boss") return rowsOf("bosses").map(c => ({ key: c["名前"], label: c["名前"], alts: [c["名前"], c["よみ"] || ""].filter(Boolean) }));
   if (k === "event") return rowsOf("events").map(c => ({ key: c["イベント名"], label: c["イベント名"], alts: [c["イベント名"]] }));
@@ -1443,7 +1444,7 @@ function sim(a, b) {
   return Math.min(s, 0.99);
 }
 function scoreFile(name, tg) { const n = norm(name); let best = 0; tg.alts.forEach(a => { best = Math.max(best, sim(n, norm(a))); }); return best; }
-function hasImage(k, key) { return k === "char" ? !!R.BASE.IMG[key] : k === "script" ? !!R.BASE.SIMG[key] : k === "boss" ? !!R.BASE.BOSS[key] : k === "seal" ? !!R.BASE.SEAL[key] : k === "event" ? !!R.BASE.EVT[key] : k === "icon" ? !!R.BASE.ICON[key] : !!R.BASE.HERO; }
+function hasImage(k, key) { return k === "char" ? !!R.BASE.IMG[key] : k === "script" ? !!R.BASE.SIMG[key] : k === "boss" ? !!R.BASE.BOSS[key] : k === "seal" ? !!R.BASE.SEAL[key] : k === "knight" ? !!R.BASE.KN[key] : k === "event" ? !!R.BASE.EVT[key] : k === "icon" ? !!R.BASE.ICON[key] : !!R.BASE.HERO; }
 function matchAll() {
   const tg = targets(IM.k);
   IM.files.forEach(f => { f.cands = tg.map(t => ({ key: t.key, label: t.label, s: scoreFile(f.name, t) })).sort((a, b) => b.s - a.s).slice(0, 8); });
@@ -1455,9 +1456,9 @@ function matchAll() {
 }
 function renderImg() {
   // 画像あり／なしの数には、未実装のキャラ・スクリプトを入れない（画像の割り当て先には出す）
-  const unrel = new Set(IM.k === "char" ? rowsOf("chars").filter(c => c["実装"] === "未実装").map(c => c["ID"]) : IM.k === "script" ? rowsOf("scripts").filter(c => c["実装"] === "未実装").map(c => c["名前"]) : []);
+  const unrel = new Set(IM.k === "char" ? rowsOf("chars").filter(c => c["実装"] === "未実装").map(c => c["ID"]) : IM.k === "script" ? rowsOf("scripts").filter(c => c["実装"] === "未実装").map(c => c["名前"]) : IM.k === "knight" ? rowsOf("people").filter(c => c["立ち絵"] === "なし").map(c => c["名前"]) : []);
   const tg = targets(IM.k); const tgc = tg.filter(t => !unrel.has(t.key)); const has = tgc.filter(t => hasImage(IM.k, t.key)); const miss = tgc.filter(t => !hasImage(IM.k, t.key));
-  let h = userBar() + `<div class="toolbar"><h2><small>IMAGES</small>画像</h2><div class="seg">${Object.keys(IKIND).map(k => `<button data-imk="${k}" aria-pressed="${IM.k === k}">${IKIND[k]}</button>`).join("")}</div>${tg.length > 1 ? `<span class="count">画像あり ${has.length} / ${tgc.length}${unrel.size ? `（未実装の${unrel.size}件は除く）` : ""}</span>` : ""}</div>`;
+  let h = userBar() + `<div class="toolbar"><h2><small>IMAGES</small>画像</h2><div class="seg">${Object.keys(IKIND).map(k => `<button data-imk="${k}" aria-pressed="${IM.k === k}">${IKIND[k]}</button>`).join("")}</div>${tg.length > 1 ? `<span class="count">画像あり ${has.length} / ${tgc.length}${unrel.size ? `（${IM.k === "knight" ? "立ち絵なし" : "未実装"}の${unrel.size}件は除く）` : ""}</span>` : ""}</div>`;
   let tail = "";
   if (tg.length > 1) tail += `<section class="apanel"><h3 class="ph">画像がないもの（${miss.length}）</h3>${miss.length ? `<div class="misslist">${miss.map(t => `<span>${esc(t.label)}</span>`).join("")}</div>` : `<p class="hint" style="margin:0">すべて画像があります。</p>`}</section>`;
   h += ghPanel() + `<section class="apanel"><h3 class="ph">画像をアップロード</h3>
@@ -1499,13 +1500,13 @@ async function processImage(kind, key, file) {
   if (kind === "icon") { const s = Math.min(1, 96 / Math.max(W, H)); const p = `images/icons/${nm}.png`; const b = await R.canvasBlob(im, 0, 0, W, H, W * s, H * s, "image/png"); files.push({ path: p, blob: b }); set.icons = p; local.icons = b; }
   else if (kind === "hero") { const [dw, dh] = fit(1800); const b = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82); files.push({ path: "images/hero.webp", blob: b }); set.hero = "images/hero.webp"; local.hero = b; }
   else {
-    const dir = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals" }[kind]; const [dw, dh] = fit({ char: 1200, script: 720, boss: 900, event: 1400, seal: 900 }[kind]);
+    const dir = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals", knight: "images/knights" }[kind]; const [dw, dh] = fit({ char: 1200, script: 720, boss: 900, event: 1400, seal: 900, knight: 900 }[kind]);
     const full = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82);
     let side, sx, sy;
     if (W > H * 1.2) { side = H * 0.46; sx = W / 2 - side / 2; sy = H * 0.08; } else { side = Math.min(W, H) * 0.9; sx = (W - side) / 2; sy = Math.min(H - side, H * 0.04); }
     const thumb = await R.canvasBlob(im, sx, sy, side, side, 176, 176, "image/webp", .85);
     files.push({ path: `${dir}/${nm}.webp`, blob: full }, { path: `${dir}/thumb/${nm}.webp`, blob: thumb });
-    const SEC = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"], seal: ["sealfull", "seals"] }[kind];
+    const SEC = IMG_SECS[kind];
     set[SEC[0]] = `${dir}/${nm}.webp`; set[SEC[1]] = `${dir}/thumb/${nm}.webp`; local[SEC[0]] = full; local[SEC[1]] = thumb;
   }
   return { kind, key, name: file.name, files, set, local };
@@ -1523,7 +1524,7 @@ function applyImagesJson(json, items) {
   return json;
 }
 // アップロード直後は GitHub Pages の反映（1分ほど）を待たずに、手元の画像で表示する
-const MEDIA_MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF", seals: "SEAL", sealfull: "SEALF" };
+const MEDIA_MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF", seals: "SEAL", sealfull: "SEALF", knights: "KN", knightfull: "KNF" };
 function showLocal(items) {
   const MAP = MEDIA_MAP;
   items.forEach(it => Object.entries(it.local).forEach(([sec, b]) => { const u = URL.createObjectURL(b); if (sec === "hero") R.BASE.HERO = u; else R.BASE[MAP[sec]][it.key] = u; }));
@@ -1574,7 +1575,7 @@ function setProg(text, pct) {
 function startProg(kind, key, text, pct) { QUP = { id: kind + "|" + key, text, pct }; if (DLG && DLG.open) renderForm(); }
 function endProg() { QUP = null; if (DLG && DLG.open) renderForm(); }
 /* ---- 画像の削除: images.json から外し、ほかから使われていないファイルも消す（1コミット） ---- */
-const IMG_SECS = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"], seal: ["sealfull", "seals"] };
+const IMG_SECS = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"], seal: ["sealfull", "seals"], knight: ["knightfull", "knights"] };
 let IMGDEL = null, IMGDEL_BUSY = false;
 async function ghRemove(kind, key) {
   const br = GH.branch || "main"; const secs = IMG_SECS[kind];
@@ -1915,7 +1916,7 @@ let TODODOC = null; const TD = { open: null, edit: null };
 const nonEmpty = v => { const s = String(v == null ? "" : v).trim(); return !!s && s !== "—" && s !== "-"; };
 function rowsCheck(k, fields, okFn, label) {
   // 未実装のキャラ・スクリプトは数えない
-  const rows = [...(T[k] ? T[k].rows.values() : [])].filter(r => String((r.c || {})["実装"] || "").trim() !== "未実装").sort((a, b) => a.o - b.o);
+  const rows = [...(T[k] ? T[k].rows.values() : [])].filter(r => String((r.c || {})["実装"] || "").trim() !== "未実装" && (k !== "people" || String((r.c || {})["立ち絵"] || "").trim() !== "なし" || !okFn)).sort((a, b) => a.o - b.o);
   const per = {}; (fields || []).forEach(f => per[f] = 0);
   const missing = [];
   rows.forEach(r => { const c = r.c || {}; let ok = true;
@@ -1924,6 +1925,9 @@ function rowsCheck(k, fields, okFn, label) {
     if (!ok) missing.push({ id: r.id, k, label: label ? label(c) : labelOf(k, c), lack: (fields || []).filter(f => !nonEmpty(c[f])) }); });
   return { done: rows.length - missing.length, total: rows.length, per, missing };
 }
+// 騎士団ごとの騎士の人数（やること「騎士の登録」の目標）
+const KN_PER = 6;
+const knOrders = () => uniq(R.ORDERS, opts("騎士団")).filter(Boolean);
 function todoItems() {
   const floorNo = c => parseFloat(String(c["階層"] || "").replace(/[^\d.]/g, ""));
   const mid = c => { const n = floorNo(c); return n >= 55 && n <= 100; };
@@ -1941,6 +1945,8 @@ function todoItems() {
       midCheck("おすすめ編成", c => teamKeys.has(keyOfCells("babel", c))),
       midCheck("攻略のコツ", c => nonEmpty(c["攻略のコツ"]))] },
     { id: "seal", g: "公開まで", t: "各封印戦の画像と特性", note: "テーマイラストとステージ効果", r: () => rowsCheck("seals", ["ステージ効果"], c => R.SEAL[c["封印戦名"]] || R.SEALF[c["封印戦名"]]) },
+    { id: "kreg", g: "公開まで", t: "騎士の登録", note: `騎士団ごとに${KN_PER}人（騎士団 ${knOrders().length} × ${KN_PER}人）`, multi: () => knOrders().map(o => { const n = rowsOf("people").filter(c => String(c["騎士団"] || "").trim() === o).length; return { sub: o, done: Math.min(n, KN_PER), total: KN_PER, missing: [] }; }) },
+    { id: "kimg", g: "公開まで", t: "騎士の画像（立ち絵）のインポート", note: "「立ち絵」を「なし」にした騎士は数えません", r: () => rowsCheck("people", null, c => c["立ち絵"] === "なし" || R.KN[c["名前"]] || R.KNF[c["名前"]], c => c["名前"]) },
     { id: "csw", g: "追加", t: "全キャラの強いところ・弱いところ", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
     { id: "misc", g: "追加", t: "もろもろの各データ", note: "進捗は手動で更新してください", manual: true },
   ];
