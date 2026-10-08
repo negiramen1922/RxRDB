@@ -9,7 +9,8 @@
 - `js/fb.js` … Firebase 初期化（gstatic 10.12.2）とオーナーのメールアドレス。
 - `firestore.rules` … Firestore のセキュリティルール。変えたら Firebase コンソールのルールにも貼る。
 - `data/chars.json` / `data/scripts.json` / `data/babel.json` … `{headers:[...], rows:[[...]]}` 形式の表データ。列名で参照しているので列の追加・並べ替えは自由。
-  - chars: `ID`（例 `カノン_DEFAULT`）がキャラの識別子。Tier配置もこのIDで保存される。
+  - chars: `ID`（例 `カノン_DEFAULT`）がキャラの識別子。Tier配置もこのIDで保存される。`おすすめセット` は1行1人「キャラID|シナジーの説明」（キャラ詳細に表示。相手側にも逆向きで表示）。
+- 効果キーワード：キャラ・スクリプトの効果文の中の言葉（鈍化・移動速度低下など）をリンクにし、押すと同じ言葉を含むキャラ・スクリプトの一覧（index.html の `KEYWORDS`・`openKeyword`）。一覧は管理画面「選択肢」→「効果キーワード」で編集（public/options）。
 - `data/tiers.json` / `data/news.json` … 運営Tier表とお知らせの予備（管理画面の data/*.json 書き出しに含まれる）。
   - scripts: `名前` が識別子。条件2・条件3 は属性/騎士団/階級/スタイル/キャラ名/女性・男性。
   - babel: `バベル種類` + `階層` が識別子。`攻略のコツ`（旧 `ポイント`。Firestore に古い列名が残っていれば管理画面が自動で付け替える＝js/admin.js の RENAMES）。`解析データ` は1行1効果、`【味方】`などの見出し行で区切る。`おすすめキャラID` はカンマ区切りのキャラID。

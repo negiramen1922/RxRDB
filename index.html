@@ -149,6 +149,13 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
 .recs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.kw{border:0;background:none;padding:0;font:inherit;color:var(--accent-ink);text-decoration:underline dotted;text-decoration-color:rgba(26,134,255,.6);text-underline-offset:3px;cursor:pointer;font-weight:700}
+.kw:hover{background:var(--soft)}
+.syns{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px}
+.syn{border:1px solid var(--line);background:var(--field);display:flex;gap:8px;align-items:flex-start;padding:6px 8px;text-align:left;cursor:pointer;color:var(--ink);border-radius:3px}
+.syn:hover{background:var(--soft)}
+.syn img,.syn .noth,.syn .rowth{width:40px;height:40px;border-radius:6px;object-fit:cover;flex:0 0 auto;display:grid;place-items:center}
+.syn span{display:grid;gap:2px;min-width:0}.syn b{font-size:13.5px;color:var(--accent-ink)}.syn small{font-size:12px;color:var(--muted);line-height:1.5}
 .sw{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 4px}
 .sw>div{border-left:4px solid;padding:6px 10px;background:var(--field)}
 .sw b{font-size:12.5px;letter-spacing:.06em}.sw p{margin:2px 0 0;font-size:13.5px;line-height:1.6}
@@ -1190,8 +1197,8 @@ function openScript(i){
     const g=kvGroup("防御",[["物理防御",esc(v("物理防御")),`scripts|物理防御|${s.i}`],["特殊防御",esc(v("特殊防御")),`scripts|特殊防御|${s.i}`]]);
     h+=`<h3>ステータス</h3>${m?`<div class="meters">${m}</div>`:""}${g?`<div class="kvs">${g}</div>`:""}`;}
   h+=`<h3>効果</h3><dl class="lv">`;
-  if(v("スキル1効果"))h+=`<dt>常時</dt><dd>${esc(v("スキル1効果"))}</dd>`;
-  [["条件2","スキル2効果"],["条件3","スキル3効果"]].forEach(([c,e])=>{if(v(c)||v(e))h+=`<dt>${v(c)?ic(ALIAS[v(c)]||v(c),ORDERS.includes(v(c))?"ord":"")+" "+esc(v(c)):"—"}</dt><dd>${esc(v(e))}</dd>`;});
+  if(v("スキル1効果"))h+=`<dt>常時</dt><dd>${kwHtml(v("スキル1効果"))}</dd>`;
+  [["条件2","スキル2効果"],["条件3","スキル3効果"]].forEach(([c,e])=>{if(v(c)||v(e))h+=`<dt>${v(c)?ic(ALIAS[v(c)]||v(c),ORDERS.includes(v(c))?"ord":"")+" "+esc(v(c)):"—"}</dt><dd>${kwHtml(v(e))}</dd>`;});
   h+=`</dl>`;
   const used=new Set(["名前","ロール","レアリティ","実装日","スキル1効果","条件2","スキル2効果","条件3","スキル3効果",...stats]);
   const rest=d.headers.map((n,k)=>[n,k]).filter(([n,k])=>!used.has(n)&&(s.row[k]||"").trim());
@@ -1258,6 +1265,36 @@ function meterBlock(label,val,sub,all,rk){
 }
 function kvGroup(title,pairs){pairs=pairs.filter(p=>p[1]!==""&&p[1]!=null);if(!pairs.length)return "";return `<div class="kvg"><p class="kvt">${title}</p>${pairs.map(([k,v,rk])=>rk?`<button class="kv" data-rank="${esc(rk)}" title="${esc(k)}のランキングを見る"><span>${k} <i class="rki">順位</i></span><b>${v}</b></button>`:`<div class="kv"><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;}
 
+/* ---------- おすすめセット（キャラごとの相性の良いキャラ）：列「おすすめセット」は1行1人「キャラID|シナジーの説明」 ---------- */
+function synList(c){const d=data("chars");const i=d.headers.indexOf("おすすめセット");return i>=0?String(c.row[i]||"").split("\n").map(l=>{const k=l.indexOf("|");return k<0?{id:l.trim(),t:""}:{id:l.slice(0,k).trim(),t:l.slice(k+1).trim()};}).filter(x=>x.id):[];}
+function synergyHtml(c){
+  const own=synList(c);const back=CH.filter(x=>x.id!==c.id&&synList(x).some(y=>y.id===c.id)&&!own.some(y=>y.id===x.id));
+  if(!own.length&&!back.length)return "";
+  const card=(id,t)=>{const x=CHMAP[id];return `<button class="syn" ${x?`data-detail="${esc(id)}"`:""}>${x?cth(x):`<span class="noth">${esc([...id][0]||"")}</span>`}<span><b>${esc(x?x.name:id)}</b>${t?`<small>${esc(t)}</small>`:""}</span></button>`;};
+  let h=`<h3>おすすめセット</h3>`;
+  if(own.length)h+=`<div class="syns">${own.map(y=>card(y.id,y.t)).join("")}</div>`;
+  if(back.length)h+=`<p class="hint" style="margin:8px 0 4px">このキャラをおすすめに挙げているキャラ</p><div class="syns">${back.map(x=>card(x.id,(synList(x).find(y=>y.id===c.id)||{}).t)).join("")}</div>`;
+  return h;
+}
+/* ---------- 効果のキーワード（鈍化・移動速度低下など）：説明文の中でリンクにし、同じ効果を持つキャラ・スクリプトの一覧を出す。
+   キーワードは管理画面の「選択肢」→「効果キーワード」で編集（public/options） ---------- */
+const KEYWORDS=["鈍化","気絶","出血","やけど","焦燥","戦慄","鎖バインド","ノックバック","挑発","カウンター","身代わり","暴走","シールド","継続治癒","被回復","回避","移動速度低下","攻撃力上昇","攻撃力低下","被ダメージ","クリティカル","クールタイム","BLADEゲージ","コスト回復"];
+let KWRE=null;
+function kwRe(){if(KWRE)return KWRE;const ks=KEYWORDS.filter(Boolean).slice().sort((a,b)=>b.length-a.length).map(k=>esc(k).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));KWRE=ks.length?new RegExp(ks.join("|"),"g"):null;return KWRE;}
+function kwHtml(t){const e=esc(t);const re=kwRe();return re?e.replace(re,m=>`<button class="kw" data-kw="${m}">${m}</button>`):e;}
+const kwCols=d=>d.headers.map((n,i)=>[n,i]).filter(([n])=>/効果|特性開放/.test(n));
+function openKeyword(kw){
+  const d=data("chars"),cols=kwCols(d),sd=data("scripts"),scols=kwCols(sd);
+  const short=n=>/BLADE/.test(n)?"BLADE":/特性/.test(n)?"特性":/スキル/.test(n)?"スキル":n.replace(/効果$/,"");
+  const ch=CH.map(c=>({c,hits:cols.filter(([,i])=>String(c.row[i]||"").includes(kw)).map(([n])=>short(n))})).filter(x=>x.hits.length).sort((a,b)=>b.c.date-a.c.date);
+  const sc=SC.map(s=>({s,hits:scols.filter(([,i])=>String(s.row[i]||"").includes(kw)).map(([n])=>n.replace(/効果$/,""))})).filter(x=>x.hits.length);
+  let h=`<h2>「${esc(kw)}」が出てくるキャラ・スクリプト</h2><p class="hint" style="margin:0 0 8px">スキル・BLADE・特性の説明文に「${esc(kw)}」を含むものです。押すと詳細が開きます。</p>`;
+  h+=`<h3>キャラ（${ch.length}）</h3>${ch.length?`<div class="syns">${ch.map(x=>`<button class="syn" data-detail="${esc(x.c.id)}">${cth(x.c)}<span><b>${esc(x.c.name)}</b><small>${esc([...new Set(x.hits)].join("・"))}</small></span></button>`).join("")}</div>`:'<p class="count">ありません</p>'}`;
+  h+=`<h3>スクリプト（${sc.length}）</h3>${sc.length?`<div class="syns">${sc.map(x=>`<button class="syn" data-sdetail="${x.s.i}">${sth(x.s)}<span><b>${esc(x.s.name)}</b><small>${esc(x.hits.join("・"))}</small></span></button>`).join("")}</div>`:'<p class="count">ありません</p>'}`;
+  h+=`<div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
+  document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");if(!dl.open)dl.showModal();dl.scrollTop=0;
+  track("keyword",{kw});
+}
 function openChar(id){
   const c=CHMAP[id];if(!c)return;const d=data("chars");
   const v=n=>{const i=d.headers.indexOf(n);return i>=0?(c.row[i]||"").trim():"";};
@@ -1266,6 +1303,7 @@ function openChar(id){
   h+=`<h2>${esc(c.name)}</h2><div class="metarow">${c.attr?`${ic(c.attr,"big")}<span class="attr ${esc(c.attr)}">${esc(c.attr)}</span>`:""}${["騎士団","階級","ロール","スタイル","ダメージタイプ","性別","実装日"].map(n=>take(n)?`<span class="m">${ic(v(n),n==="騎士団"?"ord":"")} ${esc(v(n))}</span>`:"").join("")}<span class="m">${esc(c.id)}</span></div>`;
   {const sg=take("強いところ"),wk=take("弱いところ");
    if(sg||wk)h+=`<div class="sw">${sg?`<div class="sw-s"><b>強いところ</b><p>${esc(sg).replace(/\n/g,"<br>")}</p></div>`:""}${wk?`<div class="sw-w"><b>弱いところ</b><p>${esc(wk).replace(/\n/g,"<br>")}</p></div>`:""}</div>`;}
+  h+=synergyHtml(c,take("おすすめセット"));
   ["No","キャラ名","ID","名前 ひらがな","キャラ","属性"].forEach(n=>used.add(n));
   ["HP最大値","攻撃力最大値","HP初期値","攻撃力初期値","Lv200 HP","Lv200 攻撃力","物理防御","特殊防御","攻撃速度","抵抗値","初期コスト","育成後コスト","再出撃コスト","再出撃時間(S)"].forEach(n=>used.add(n));
   {const col=n=>{const i=d.headers.indexOf(n);return CH.map(x=>i>=0?num(x.row[i]):null);};
@@ -1275,7 +1313,7 @@ function openChar(id){
    const cost=v("初期コスト")?esc(v("初期コスト"))+(v("育成後コスト")?` <span class="arw">→</span> ${esc(v("育成後コスト"))}`:""):"";
    const g=kvGroup("防御・速度",[["物理防御",esc(v("物理防御")),R("物理防御")],["特殊防御",esc(v("特殊防御")),R("特殊防御")],["攻撃速度",esc(v("攻撃速度")),R("攻撃速度")],["抵抗値",esc(v("抵抗値")),R("抵抗値")]])+kvGroup("コスト",[["出撃コスト",cost,R("初期コスト")],["再出撃コスト",esc(v("再出撃コスト"))],["再出撃時間",v("再出撃時間(S)")?esc(v("再出撃時間(S)"))+"秒":"",R("再出撃時間(S)")]]);
    if(m||g)h+=`<h3>ステータス</h3>${m?`<div class="meters">${m}</div>`:""}${g?`<div class="kvs">${g}</div>`:""}`;}
-  const block=(title,name,sub,levels)=>{const lv=levels.filter(([n])=>take(n));take(name);take(sub);if(!lv.length&&!v(name))return "";return `<h3>${title}</h3><div class="sname">${esc(v(name))}${v(sub)?`<small>${esc(sub.replace(/名$/,""))} ${esc(v(sub))}</small>`:""}</div><dl class="lv">${lv.map(([n,l])=>`<dt>${l}</dt><dd>${esc(v(n))}</dd>`).join("")}</dl>`;};
+  const block=(title,name,sub,levels)=>{const lv=levels.filter(([n])=>take(n));take(name);take(sub);if(!lv.length&&!v(name))return "";return `<h3>${title}</h3><div class="sname">${esc(v(name))}${v(sub)?`<small>${esc(sub.replace(/名$/,""))} ${esc(v(sub))}</small>`:""}</div><dl class="lv">${lv.map(([n,l])=>`<dt>${l}</dt><dd>${kwHtml(v(n))}</dd>`).join("")}</dl>`;};
   h+=block("スキル","スキル名","スキルクールタイム",[["覚醒1 スキル効果","覚醒1"],["覚醒7 スキル効果","覚醒7"],["覚醒13 スキル効果","覚醒13"]]);
   h+=block("BLADE","BLADE名","BLADEゲージ",[["Lv1 BLADE効果","Lv1"],["Lv7 BLADE効果","Lv7"],["Lv13 BLADE効果","Lv13"]]);
   h+=block("特性","特性名称","",[["Lv1 特性効果","Lv1"],["Lv3 特性効果","Lv3"],["Lv5 特性効果","Lv5"],["特性開放 ★4","★4"],["特性開放 ★5","★5"]]);
@@ -1297,7 +1335,7 @@ function openRow(kind,i){
 
 /* ---------- clicks ---------- */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-scattr],[data-seff],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act],[data-view],[data-seal]");
+  const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-kw],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-scattr],[data-seff],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act],[data-view],[data-seal]");
   if(!t)return;const ds=t.dataset;
   if(t.hasAttribute("data-close")){t.closest("dialog").close();return;}
   if(MODE==="admin"){const inA=t.closest("#admin");if(!inA&&!t.closest("#actionbar"))return;if(inA&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN&&window.RXR_ADMIN.pick(ds))return;}
@@ -1311,6 +1349,7 @@ document.addEventListener("click",e=>{
   if(ds.rkdir){RK.dir=RK.dir==="desc"?"asc":"desc";renderRank();return;}
   if(ds.rkattr){RK.attr=RK.attr===ds.rkattr?null:ds.rkattr;renderRank();return;}
   if(ds.rkrole){RK.role=RK.role===ds.rkrole?null:ds.rkrole;renderRank();return;}
+  if(ds.kw){openKeyword(ds.kw);return;}
   if(ds.detail!==undefined){openChar(ds.detail);return;}
   if(ds.seal){S.curSeal=ds.seal;sel=null;save();render();return;}
   if(ds.floor){track("floor",{floor:ds.floor});S.curFloor=ds.floor;sel=null;save();if(ds.go)switchTab("tier");else render();return;}
@@ -1520,7 +1559,7 @@ async function loadSite(){
   if(location.hash==="#admin")openAdminModule();
 }
 /* 管理画面の「選択肢」（public/options）を絞り込みボタンなどに反映 */
-function setOptions(o){if(!o)return;const put=(arr,v)=>{if(Array.isArray(v)&&v.length)arr.splice(0,arr.length,...v);};put(ATTRS,o["属性"]);put(ROLES,o["ロール"]);put(RANKS,o["階級"]);put(ORDERS,o["騎士団"]);}
+function setOptions(o){if(!o)return;const put=(arr,v)=>{if(Array.isArray(v)&&v.length)arr.splice(0,arr.length,...v);};put(ATTRS,o["属性"]);put(ROLES,o["ロール"]);put(RANKS,o["階級"]);put(ORDERS,o["騎士団"]);if(Array.isArray(o["効果キーワード"])&&o["効果キーワード"].length){KEYWORDS.splice(0,KEYWORDS.length,...o["効果キーワード"]);KWRE=null;}}
 /* ================= 画像で共有 ================= */
 const SITE_URL=location.origin+location.pathname;
 let SHARE={blob:null,url:"",text:""};
@@ -1693,7 +1732,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=25");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=26");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1728,7 +1767,7 @@ document.getElementById("fbSend").addEventListener("click",async e=>{
 /* ================= bridge for admin module ================= */
 window.RXR={
   get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
-  get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
+  KEYWORDS,get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
   IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,SEAL,SEALF,BASE,ATTRS,ROLES,RANKS,ORDERS,
   get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,
   rebuild(){buildModels();},renderUser(){render();},

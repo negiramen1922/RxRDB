@@ -17,6 +17,7 @@ const SCHEMA = {
     { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["No", "auto"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
     { g: "騎士の設定から（自動）", note: "騎士団・階級・性別は「騎士」の設定がそのまま使われます。変えるときは騎士のほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
     { g: "強いところ・弱いところ", note: "キャラ詳細の上の方に表示されます。改行もそのまま出ます。", f: [["強いところ", "long"], ["弱いところ", "long"]] },
+    { g: "おすすめセット", note: "一緒に使うと相性の良いキャラ。何人でも追加でき、キャラごとにシナジーの説明を書けます。相手のキャラ詳細にも「このキャラをおすすめに挙げているキャラ」として出ます。", f: [["おすすめセット", "synergy"]] },
     { g: "ステータス", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["HP最大値", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["攻撃力最大値", "num"], ["物理防御", "num"], ["特殊防御", "num"], ["攻撃速度", "opt:攻撃速度"], ["抵抗値", "num"]] },
     { g: "コスト", f: [["初期コスト", "num"], ["育成後コスト", "num"], ["再出撃コスト", "num"], ["再出撃時間(S)", "num"]] },
     { g: "スキル", f: [["スキル名", "text"], ["スキルクールタイム", "num"], ["覚醒1 スキル効果", "long"], ["覚醒7 スキル効果", "long"], ["覚醒13 スキル効果", "long"]] },
@@ -657,6 +658,24 @@ function customList(k) {
   return `<div class="toolbar"><h2><small>STYLES</small>スタイル</h2><input class="search" id="clq" placeholder="検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.styles.rows.size}</span></div>
   <div class="tblwrap"><table class="stbl"><thead><tr><th>スタイル</th><th>略称</th><th>よみ</th><th>キャラ数</th><th>メモ</th></tr></thead><tbody>${list.map(r => { const c = r.c || {}; return `<tr data-adrow="${esc(r.id)}"><td class="first"><b>${esc(c["スタイル"] || "")}</b></td><td>${esc(c["略称"] || "")}</td><td>${esc(c["よみ"] || "")}</td><td>${cnt[c["スタイル"]] || 0}</td><td class="wrap">${esc(c["メモ"] || "")}</td></tr>`; }).join("")}</tbody></table></div>`;
 }
+/* ---- おすすめセット（1行1人「キャラID|シナジーの説明」） ---- */
+function synRows(v) { return String(v || "").split("\n").map(l => { const k = l.indexOf("|"); return k < 0 ? { id: l.trim(), t: "" } : { id: l.slice(0, k).trim(), t: l.slice(k + 1) }; }).filter(x => x.id || x.t); }
+const synStr = rows => rows.filter(x => x.id).map(x => x.id + "|" + String(x.t || "").replace(/[\r\n|]+/g, " ").trim()).join("\n");
+function synField(name, v) {
+  const rows = synRows(v);
+  return `<div class="synrows">${rows.map((x, i) => { const c = R.CHMAP[x.id]; return `<div class="synrow"><span class="tmimg">${R.IMG[x.id] ? `<img src="${esc(R.IMG[x.id])}" alt="">` : '<span class="noimg"></span>'}</span>
+    <div class="synin"><input data-syn="${i}|id" list="dl_chars" value="${esc(c ? c.name : x.id)}" placeholder="キャラ名">${x.id && !c ? '<small class="err">見つからないキャラ</small>' : ""}
+    <textarea data-syn="${i}|t" rows="2" placeholder="何がシナジーか（例：鈍化で足止めした敵にスキルが当たりやすい）">${esc(x.t)}</textarea></div>
+    <button class="btn small" data-synrm="${i}" aria-label="外す">✕</button></div>`; }).join("") || '<span class="count">まだいません</span>'}</div>
+    <div class="addcol"><button class="btn small" data-synadd="1">＋ キャラを追加</button></div>`;
+}
+function synInput(el) {
+  const [i, f] = el.dataset.syn.split("|"); const rows = synRows(ED.draft["おすすめセット"]); const r = rows[+i]; if (!r) return;
+  if (f === "id") { const v = el.value.trim(); const hit = charOptions().find(o => o.label === v || o.id === v); r.id = hit ? hit.id : v; }
+  else r.t = el.value;
+  ED.draft["おすすめセット"] = rows.map(x => (x.id || "?") + "|" + String(x.t || "").replace(/[\r\n|]+/g, " ")).join("\n");
+  ED.dirty = true; ED.leaveOk = false; const sb = document.getElementById("edsave"); if (sb) sb.disabled = false;
+}
 /* ---- 編成例 ---- */
 const TEAM_N = 6;
 // メンバー列は1行1人「キャラID|星|スクリプト名」
@@ -738,6 +757,7 @@ function renderForm() {
     });
   });
   const nc = document.getElementById("ednewcol"); if (nc) nc.addEventListener("input", () => { ED.newCol = nc.value; });
+  body.querySelectorAll("[data-syn]").forEach(el => el.addEventListener(el.tagName === "TEXTAREA" ? "input" : "change", () => { synInput(el); if (el.tagName !== "TEXTAREA") renderForm(); }));
   body.querySelectorAll("[data-tm]").forEach(el => el.addEventListener("change", () => { teamInput(el); renderForm(); }));
   body.querySelectorAll("[data-floorsel]").forEach(el => el.addEventListener("change", () => { const [t, f] = el.value.split("|"); ED.draft["バベル種類"] = t || ""; ED.draft["階層"] = f || ""; ED.dirty = true; ED.leaveOk = false; renderForm(); }));
   const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const io = IMGOF[ED.k]; quickUpload(io[0], ED.base[io[1]], f); });
@@ -745,8 +765,8 @@ function renderForm() {
 }
 /* ---- 選択肢（プルダウン） ---- */
 const ICONKEYS = ["騎士団", "階級", "ロール", "属性"];
-const OPT_KEYS = ["騎士団", "階級", "ロール", "属性", "ダメージタイプ", "性別", "攻撃速度", "レアリティ", "バベル種類"];
-const OPT_NOTE = { "騎士団": "騎士の所属。公開サイトの絞り込み・アイコンにも使われます", "階級": "KING・QUEEN など", "ロール": "キャラ・スクリプトのロール", "属性": "破壊・衝撃・爆発", "攻撃速度": "A・Aplus など", "バベル種類": "リバースバベル など" };
+const OPT_KEYS = ["騎士団", "階級", "ロール", "属性", "ダメージタイプ", "性別", "攻撃速度", "レアリティ", "バベル種類", "効果キーワード"];
+const OPT_NOTE = { "効果キーワード": "キャラ・スクリプトの説明文の中でリンクになる言葉です。押すと、同じ言葉を含むキャラ・スクリプトの一覧が出ます（長い言葉が優先）。",  "騎士団": "騎士の所属。公開サイトの絞り込み・アイコンにも使われます", "階級": "KING・QUEEN など", "ロール": "キャラ・スクリプトのロール", "属性": "破壊・衝撃・爆発", "攻撃速度": "A・Aplus など", "バベル種類": "リバースバベル など" };
 function colVals(k, col) { if (!T[k] || !seeded(k)) return []; const out = []; T[k].rows.forEach(r => { const v = String((r.c || {})[col] || "").trim(); if (v && !out.includes(v)) out.push(v); }); return out; }
 const uniq = (...ls) => { const o = []; ls.forEach(l => (l || []).forEach(v => { if (v && !o.includes(v)) o.push(v); })); return o; };
 function optDefaults() {
@@ -754,7 +774,7 @@ function optDefaults() {
     "騎士団": uniq(R.ORDERS, colVals("people", "騎士団")), "階級": uniq(R.RANKS, colVals("people", "階級")),
     "ロール": uniq(R.ROLES, colVals("chars", "ロール"), colVals("scripts", "ロール")), "属性": uniq(R.ATTRS, colVals("chars", "属性")),
     "ダメージタイプ": uniq(["物理", "特殊", "ヒール"], colVals("chars", "ダメージタイプ")), "性別": uniq(["女", "男"], colVals("people", "性別")),
-    "攻撃速度": uniq(colVals("chars", "攻撃速度")), "レアリティ": uniq(["SSR", "SR", "R"], colVals("scripts", "レアリティ"), colVals("chars", "レアリティ")), "バベル種類": uniq(R.TYPES, colVals("babel", "バベル種類")),
+    "攻撃速度": uniq(colVals("chars", "攻撃速度")), "レアリティ": uniq(["SSR", "SR", "R"], colVals("scripts", "レアリティ"), colVals("chars", "レアリティ")), "バベル種類": uniq(R.TYPES, colVals("babel", "バベル種類")), "効果キーワード": R.KEYWORDS.slice(),
   };
 }
 function opts(key) { return OPTS && Array.isArray(OPTS[key]) && OPTS[key].length ? OPTS[key] : (optDefaults()[key] || []); }
@@ -771,6 +791,7 @@ async function saveOpts(mut, label) {
   } catch (e) { toast(fbErr(e), 5000); }
 }
 function usage(key, v) {
+  if (key === "効果キーワード") { let n = 0; ["chars", "scripts"].forEach(k => T[k] && T[k].rows.forEach(r => { if (Object.entries(r.c || {}).some(([h, x]) => /効果|特性開放/.test(h) && String(x || "").includes(v))) n++; })); return n; }
   const m = { "騎士団": [["people", "騎士団"]], "階級": [["people", "階級"]], "ロール": [["chars", "ロール"], ["scripts", "ロール"]], "属性": [["chars", "属性"], ["babel", "推奨属性"]], "ダメージタイプ": [["chars", "ダメージタイプ"]], "性別": [["people", "性別"]], "攻撃速度": [["chars", "攻撃速度"]], "レアリティ": [["scripts", "レアリティ"]], "バベル種類": [["babel", "バベル種類"]] }[key] || [];
   let n = 0; m.forEach(([k, c]) => { if (T[k]) T[k].rows.forEach(r => { if (String((r.c || {})[c] || "").trim() === v) n++; }); }); return n;
 }
@@ -830,6 +851,8 @@ function fieldHtml(name, type, i, both) {
     const cur = keyOfCells("babel", ED.draft); const fs = floorsList();
     label = "バベルの階層";
     inner = `<select id="${id}" data-floorsel="1"><option value="">（階層を選択）</option>${fs.map(x => `<option value="${esc(x.key)}" ${x.key === cur ? "selected" : ""}>${esc(x.label)}</option>`).join("")}${cur.replace("|", "") && !fs.some(x => x.key === cur) ? `<option value="${esc(cur)}" selected>${esc(cur.replace("|", " "))}F（バベルにない階層）</option>` : ""}</select>`;
+  } else if (type === "synergy") {
+    cls += " long"; inner = synField(name, v);
   } else if (type === "team") {
     cls += " long"; inner = teamField(v);
   } else if (type === "auto") {
@@ -907,6 +930,7 @@ function formFields(both) {
   // datalists
   const cond = uniq(R.ATTRS, opts("騎士団"), opts("階級"), rowsOf("styles").map(c => c["スタイル"]), rowsOf("people").map(c => c["名前"]), ["女性", "男性"]);
   h += `<datalist id="dl_cond">${cond.map(x => `<option value="${esc(x)}">`).join("")}</datalist>`;
+  if (ED.k === "chars") h += `<datalist id="dl_chars">${charOptions().filter(o => o.id !== ED.draft["ID"]).map(o => `<option value="${esc(o.label)}">`).join("")}</datalist>`;
   if (ED.k === "teams") h += `<datalist id="dl_scripts">${R.SC.map(x => `<option value="${esc(x.name)}">`).join("")}</datalist>`;
   if (ED.k === "babel" || ED.k === "events" || ED.k === "teams") h += `<datalist id="dl_chars">${charOptions().map(o => `<option value="${esc(o.label)}">`).join("")}</datalist>`;
   if (ED.k === "babel" || ED.k === "events") h += `<datalist id="dl_boss">${rowsOf("bosses").map(b => `<option value="${esc(b["名前"])}">`).join("")}</datalist>`;
@@ -975,7 +999,7 @@ function dupKey(k, cells, selfId) {
 function logDoc(o) { return Object.assign({ at: now(), by: meId(), name: meName() }, o); }
 async function saveRow(force) {
   const k = ED.k;
-  if (k === "chars") autofillChar();
+  if (k === "chars") { autofillChar(); if ("おすすめセット" in ED.draft) ED.draft["おすすめセット"] = synStr(synRows(ED.draft["おすすめセット"]).filter(x => x.id && x.id !== "?")); }
   // 自動で付く項目（ID・キャラ名・ひらがな・No など）は、既存の行では元の値のまま保存する
   if (!ED.isNew && !ED.gone) (SCHEMA[k] || []).forEach(g => g.f.forEach(([n, t]) => { if (t === "id" || t === "auto") ED.draft[n] = ED.base[n] == null ? "" : ED.base[n]; }));
   const rn = RENAMES[k] || {};   // 編集中に列名が付け替わったときは、新しい列名で保存する
@@ -1923,7 +1947,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -1940,6 +1964,8 @@ function onAdminClick(e) {
     if (!seeded("teams")) { toast("編成例の表を準備しています。数秒後にもう一度押してください"); return; }
     const t = ED.base["バベル種類"], f = ED.base["階層"]; ED.k = "teams"; resetEd(); edAction("new"); ED.draft["バベル種類"] = t; ED.draft["階層"] = f; renderForm(); return;
   }
+  if (ds.synadd) { const rows = synRows(ED.draft["おすすめセット"]); rows.push({ id: "?", t: "" }); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); const ins = document.querySelectorAll('#edBody [data-syn$="|id"]'); if (ins.length) { ins[ins.length - 1].value = ""; ins[ins.length - 1].focus(); } return; }
+  if (ds.synrm !== undefined) { const rows = synRows(ED.draft["おすすめセット"]); rows.splice(+ds.synrm, 1); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); return; }
   if (ds.tmclear !== undefined) { const sl = teamSlots(ED.draft["メンバー"]); sl[+ds.tmclear] = { id: "", star: "", sc: "" }; ED.draft["メンバー"] = slotsStr(sl); ED.dirty = true; renderForm(); return; }
   if (ds.cpadd) { pickAdd(ds.cpadd); return; }
   if (ds.dladd) { const inp = document.querySelector(`#edBody .dlin[data-dlfield="${CSS.escape(ds.dladd)}"]`); const v = inp && fromDate(inp.value); if (!v) { toast("日付を選んでください"); return; } const cur = splitList(ED.draft[ds.dladd]); if (!cur.includes(v)) cur.push(v); cur.sort((a, b) => toDate(a).localeCompare(toDate(b))); ED.draft[ds.dladd] = cur.join("、"); ED.dirty = true; renderForm(); return; }
@@ -2140,6 +2166,10 @@ function injectStyle() {
 .gdprev{box-shadow:none;border:1px dashed var(--line2);padding:8px 12px;font-size:13.5px}
 .gdprev p,.gdprev li{font-size:13.5px}
 @media (max-width:820px){.gdbody{grid-template-columns:1fr}}
+.synrows{display:grid;gap:6px}
+.synrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);background:var(--field);padding:6px 8px;border-radius:3px}
+.synin{flex:1;display:grid;gap:4px}
+.synin textarea{min-height:44px}
 .teamcard .tmfaces{display:flex;gap:3px;flex-wrap:wrap;margin:4px 0}
 .teamcard .tmfaces img{width:34px;height:34px;border-radius:5px;object-fit:cover}
 .tmslots{display:grid;gap:6px}
