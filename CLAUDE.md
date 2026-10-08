@@ -14,6 +14,7 @@
 - キャラ一覧の絞り込み：ゲーム内と同じタブ（基本＝ロール・攻撃属性・騎士団・階級・攻撃種・レアリティ・所持、攻撃／防御／HP／その他＝効果タグ）。効果タグは説明文から自動判定（index.html の `tagDefs`：1文にすべての条件が出れば該当、`{not:}` は除外）し、キャラの列 `効果タグ` の「+タグ」「-タグ」で手直し（管理画面ではチェックで編集）。キャラ詳細のタグを押すとそのタグで絞り込んだ一覧へ。
 - 効果キーワード：キャラ・スクリプトの効果文の中の言葉（鈍化・移動速度低下など）をリンクにし、押すと同じ言葉を含むキャラ・スクリプトの一覧（index.html の `KEYWORDS`・`openKeyword`）。一覧は管理画面「選択肢」→「効果キーワード」で編集（public/options）。
 - `data/tiers.json` / `data/news.json` … 運営Tier表とお知らせの予備（管理画面の data/*.json 書き出しに含まれる）。
+  - ステータス列：キャラ・スクリプトとも `HP初期値`/`Lv200 HP`/`完凸 HP`（攻撃力も同じ）。旧 `HP最大値`/`攻撃力最大値` は、キャラ＝完凸、スクリプト＝Lv200（スクリプトの Lv200 は星で変わらない）に自動で付け替え（admin.js の RENAMES、index.html の COLREN）。
   - scripts: `名前` が識別子。条件2・条件3 は属性/騎士団/階級/スタイル/キャラ名/女性・男性。
   - babel: `バベル種類` + `階層` が識別子。`攻略のコツ`（旧 `ポイント`。Firestore に古い列名が残っていれば管理画面が自動で付け替える＝js/admin.js の RENAMES）。`解析データ` は1行1効果、`【味方】`などの見出し行で区切る。`おすすめキャラID` はカンマ区切りのキャラID。
   - teams（編成例）: `バベル種類`+`階層`+`編成名` が識別子。`メンバー` は1行1人「キャラID|星|スクリプト名」（最大6人）、`コメント`。管理画面のバベル編集画面か「編成例」で編集し、公開サイトは階層ページに表示。星の下限はキャラの `レアリティ`（R=★1・SR=★2・SSR=★3）。予備は data/teams.json。
@@ -23,7 +24,7 @@
 
 ## Firebase（プロジェクト my-log-vh3o3b / 表示名 RxRbabelDB、Spark プラン）
 - データの正本は Firestore。`tables/{chars|scripts|babel|teams|seals|people|styles|bosses|events}`（headers）＋ `tables/{k}/rows/{id}`（`c`=列名→値, `o`=並び順, `t`, `by`, `rev`）。
-- 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、さらに公開サイト用の一式 `public/all`（`json`={chars,scripts,babel,teams,seals,crops,options,news,tiers,guide} をまとめたもの, `sig`）を作り直す。公開サイトは public/all を読む（読み取り回数の節約）。サムネイル位置は `public/crops`、プルダウンの選択肢は `public/options`（`json`={騎士団:[...],階級:[...],ロール:[...],...}）、運営Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID:Tier}}, at}`。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
+- 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、さらに公開サイト用の一式 `public/all`（`json`={chars,scripts,babel,teams,seals,crops,options,news,tiers,guide} をまとめたもの, `sig`）を作り直す。公開サイトは public/all を読む（読み取り回数の節約）。サムネイル位置は `public/crops`、プルダウンの選択肢は `public/options`（`json`={騎士団:[...],階級:[...],ロール:[...],...}）、運営Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID または キャラID~星:Tier}}, at}`。星違いで同じキャラを複数枠置ける（例 `カノン_DEFAULT~4`）。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
 - 管理画面の読み取り節約: 行データはブラウザ（localStorage `rxr-admin-rows-v1-*`）に保存し、開くたびに `ts`（サーバー時刻）が前回より新しい行だけを読む。行を書くときは必ず `ts: serverTimestamp()` を付け、削除は `tables/{k}.dels`（行ID→削除時刻）と `delKeys`（識別子→削除時刻。GitHub の data/*.json の古い行を「取り込み」で復活させないため）に記録する（ヘッダーの書き込みは `{merge:true}` で dels を消さない）。3日ごとに全件読み直し、「読み込み・書き出し」に手動の全件読み直しボタン。変更履歴とご意見は、そのタブを開いたときに読む（未対応件数は件数クエリ）。
 - 同時編集: 行ごとに `rev` を比べて衝突を検出（トランザクション）。`editing/{uid}` で「編集中」を表示。`log` に変更履歴（元に戻せる）。
 - `feedback`（誰でも作成のみ）、`stats/{YYYY-MM-DD}`（pv/uv を +1 だけ）、`roles/{email}`（編集者。読み書きはオーナーのみ、本人は自分の分だけ読める）、`names/{uid}`（表示名）。メールアドレスはオーナー以外に見せない：行・履歴・公開データなどの `by` は uid（公開データには書かない）、表示は names の名前。

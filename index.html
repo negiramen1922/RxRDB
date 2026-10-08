@@ -149,6 +149,9 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
 .recs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tile .tstar{position:absolute;right:2px;bottom:2px;background:rgba(5,20,55,.85);color:#ffd54a;font-size:10.5px;font-weight:900;padding:0 4px;border-radius:3px;line-height:1.5;font-family:var(--display)}
+.abstars{display:inline-flex;gap:3px;align-items:center;flex-wrap:wrap}.abstars small{color:#cfe3ff;font-size:11px;margin:0 2px}
+.abstars [aria-pressed="true"]{background:#ffd54a!important;color:#3a2a00!important}
 .tbright{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .sortbar{display:flex;gap:8px}
 .sortslot{display:inline-flex;align-items:center;border-bottom:2px solid var(--line2);gap:4px;padding-bottom:2px}
@@ -803,7 +806,11 @@ function load(){try{const r=localStorage.getItem(KEY);if(r){const s=JSON.parse(r
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 let S=load();
 let LIVE={};
-const data=k=>LIVE[k]||SEED[k]||{headers:[],rows:[]};
+/* 列名の変更（古い公開データも新しい列名で読む）。キャラの「最大値」は完凸、スクリプトの「最大値」は Lv200 のステータス */
+const COLREN={chars:{"HP最大値":"完凸 HP","攻撃力最大値":"完凸 攻撃力"},scripts:{"HP最大値":"Lv200 HP","攻撃力最大値":"Lv200 攻撃力"},babel:{"ポイント":"攻略のコツ"}};
+const NORMD=new WeakMap();
+const data=k=>{const d=LIVE[k]||SEED[k]||{headers:[],rows:[]};const m=COLREN[k];if(!m||!d.headers)return d;
+  let n=NORMD.get(d);if(!n){n=d.headers.some(h=>m[h]&&!d.headers.includes(m[h]))?{headers:d.headers.map(h=>m[h]&&!d.headers.includes(m[h])?m[h]:h),rows:d.rows}:d;NORMD.set(d,n);}return n;};
 
 /* ---------- models ---------- */
 let CH=[],CHMAP={},FLOORS=[],TYPES=[],STYLES=[],SC=[],SEALS=[],TEAMS={};
@@ -976,9 +983,9 @@ function renderHome(){
   <div class="hwelcome"><h2>リバリバの攻略情報をまとめたファンメイドwiki</h2><p>バベルの階層ごとのTier表・解析データ・編成例、キャラとスクリプトのデータ、封印戦の情報が見られます。</p>
   ${last?`<button class="btn primary hlast" data-gosub="${esc(S.lastTab)}">▶ 前回の続き：${esc(last)}</button>`:""}</div>
   <div class="hgrid">
-  ${card("tier",HERO,"BABEL","バベル","階層ごとの運営Tier表・解析データ・攻略のコツ・編成例",tops.length?`<div class="hquick">${tops.map(f=>`<button data-homefloor="${esc(f.key)}">${esc(f.type)} <b>${esc(f.floor)}F</b></button>`).join("")}</div>`:"")}
   ${card("chars",cimg,"CHARACTERS","キャラクター","キャラのステータス・スキル・特性。所持率チェッカー・ランキングも",`<div class="hquick"><button data-gosub="own">所持率チェッカー</button><button data-gosub="rank:chars">ランキング</button></div>`)}
   ${card("scripts",simg,"SCRIPTS","スクリプト","スクリプトの効果と、条件に合うキャラ",`<div class="hquick"><button data-gosub="rank:scripts">ランキング</button></div>`)}
+  ${card("tier",HERO,"BABEL","バベル","階層ごとの運営Tier表・解析データ・攻略のコツ・編成例",tops.length?`<div class="hquick">${tops.map(f=>`<button data-homefloor="${esc(f.key)}">${esc(f.type)} <b>${esc(f.floor)}F</b></button>`).join("")}</div>`:"")}
   ${card("seal",sealImg,"SEAL BATTLE","封印戦","封印戦ごとのTier表・ステージ効果・過去の開催日")}
   </div>
   <div class="hgrid2">
@@ -1144,12 +1151,12 @@ const SORTDEF={
   chars:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["no","No順",1],["role","ロール順",1],["attr","属性順",1],["name","名前順",1]],
   scripts:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["role","ロール順",1],["name","名前順",1]]};
 const SORTS={chars:[{k:"no",dir:1},null],scripts:[{k:"rar",dir:-1},null]};
-const SORTCOL={chars:{hp:"HP最大値",atk:"攻撃力最大値",pdef:"物理防御",sdef:"特殊防御",no:"No"},scripts:{hp:"HP最大値",atk:"攻撃力最大値",pdef:"物理防御",sdef:"特殊防御"}};
+const SORTCOL={chars:{hp:["完凸 HP","Lv200 HP"],atk:["完凸 攻撃力","Lv200 攻撃力"],pdef:["物理防御"],sdef:["特殊防御"],no:["No"]},scripts:{hp:["完凸 HP","Lv200 HP"],atk:["完凸 攻撃力","Lv200 攻撃力"],pdef:["物理防御"],sdef:["特殊防御"]}};
 function sortLabel(kind,k){if(!k)return "—";if(k.startsWith("col:")){const d=data(kind);return d.headers[+k.slice(4)]||"";}const x=SORTDEF[kind].find(([a])=>a===k);return x?x[1]:k;}
 function sortVal(kind,x,k){
   const d=data(kind);
   if(k.startsWith("col:")){const v=String(x.row[+k.slice(4)]||"").trim();if(!v)return null;if(d.headers[+k.slice(4)]==="実装日")return x.date||null;const n=parseFloat(v.replace(/,/g,""));return isNaN(n)?v:n;}
-  if(SORTCOL[kind][k]){const i=d.headers.indexOf(SORTCOL[kind][k]);const n=i>=0?num(x.row[i]):null;return n==null||isNaN(n)?null:n;}
+  if(SORTCOL[kind][k]){for(const nm of SORTCOL[kind][k]){const i=d.headers.indexOf(nm);const n=i>=0?num(x.row[i]):null;if(n!=null&&!isNaN(n))return n;}return null;}
   if(k==="rar")return RAR[x.rar]||null;
   if(k==="date")return x.date||null;
   if(k==="role"){const i=ROLES.indexOf(x.role);return i>=0?i:x.role==="ワイルド"?ROLES.length:null;}
@@ -1271,12 +1278,13 @@ function renderTier(){
   else if(!TIER_EDIT)h+=`<p class="offnote">${placed?`このTier表は運営メンバーが作成しています。キャラを押すと詳細が見られます。${OFFICIAL_AT?`<span class="count">最終更新 ${fmtDay(OFFICIAL_AT)}</span>`:""}`:`この階層のTier表は準備中です。もうしばらくお待ちください。`}</p>`;
   h+=tierFilterBar()+`<div class="board">`;
   TIERS.forEach((t,i)=>{
-    const inT=CH.filter(c=>P[c.id]===t&&tierShow(c)).sort((a,b)=>fits[b.id]-fits[a.id]);
-    h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(TDESC[t])}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(c=>tile(c,f,fits)).join(""):`<span class="zhint">${esc(TDESC[t])}</span>`}</div></div>`;
+    const inT=entries(P).filter(e=>e.t===t&&tierShow(e.c)).sort((a,b)=>fits[b.id]-fits[a.id]||a.id.localeCompare(b.id)||(+a.star||0)-(+b.star||0));
+    h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(TDESC[t])}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(e=>tile(e.c,f,fits,e)).join(""):`<span class="zhint">${esc(TDESC[t])}</span>`}</div></div>`;
   });
   h+=`</div>`;
   if(!CANEDIT()){h+=`</section></div>`;main.innerHTML=h;const m=document.getElementById("memo");m.addEventListener("input",()=>{S.notes[f.key]=m.value;save();});return;}
-  let list=CH.filter(c=>!TIERS.includes(P[c.id]));
+  const placedIds=new Set(entries(P).map(e=>e.id));
+  let list=CH.filter(c=>!placedIds.has(c.id));
   if(pool.q){const q=pool.q.toLowerCase();list=list.filter(c=>(c.name+c.id).toLowerCase().includes(q));}
   list=list.filter(tierShow);
   if(pool.sort==="fit")list.sort((a,b)=>fits[b.id]-fits[a.id]||b.date-a.date);
@@ -1297,9 +1305,17 @@ function renderTier(){
 }
 function fmtDay(t){const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;}
 // Tier表の中は画像アイコンだけ。縁の色が属性（破壊=緑・衝撃=青・爆発=赤）
-function tile(c,f,fits){
+/* Tier表の配置は「キャラID」か「キャラID~星」（例 カノン_DEFAULT~4）がキー。星違いで同じキャラを何枠でも置ける */
+const ekey=(id,st)=>st?id+"~"+st:id;
+const eparse=k=>{const i=String(k).lastIndexOf("~");return i>0&&/^\d$/.test(k.slice(i+1))?{id:k.slice(0,i),star:k.slice(i+1)}:{id:String(k),star:""};};
+const entries=P=>Object.entries(P||{}).map(([k,t])=>{const e=eparse(k);return Object.assign(e,{k,t,c:CHMAP[e.id]});}).filter(e=>e.c);
+const TORD=t=>{const i=TIERS.indexOf(t);return i<0?99:i;};
+const bestTier=(P,id)=>entries(P).filter(e=>e.id===id).sort((a,b)=>TORD(a.t)-TORD(b.t))[0]?.t;
+const starLabel=st=>st?"★"+st:"";
+function tile(c,f,fits,e){
   const rec=f&&f.recs.includes(c.id);const img=IMG[c.id];
-  return `<button class="tile ticon" draggable="${CANEDIT()}" data-id="${esc(c.id)}" aria-pressed="${sel===c.id}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}（${esc(c.attr)}・${esc(c.role)}）" aria-label="${esc(c.name)}">${img?`<img src="${img}" alt="" loading="lazy">`:`<span class="nm">${esc(c.name)}</span>`}${rec?'<span class="rec">★</span>':""}</button>`;
+  const k=e?e.k:c.id,st=e?e.star:"";
+  return `<button class="tile ticon" draggable="${CANEDIT()}" data-id="${esc(k)}" aria-pressed="${sel===k}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}${st?" "+starLabel(st):""}（${esc(c.attr)}・${esc(c.role)}）" aria-label="${esc(c.name)}${st?" "+starLabel(st):""}">${img?`<img src="${img}" alt="" loading="lazy">`:`<span class="nm">${esc(c.name)}</span>`}${rec?'<span class="rec">★</span>':""}${st?`<span class="tstar">★${esc(st)}</span>`:""}</button>`;
 }
 function ptile(c){
   const img=IMG[c.id];
@@ -1325,10 +1341,12 @@ function bindDrag(){
 }
 function renderActionBar(){
   const bar=document.getElementById("actionbar");
-  if(!CANEDIT()||!sel||!CHMAP[sel]){bar.classList.add("hidden");bar.innerHTML="";return;}
-  const cur=place(curFloor().key)[sel];
-  bar.innerHTML=`<b>${esc(CHMAP[sel].name)}</b>`+TIERS.map((t,i)=>`<button class="tb" style="background:${TCOL[i]};${cur===t?"outline:2px solid #fff;outline-offset:-3px":""}" data-moveto="${t}">${t}</button>`).join("")+
-  `<button class="btn small ghost-dark" data-moveto="">未配置へ</button><button class="btn small ghost-dark" data-detail="${esc(sel)}">詳細</button><button class="btn small ghost-dark" data-act="unsel" aria-label="選択解除">✕</button>`;
+  const se=sel?eparse(sel):null;
+  if(!CANEDIT()||!se||!CHMAP[se.id]){bar.classList.add("hidden");bar.innerHTML="";return;}
+  const P=place(curFloor().key),cur=P[sel];
+  const stars=cur?`<span class="abstars"><small>星</small>${["",1,2,3,4,5].map(n=>`<button class="btn small ghost-dark" data-star="${n}" aria-pressed="${String(n)===se.star}">${n?"★"+n:"なし"}</button>`).join("")}<button class="btn small ghost-dark" data-act="addstar" title="同じキャラを星違いでもう1枠置く">＋星違い</button></span>`:"";
+  bar.innerHTML=`<b>${esc(CHMAP[se.id].name)}${se.star?" ★"+esc(se.star):""}</b>`+TIERS.map((t,i)=>`<button class="tb" style="background:${TCOL[i]};${cur===t?"outline:2px solid #fff;outline-offset:-3px":""}" data-moveto="${t}">${t}</button>`).join("")+
+  stars+`<button class="btn small ghost-dark" data-moveto="">未配置へ</button><button class="btn small ghost-dark" data-detail="${esc(se.id)}">詳細</button><button class="btn small ghost-dark" data-act="unsel" aria-label="選択解除">✕</button>`;
   bar.classList.remove("hidden");
 }
 
@@ -1337,7 +1355,7 @@ function renderSum(){
   if(!CH.length||!FLOORS.length){main.innerHTML=emptyBlock(CH.length?"babel":"chars");return;}
   const fl=FLOORS.filter(f=>f.type===S.curType);
   const sc=t=>{const i=TIERS.indexOf(t);return i<0?null:TIERS.length-i;};
-  const rows=CH.map(c=>{const ts=fl.map(f=>place(f.key)[c.id]);const v=ts.map(sc).filter(x=>x!=null);return{c,ts,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null,cnt:v.length};})
+  const rows=CH.map(c=>{const ts=fl.map(f=>bestTier(place(f.key),c.id));const v=ts.map(sc).filter(x=>x!=null);return{c,ts,avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:null,cnt:v.length};})
     .filter(r=>r.cnt).sort((a,b)=>b.avg-a.avg||b.cnt-a.cnt);
   let h=viewSeg()+`<div class="toolbar"><h2><small>SUMMARY</small>全階層まとめ</h2>${typeSeg()}<span class="count">SSS=7 … D=1 で平均。評価した階層だけで計算します。</span></div>`;
   if(!rows.length){main.innerHTML=h+`<div class="empty"><h2>Tier表は準備中です</h2><p>運営が${esc(S.curType)}のTier表を公開すると、ここに全階層の評価がまとめて並びます。</p></div>`;return;}
@@ -1348,7 +1366,7 @@ function renderSum(){
 function badge(t){const i=TIERS.indexOf(t);return `<span class="badge" style="background:${TCOL[i]||"var(--line)"}">${esc(t)}</span>`;}
 
 /* ---------- chars table ---------- */
-const CORE=["キャラ名","騎士団","階級","スタイル","属性","ダメージタイプ","ロール","実装日","HP最大値","攻撃力最大値","攻撃速度","初期コスト","スキル名","スキルクールタイム","BLADE名","BLADEゲージ","特性名称"];
+const CORE=["キャラ名","騎士団","階級","スタイル","属性","ダメージタイプ","ロール","実装日","完凸 HP","完凸 攻撃力","攻撃速度","初期コスト","スキル名","スキルクールタイム","BLADE名","BLADEゲージ","特性名称"];
 function renderChars(){
   const d=data("chars");if(!d.rows.length){main.innerHTML=emptyBlock("chars");return;}
   const st=tstate.chars;
@@ -1387,7 +1405,7 @@ function renderBabel(){
 }
 
 /* ---------- scripts ---------- */
-const SCORE=["名前","レアリティ","ロール","実装日","HP最大値","攻撃力最大値","スキル1効果","条件2","スキル2効果","条件3","スキル3効果"];
+const SCORE=["名前","レアリティ","ロール","実装日","Lv200 HP","完凸 HP","Lv200 攻撃力","完凸 攻撃力","スキル1効果","条件2","スキル2効果","条件3","スキル3効果"];
 function renderScripts(){
   const d=data("scripts");const st=tstate.scripts;
   if(!d.rows.length){main.innerHTML=emptyBlock("scripts");return;}
@@ -1412,9 +1430,12 @@ function openScript(i){
   const v=n=>{const k=d.headers.indexOf(n);return k>=0?(s.row[k]||"").trim():"";};
   let h=SFULL[s.name]?`<img class="sart" src="${SFULL[s.name]}" alt="">`:"";
   h+=`<h2>${esc(s.name)}</h2><div class="metarow"><span class="rar ${esc(s.rar)}">${esc(s.rar)}</span><span class="m">${ic(s.role)} ${esc(s.role)}</span>${v("実装日")?`<span class="m">${esc(v("実装日"))}</span>`:""}</div>`;
-  const stats=["HP初期値","HP最大値","攻撃力初期値","攻撃力最大値","物理防御","特殊防御"].filter(n=>v(n));
+  const stats=["HP初期値","Lv200 HP","完凸 HP","攻撃力初期値","Lv200 攻撃力","完凸 攻撃力","物理防御","特殊防御"].filter(n=>v(n));
   if(stats.length){const col=n=>{const i=d.headers.indexOf(n);return SC.map(x=>i>=0?num(x.row[i]):null);};
-    const m=meterBlock("HP",v("HP最大値"),v("HP初期値")&&v("HP初期値")!=="—"?"初期 "+esc(v("HP初期値")):"",col("HP最大値"),`scripts|HP最大値|${s.i}`)+meterBlock("攻撃力",v("攻撃力最大値"),v("攻撃力初期値")&&v("攻撃力初期値")!=="—"?"初期 "+esc(v("攻撃力初期値")):"",col("攻撃力最大値"),`scripts|攻撃力最大値|${s.i}`);
+    const ok=x=>x&&x!=="—";
+    // 完凸の値があれば完凸、なければ Lv200 をメーターに出す（スクリプトの Lv200 は星で変わらない値）
+    const mt=(lab,a,b,c)=>{const top=ok(v(c))?c:b;return meterBlock(lab+(top===c?"（完凸）":"（Lv200）"),v(top),[ok(v(a))&&"初期 "+esc(v(a)),top===c&&ok(v(b))&&"Lv200 "+esc(v(b))].filter(Boolean).join("・"),col(top),`scripts|${top}|${s.i}`);};
+    const m=mt("HP","HP初期値","Lv200 HP","完凸 HP")+mt("攻撃力","攻撃力初期値","Lv200 攻撃力","完凸 攻撃力");
     const g=kvGroup("防御",[["物理防御",esc(v("物理防御")),`scripts|物理防御|${s.i}`],["特殊防御",esc(v("特殊防御")),`scripts|特殊防御|${s.i}`]]);
     h+=`<h3>ステータス</h3>${m?`<div class="meters">${m}</div>`:""}${g?`<div class="kvs">${g}</div>`:""}`;}
   h+=`<h3>効果</h3><dl class="lv">`;
@@ -1441,9 +1462,9 @@ function teamsHtml(f){
 }
 function cth(c){return IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth" title="画像未登録">${esc([...(c.name||"")][0]||"")}</span>`;}
 function sth(s){return SIMG[s.name]?`<img src="${SIMG[s.name]}" alt="" class="rowth">`:`<span class="rowth sph ${esc(s.rar)}" title="画像未登録">${esc((s.rar||"").slice(0,3))}</span>`;}
-const RKDEF={chars:[["HP最大値","HP","desc"],["攻撃力最大値","攻撃力","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"],["攻撃速度","攻撃速度","desc"],["抵抗値","抵抗値","desc"],["初期コスト","出撃コスト","asc"],["育成後コスト","育成後コスト","asc"],["再出撃時間(S)","再出撃時間","asc"],["スキルクールタイム","スキルCT","asc"],["BLADEゲージ","BLADEゲージ","asc"],["HP初期値","HP初期値","desc"],["攻撃力初期値","攻撃力初期値","desc"]],
-  scripts:[["HP最大値","HP","desc"],["攻撃力最大値","攻撃力","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"]]};
-const RK={t:"chars",stat:"HP最大値",dir:"desc",attr:null,role:null,focus:null};
+const RKDEF={chars:[["完凸 HP","HP（完凸）","desc"],["完凸 攻撃力","攻撃力（完凸）","desc"],["Lv200 HP","HP（Lv200）","desc"],["Lv200 攻撃力","攻撃力（Lv200）","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"],["攻撃速度","攻撃速度","desc"],["抵抗値","抵抗値","desc"],["初期コスト","出撃コスト","asc"],["育成後コスト","育成後コスト","asc"],["再出撃時間(S)","再出撃時間","asc"],["スキルクールタイム","スキルCT","asc"],["BLADEゲージ","BLADEゲージ","asc"],["HP初期値","HP初期値","desc"],["攻撃力初期値","攻撃力初期値","desc"]],
+  scripts:[["Lv200 HP","HP（Lv200）","desc"],["Lv200 攻撃力","攻撃力（Lv200）","desc"],["完凸 HP","HP（完凸）","desc"],["完凸 攻撃力","攻撃力（完凸）","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"]]};
+const RK={t:"chars",stat:"完凸 HP",dir:"desc",attr:null,role:null,focus:null};
 const SPEED={"S":5,"Aplus":4,"APlus":4,"A+":4,"A":3,"Bplus":2,"BPlus":2,"B+":2,"B":1,"C":0};
 function rkVal(stat,v){if(stat==="攻撃速度"){const k=String(v||"").trim();return k in SPEED?SPEED[k]:null;}return num(v);}
 function renderRank(){
@@ -1527,11 +1548,11 @@ function openChar(id){
   take("効果タグ");if(c.tags.length)h+=`<div class="ctags">${c.tags.map(t=>`<button class="chip" data-tagfilter="${esc(t)}" title="この効果を持つキャラを一覧で見る">${esc(t)}</button>`).join("")}</div>`;
   h+=synergyHtml(c,take("おすすめセット"));
   ["No","キャラ名","ID","名前 ひらがな","キャラ","属性"].forEach(n=>used.add(n));
-  ["HP最大値","攻撃力最大値","HP初期値","攻撃力初期値","Lv200 HP","Lv200 攻撃力","物理防御","特殊防御","攻撃速度","抵抗値","初期コスト","育成後コスト","再出撃コスト","再出撃時間(S)"].forEach(n=>used.add(n));
+  ["完凸 HP","完凸 攻撃力","HP初期値","攻撃力初期値","Lv200 HP","Lv200 攻撃力","物理防御","特殊防御","攻撃速度","抵抗値","初期コスト","育成後コスト","再出撃コスト","再出撃時間(S)"].forEach(n=>used.add(n));
   {const col=n=>{const i=d.headers.indexOf(n);return CH.map(x=>i>=0?num(x.row[i]):null);};
    const sub=(a,b)=>[v(a)&&`初期 ${esc(v(a))}`,v(b)&&`Lv200 ${esc(v(b))}`].filter(Boolean).join("・");
    const R=n=>`chars|${n}|${c.id}`;
-   const m=meterBlock("HP",v("HP最大値"),sub("HP初期値","Lv200 HP"),col("HP最大値"),R("HP最大値"))+meterBlock("攻撃力",v("攻撃力最大値"),sub("攻撃力初期値","Lv200 攻撃力"),col("攻撃力最大値"),R("攻撃力最大値"));
+   const m=meterBlock("HP（完凸）",v("完凸 HP"),sub("HP初期値","Lv200 HP"),col("完凸 HP"),R("完凸 HP"))+meterBlock("攻撃力（完凸）",v("完凸 攻撃力"),sub("攻撃力初期値","Lv200 攻撃力"),col("完凸 攻撃力"),R("完凸 攻撃力"));
    const cost=v("初期コスト")?esc(v("初期コスト"))+(v("育成後コスト")?` <span class="arw">→</span> ${esc(v("育成後コスト"))}`:""):"";
    const g=kvGroup("防御・速度",[["物理防御",esc(v("物理防御")),R("物理防御")],["特殊防御",esc(v("特殊防御")),R("特殊防御")],["攻撃速度",esc(v("攻撃速度")),R("攻撃速度")],["抵抗値",esc(v("抵抗値")),R("抵抗値")]])+kvGroup("コスト",[["出撃コスト",cost,R("初期コスト")],["再出撃コスト",esc(v("再出撃コスト"))],["再出撃時間",v("再出撃時間(S)")?esc(v("再出撃時間(S)"))+"秒":"",R("再出撃時間(S)")]]);
    if(m||g)h+=`<h3>ステータス</h3>${m?`<div class="meters">${m}</div>`:""}${g?`<div class="kvs">${g}</div>`:""}`;}
@@ -1541,7 +1562,7 @@ function openChar(id){
   h+=block("特性","特性名称","",[["Lv1 特性効果","Lv1"],["Lv3 特性効果","Lv3"],["Lv5 特性効果","Lv5"],["特性開放 ★4","★4"],["特性開放 ★5","★5"]]);
   const rest=d.headers.map((n,i)=>[n,i]).filter(([n,i])=>!used.has(n)&&(c.row[i]||"").trim());
   if(rest.length)h+=`<h3>その他</h3><dl class="lv">${rest.map(([n,i])=>`<dt>${esc(n)}</dt><dd>${esc(c.row[i])}</dd>`).join("")}</dl>`;
-  TYPES.concat(SEALS.length?["封印戦"]:[]).forEach(t=>{const fs=FLOORS.filter(f=>f.type===t&&place(f.key)[c.id]);if(fs.length)h+=`<h3>${esc(t)} の評価</h3><div class="floortiers">${fs.map(f=>`<div>${esc(f.floor)}${f.seal?"":"F"} ${badge(place(f.key)[c.id])}</div>`).join("")}</div>`;});
+  TYPES.concat(SEALS.length?["封印戦"]:[]).forEach(t=>{const fs=FLOORS.filter(f=>f.type===t&&entries(place(f.key)).some(e=>e.id===c.id));if(fs.length)h+=`<h3>${esc(t)} の評価</h3><div class="floortiers">${fs.flatMap(f=>entries(place(f.key)).filter(e=>e.id===c.id).sort((a,b)=>(+a.star||0)-(+b.star||0)).map(e=>`<div>${esc(f.floor)}${f.seal?"":"F"}${e.star?" ★"+esc(e.star):""} ${badge(e.t)}</div>`)).join("")}</div>`;});
   const ms=SC.map(s=>Object.assign({s},scMatch(s,c))).filter(x=>x.n>0&&x.roleOk).sort((a,b)=>b.n-a.n||(RAR[b.s.rar]||0)-(RAR[a.s.rar]||0)||b.s.date-a.s.date);
   if(ms.length)h+=`<h3>条件が合うスクリプト（${ms.length}）</h3><p class="hint" style="margin:0 0 6px">ロールが同じ（またはワイルド）で、条件2・条件3が属性・騎士団・階級・スタイル・キャラ・性別に合うもの。</p><div class="mini">${ms.slice(0,12).map(x=>scard(x.s,c)).join("")}</div>`;
   const f=curFloor();
@@ -1557,11 +1578,12 @@ function openRow(kind,i){
 
 /* ---------- clicks ---------- */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-kw],[data-cview],[data-sview],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act],[data-view],[data-seal]");
+  const t=e.target.closest("[data-close],.tile,[data-moveto],[data-star],[data-zone],[data-kw],[data-cview],[data-sview],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act],[data-view],[data-seal]");
   if(!t)return;const ds=t.dataset;
   if(t.hasAttribute("data-close")){t.closest("dialog").close();return;}
   if(MODE==="admin"){const inA=t.closest("#admin");if(!inA&&!t.closest("#actionbar"))return;if(inA&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN&&window.RXR_ADMIN.pick(ds))return;}
-  if(t.classList.contains("tile")){if(!CANEDIT()){openChar(ds.id);return;}sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
+  if(ds.star!==undefined){if(sel){const P=place(curFloor().key),t0=P[sel];if(t0){const se=eparse(sel),nk=ekey(se.id,ds.star);if(nk!==sel){if(P[nk]){toast("その星はもう置いてあります");return;}moveTo(sel,"");moveTo(nk,t0);sel=nk;}render();}}return;}
+  if(t.classList.contains("tile")){if(!CANEDIT()){openChar(eparse(ds.id).id);return;}sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
   if(ds.moveto!==undefined){if(sel){moveTo(sel,ds.moveto);sel=null;render();}return;}
   if(ds.zone!==undefined){if(sel){moveTo(sel,ds.zone);sel=null;render();}return;}
   if(ds.rank){const[tg,stat,id]=ds.rank.split("|");const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();RK.t=tg;RK.stat=stat;RK.dir=RKDEF[tg].find(x=>x[0]===stat)?.[2]||"desc";RK.focus=id;RK.attr=null;RK.role=null;RK.rar=null;switchTab("rank");
@@ -1600,6 +1622,10 @@ document.addEventListener("click",e=>{
   else if(a==="ownall"){const o=OWN();main.querySelectorAll("[data-owntoggle]").forEach(b=>{const id=b.dataset.owntoggle;if(!o[id])o[id]=1;});save();renderOwn();}
   else if(a==="ownreset"){if(!confirm("所持の記録をすべて消しますか？"))return;S.own={};save();renderOwn();}
   else if(a==="onlyown"){if(!hasOwn()){toast("先に「キャラクター」→「所持率チェッカー」で持っているキャラを登録してください",4000);return;}S.onlyOwn=!S.onlyOwn;save();render();}
+  else if(a==="addstar"){if(!sel)return;const P=place(curFloor().key),t0=P[sel];if(!t0)return;const se=eparse(sel);const used=new Set(entries(P).filter(e=>e.id===se.id).map(e=>e.star));
+    if(!se.star){const base=String(RAR[CHMAP[se.id].rar]||3);moveTo(sel,"");moveTo(ekey(se.id,base),t0);used.delete("");used.add(base);sel=ekey(se.id,base);}
+    const nx=["1","2","3","4","5"].find(n=>!used.has(n)&&+n>(+eparse(sel).star||0))||["1","2","3","4","5"].find(n=>!used.has(n));if(!nx){toast("★1〜★5 がすべて置いてあります");render();return;}
+    moveTo(ekey(se.id,nx),t0);sel=ekey(se.id,nx);render();toast(`★${nx} の枠を追加しました。星は下のバーで変えられます`);}
   else if(a==="nolim"){S.noLim=!S.noLim;save();render();}
   else if(a==="tfclear"){pool.attr=null;pool.role=null;S.onlyOwn=false;S.noLim=false;save();render();}
   else if(a==="mytext"){const f=curFloor();const tx=f&&floorText(f);if(!tx){toast("まだ配置がありません");return;}navigator.clipboard.writeText(tx).then(()=>toast("テキストをコピーしました。SNSなどに貼り付けられます"),()=>toast("コピーできませんでした"));}
@@ -1629,7 +1655,7 @@ document.getElementById("openExport")?.addEventListener("click",()=>{updExport()
 document.querySelectorAll("#expKind .chip").forEach(c=>c.addEventListener("click",()=>{expKind=c.dataset.k;setChips("expKind",expKind);updExport();}));
 function floorText(f){
   const P=place(f.key);let s=f.seal?`【封印戦 ${f.floor}${f.boss?" "+f.boss:""}${f.dtype?"／"+f.dtype:""}】\n`:`【${f.type} ${f.floor}F ${f.boss}${f.attr?"／推奨"+f.attr:""}】\n`;
-  let any=false;TIERS.forEach(t=>{const l=CH.filter(c=>P[c.id]===t).map(c=>c.name);if(l.length){any=true;s+=`${t}：${l.join(" / ")}\n`;}});
+  let any=false;TIERS.forEach(t=>{const l=entries(P).filter(e=>e.t===t).map(e=>e.c.name+(e.star?"★"+e.star:""));if(l.length){any=true;s+=`${t}：${l.join(" / ")}\n`;}});
   if(S.notes[f.key])s+=`メモ：${S.notes[f.key]}\n`;
   return any||S.notes[f.key]?s:"";
 }
@@ -1790,7 +1816,7 @@ async function makeTierImage(f,P,mine){
   try{await document.fonts.ready;}catch(e){}
   const W=1200,PAD=28,LW=118,TS=84,GAP=10,NAMEH=0,CELLW=TS,CELLH=TS+NAMEH;
   const perRow=Math.floor((W-PAD*2-LW-16+GAP)/(CELLW+GAP));
-  const rows=TIERS.map(t=>({t,cs:CH.filter(c=>P[c.id]===t)})).filter(r=>r.cs.length);
+  const rows=TIERS.map(t=>({t,cs:entries(P).filter(e=>e.t===t).map(e=>Object.assign(Object.create(e.c),{star:e.star}))})).filter(r=>r.cs.length);
   const rowH=r=>Math.max(1,Math.ceil(r.cs.length/perRow))*(CELLH+GAP)-GAP+20;
   const HEAD=150,FOOT=86;
   const H=HEAD+rows.reduce((a,r)=>a+rowH(r)+6,0)+(rows.length?0:120)+FOOT+PAD;
@@ -1822,7 +1848,8 @@ async function makeTierImage(f,P,mine){
     r.cs.forEach((ch,k)=>{const cx=PAD+LW+16+(k%perRow)*(CELLW+GAP),cy=y+10+Math.floor(k/perRow)*(CELLH+GAP);
       const ac=ch.attr==="破壊"?"#22a85a":ch.attr==="衝撃"?"#1a86ff":ch.attr==="爆発"?"#e8414f":"#a3b1c6";
       c.save();rrect(cx,c,cy,TS,TS,8);c.clip();c.fillStyle="#dff1ff";c.fillRect(cx,cy,TS,TS);const im=imgs[ch.id];if(im){const s=Math.max(TS/im.width,TS/im.height);c.drawImage(im,cx+(TS-im.width*s)/2,cy+(TS-im.height*s)/2,im.width*s,im.height*s);}else{c.fillStyle="#0d2346";c.font=`700 12px ${JP}`;const t=ch.name.split(/\s+/)[0];c.fillText(t,cx+(TS-c.measureText(t).width)/2,cy+TS/2+4);}c.restore();
-      c.save();c.lineWidth=4;c.strokeStyle=ac;rrect(cx+2,c,cy+2,TS-4,TS-4,7);c.stroke();c.restore();});
+      c.save();c.lineWidth=4;c.strokeStyle=ac;rrect(cx+2,c,cy+2,TS-4,TS-4,7);c.stroke();c.restore();
+      if(ch.star){c.save();c.font=`900 15px ${EN}`;const tx="★"+ch.star;const tw=c.measureText(tx).width+10;c.fillStyle="rgba(5,20,55,.85)";rrect(cx+TS-tw-4,c,cy+TS-22,tw,18,4);c.fill();c.fillStyle="#ffd54a";c.fillText(tx,cx+TS-tw+1,cy+TS-8);c.restore();}});
     y+=h+6;});
   // footer
   y=H-FOOT;g=c.createLinearGradient(0,y,0,H);g.addColorStop(0,"rgba(5,20,55,.0)");g.addColorStop(.35,"rgba(5,20,55,.85)");g.addColorStop(1,"rgba(5,20,55,.95)");c.fillStyle=g;c.fillRect(0,y,W,FOOT);
@@ -1952,7 +1979,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=29");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=31");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
