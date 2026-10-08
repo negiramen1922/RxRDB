@@ -536,7 +536,8 @@
   "解離性シュプレヒコオル2": "images/scripts/thumb/解離性シュプレヒコオル2.webp",
   "とある魔王たちの祝祭　第六起源魔術教会": "images/scripts/thumb/とある魔王たちの祝祭_第六起源魔術教会.webp",
   "母性事変": "images/scripts/thumb/母性事変.webp",
-  "S.I.N SIN Is Never-ending": "images/scripts/thumb/S.I.N_SIN_Is_Never-ending.webp"
+  "S.I.N SIN Is Never-ending": "images/scripts/thumb/S.I.N_SIN_Is_Never-ending.webp",
+  "ぬいりす！": "images/scripts/thumb/ぬいりす！.webp"
  },
  "sfull": {
   "鼓動天換": "images/scripts/鼓動天換.webp",
@@ -798,7 +799,8 @@
   "解離性シュプレヒコオル2": "images/scripts/解離性シュプレヒコオル2.webp",
   "とある魔王たちの祝祭　第六起源魔術教会": "images/scripts/とある魔王たちの祝祭_第六起源魔術教会.webp",
   "母性事変": "images/scripts/母性事変.webp",
-  "S.I.N SIN Is Never-ending": "images/scripts/S.I.N_SIN_Is_Never-ending.webp"
+  "S.I.N SIN Is Never-ending": "images/scripts/S.I.N_SIN_Is_Never-ending.webp",
+  "ぬいりす！": "images/scripts/ぬいりす！.webp"
  },
  "hero": "images/hero.webp",
  "eventfull": {
@@ -911,7 +913,14 @@
   "クリス": "images/bosses/クリス.webp",
   "アルケ": "images/bosses/アルケ.webp",
   "シスト": "images/bosses/シスト.webp",
-  "サイエ": "images/bosses/サイエ.webp"
+  "サイエ": "images/bosses/サイエ.webp",
+  "オンセンスラッグ": "images/bosses/オンセンスラッグ.webp",
+  "メサ": "images/bosses/メサ.webp",
+  "蹂躙するファティマ": "images/bosses/蹂躙するファティマ.webp",
+  "神格洗脳兵器アイズオンミー": "images/bosses/神格洗脳兵器アイズオンミー.webp",
+  "軍神・鶴喰月喰": "images/bosses/軍神・鶴喰月喰.webp",
+  "アヴェルヌス": "images/bosses/アヴェルヌス.webp",
+  "鶴喰月喰": "images/bosses/鶴喰月喰.webp"
  },
  "bosses": {
   "死神王 アイゼ＝ウォルン": "images/bosses/thumb/死神王_アイゼ＝ウォルン.webp",
@@ -929,7 +938,14 @@
   "クリス": "images/bosses/thumb/クリス.webp",
   "アルケ": "images/bosses/thumb/アルケ.webp",
   "シスト": "images/bosses/thumb/シスト.webp",
-  "サイエ": "images/bosses/thumb/サイエ.webp"
+  "サイエ": "images/bosses/thumb/サイエ.webp",
+  "オンセンスラッグ": "images/bosses/thumb/オンセンスラッグ.webp",
+  "メサ": "images/bosses/thumb/メサ.webp",
+  "蹂躙するファティマ": "images/bosses/thumb/蹂躙するファティマ.webp",
+  "神格洗脳兵器アイズオンミー": "images/bosses/thumb/神格洗脳兵器アイズオンミー.webp",
+  "軍神・鶴喰月喰": "images/bosses/thumb/軍神・鶴喰月喰.webp",
+  "アヴェルヌス": "images/bosses/thumb/アヴェルヌス.webp",
+  "鶴喰月喰": "images/bosses/thumb/鶴喰月喰.webp"
  },
  "knightfull": {
   "カノン": "images/knights/カノン.webp",
