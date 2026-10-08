@@ -743,7 +743,8 @@ function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement(
   return PKDLG; }
 // kind: char / script（編成例） / syn（おすすめセット。slot が "new" なら行を追加）
 // cp: キャラを複数選ぶ欄（イベントの実装キャラなど。slot は列名）。押すたびに追加／外す、ダイアログは開いたまま
-function openPick(kind, slot) { if (kind === "bossev") { PK.kind = "event"; PK.syn = false; PK.cp = null; PK.q = ""; PK.busy = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
+function openPick(kind, slot) { if (kind === "boss1" || kind === "bossn") { PK.kind = "boss"; PK.multi = kind === "bossn"; PK.field = slot; PK.syn = false; PK.cp = null; PK.q = ""; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
+  if (kind === "bossev") { PK.kind = "event"; PK.syn = false; PK.cp = null; PK.q = ""; PK.busy = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
   PK.syn = kind === "syn"; PK.cp = kind === "cp" ? slot : null; PK.kind = PK.syn || PK.cp ? "char" : kind; PK.slot = PK.cp ? -1 : slot === "new" ? -1 : +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
 function pickList() {
   const slots = PK.cp ? cpIds(PK.cp).map(id => ({ id })) : PK.syn ? synRows(ED.draft["おすすめセット"]) : teamSlots(ED.draft["メンバー"]); const cur = slots[PK.slot] || {}; const q = PK.q.trim().toLowerCase();
@@ -794,9 +795,23 @@ async function toggleBossEvent(rowId) {
   const g = PKDLG.querySelector(".pkgrid"), y = g ? g.scrollTop : 0; pickRender(); const g2 = PKDLG.querySelector(".pkgrid"); if (g2) g2.scrollTop = y;
   if (DLG && DLG.open) renderForm();
 }
+/* ボスを一覧から選ぶ（バベルの「ボス」は1体、イベントの「登場ボス」は複数） */
+function bossPickRender(body) {
+  const q = PK.q.trim().toLowerCase(); const curV = String(ED.draft[PK.field] || "");
+  const chosen = PK.multi ? splitList(curV).map(bnorm) : [bnorm(curV)];
+  const all = rowsOf("bosses").filter(b => b["名前"]);
+  const l = q ? all.filter(b => (String(b["名前"]) + String(b["よみ"] || "")).toLowerCase().includes(q)) : all;
+  const cards = l.map(b => { const n = b["名前"]; const img = R.BOSSF[n] || R.BOSS[n]; const sel = chosen.includes(bnorm(n));
+    return `<button class="ccard scard2 pkcard${sel ? (PK.multi ? " pkused" : " pkcur") : ""}" data-pk="${esc(n)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n)}</b>${b["よみ"] ? `<small>${esc(b["よみ"])}</small>` : ""}</span>${sel ? `<span class="ccbadges"><span class="ccown">${PK.multi ? "選択中" : "いまのボス"}</span></span>` : ""}</button>`; }).join("");
+  body.innerHTML = `<div class="pkhead"><h2>ボスを選ぶ<small class="count">（${esc(PK.field)}）</small></h2><input class="search" id="pkQ" placeholder="名前・よみで検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
+    <div class="pkgrid"><div class="ccards">${cards || '<p class="count">ボスが登録されていません（「ボス」で追加できます）</p>'}</div></div>
+    <div class="formfoot"><span class="count">${PK.multi ? "カードを押すと追加、もう一度押すと外れます。" : "カードを押すと選ばれます。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
+  const qi = document.getElementById("pkQ"); R.liveInput(qi, () => { PK.q = qi.value; const p = qi.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
+}
 function pickRender() {
   const body = document.getElementById("pkBody"); if (!body) return;
-  if (PK.kind === "event") { evPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
+  if (PK.kind === "event") { evPickRender(body); return; }
+  if (PK.kind === "boss") { bossPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
   const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
       return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.cp ? "選択中" : PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
     : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
@@ -811,6 +826,13 @@ function pickRender() {
 }
 function pickApply(v) {
   if (PK.kind === "event") { toggleBossEvent(v); return; }
+  if (PK.kind === "boss") {
+    if (PK.multi) { const l = splitList(ED.draft[PK.field]); const i = l.findIndex(b => bnorm(b) === bnorm(v)); if (i >= 0) l.splice(i, 1); else l.push(v); ED.draft[PK.field] = l.join("、"); }
+    else ED.draft[PK.field] = v;
+    ED.dirty = true; ED.leaveOk = false; renderForm();
+    if (!PK.multi) { PKDLG.close(); return; }
+    const g = PKDLG.querySelector(".pkgrid"), y = g ? g.scrollTop : 0; pickRender(); const g2 = PKDLG.querySelector(".pkgrid"); if (g2) g2.scrollTop = y; return;
+  }
   if (PK.cp) {
     const ids = cpIds(PK.cp); const i = ids.indexOf(v); if (i >= 0) ids.splice(i, 1); else ids.push(v);
     ED.draft[PK.cp] = ids.join(","); ED.dirty = true; ED.leaveOk = false; renderForm();
@@ -1081,12 +1103,13 @@ function fieldHtml(name, type, i, both) {
     inner = `<div class="cpchips">${ds.map(d => `<span class="cpchip datechip">${esc(fmtD(d))}<button data-dlrm="${esc(name)}|${esc(d)}" aria-label="外す">✕</button></span>`).join("") || '<span class="count">まだありません</span>'}</div>
       <div class="addcol"><input type="date" class="dlin" data-dlfield="${esc(name)}"><button class="btn small" data-dladd="${esc(name)}">日付を追加</button></div>`;
   } else if (type === "bossref") {
-    inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_boss" placeholder="ボス名（一覧から選ぶか入力）">`;
+    const bi = R.BOSS[v] ? v : (rowsOf("bosses").find(b => bnorm(b["名前"]) === bnorm(v)) || {})["名前"];
+    inner = `<div class="addcol">${v && R.BOSS[bi] ? `<img class="linkimg" src="${esc(R.BOSS[bi])}" alt="">` : ""}<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_boss" placeholder="ボス名（一覧から選ぶか入力）"><button class="btn small primary" data-pkopen="boss1|${esc(name)}">一覧から選ぶ</button></div>`;
   } else if (type === "charpick" || type === "bosspick") {
     cls += " long"; const isC = type === "charpick";
     const ids = isC ? v.split(/[,、，\s]+/).filter(Boolean) : splitList(v);
     inner = `<div class="cpchips">${ids.map(x => { const c = isC ? R.CHMAP[x] : null; const img = isC ? R.IMG[x] : R.BOSS[x]; const ok = isC ? !!c : rowsOf("bosses").some(b => bnorm(b["名前"]) === bnorm(x)); return `<span class="cpchip">${img ? `<img src="${esc(img)}" alt="">` : ""}${esc(c ? c.name : x)}${ok ? "" : ` <small class="err">（${isC ? "見つからないID" : "ボス一覧にない"}）</small>`}<button data-cprm="${esc(name)}|${esc(x)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだいません</span>'}</div>
-      <div class="addcol"><input class="cpin" data-cpfield="${esc(name)}" data-cptype="${type}" list="${isC ? "dl_chars" : "dl_boss"}" placeholder="${isC ? "キャラ名" : "ボス名"}を入力して追加"><button class="btn small" data-cpadd="${esc(name)}">追加</button>${isC ? `<button class="btn small primary" data-pkopen="cp|${esc(name)}">一覧から選ぶ</button>` : ""}</div>`;
+      <div class="addcol"><input class="cpin" data-cpfield="${esc(name)}" data-cptype="${type}" list="${isC ? "dl_chars" : "dl_boss"}" placeholder="${isC ? "キャラ名" : "ボス名"}を入力して追加"><button class="btn small" data-cpadd="${esc(name)}">追加</button><button class="btn small primary" data-pkopen="${isC ? "cp" : "bossn"}|${esc(name)}">一覧から選ぶ</button></div>`;
   } else if (type === "long" || type === "big") {
     cls += " long";
     const rows = type === "big" ? Math.max(8, (v.match(/\n/g) || []).length + 2) : Math.min(10, Math.max(2, Math.ceil(v.length / 48) + (v.match(/\n/g) || []).length));
