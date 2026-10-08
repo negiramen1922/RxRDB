@@ -81,8 +81,8 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .btn.ghost-dark{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.55);color:#fff;backdrop-filter:blur(4px)}
 .btn.ghost-dark:hover{background:rgba(255,255,255,.28)}
 .btn.small{padding:4px 12px;font-size:13px}
-.seg{display:inline-flex;gap:3px}
-.seg button{border:1px solid var(--line2);background:var(--field);padding:5px 14px;font-size:13.5px;font-weight:700;color:var(--muted);clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)}
+.seg{display:inline-flex;gap:3px;max-width:100%}
+.seg button{white-space:nowrap;flex:0 0 auto;border:1px solid var(--line2);background:var(--field);padding:5px 14px;font-size:13.5px;font-weight:700;color:var(--muted);clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)}
 .seg button[aria-pressed="true"]{background:linear-gradient(100deg,#0d3b8c,#1a86ff);border-color:transparent;color:#fff}
 .chips{display:flex;gap:5px;flex-wrap:wrap}
 .chip{border:1px solid var(--line2);background:var(--field);border-radius:3px;padding:2px 10px;font-size:13px;color:var(--ink)}
@@ -355,6 +355,10 @@ dialog{overflow:auto;overscroll-behavior:contain}
   .tower{position:static;align-items:stretch}
   .tower .seg{flex-direction:row;width:auto;margin:0 0 8px;overflow-x:auto}
   .tower .seg button{flex:0 0 auto}
+  /* 狭い画面では切り替えボタンを1行のまま詰め、入りきらなければ横にスクロール */
+  .seg{overflow-x:auto;scrollbar-width:none}
+  .seg::-webkit-scrollbar{display:none}
+  .seg button{padding:5px 10px;font-size:12.5px}
   .floors{display:flex;flex-direction:row;overflow-x:auto;padding:2px 0 8px}
   .tower .spire,.tower .base{display:none}
   .floorbtn{flex:0 0 auto;min-width:58px}
