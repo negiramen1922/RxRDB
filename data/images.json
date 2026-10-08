@@ -796,5 +796,11 @@
   "解離性シュプレヒコオル2": "images/scripts/解離性シュプレヒコオル2.webp",
   "とある魔王たちの祝祭　第六起源魔術教会": "images/scripts/とある魔王たちの祝祭_第六起源魔術教会.webp"
  },
- "hero": "images/hero.webp"
+ "hero": "images/hero.webp",
+ "eventfull": {
+  "サマービート コマンドメンツ": "images/events/サマービート_コマンドメンツ.webp"
+ },
+ "events": {
+  "サマービート コマンドメンツ": "images/events/thumb/サマービート_コマンドメンツ.webp"
+ }
 }
