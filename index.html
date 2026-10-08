@@ -141,6 +141,19 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
 .recs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.teams{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.team{border:1px solid var(--line);background:var(--field);padding:10px 12px;margin-top:8px;border-radius:3px}
+.team h3{margin:0 0 8px;font-size:15px;font-weight:900}
+.tmrow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+.tm{display:flex;flex-direction:column;gap:4px;min-width:0}
+.tm button{border:0;background:var(--panel);padding:5px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--ink);text-align:center;min-width:0;border-radius:3px}
+.tm button:hover{background:var(--soft)}
+.tmc img,.tmc .noth{width:52px;height:52px;border-radius:6px;object-fit:cover;display:grid}
+.tmn{font-size:11.5px;font-weight:700;line-height:1.25;color:var(--accent-ink);text-decoration:underline;text-decoration-color:rgba(26,134,255,.45);text-underline-offset:2px;word-break:break-all}
+.tmst{font-size:11px;color:#e0a400;font-weight:900;letter-spacing:.05em}
+.tms img,.tms .rowth{width:40px;height:40px;border-radius:5px;object-fit:cover;display:grid;place-items:center;font-size:10px}
+.tms span:last-child{font-size:10.5px;line-height:1.25;color:var(--muted);word-break:break-all}
+@media (max-width:820px){.tmrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .recs button{border:1px solid rgba(255,190,40,.6);background:linear-gradient(100deg,rgba(255,214,90,.25),rgba(255,255,255,.4));padding:2px 12px;font-size:13px;font-weight:700;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
 textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);background:var(--field);border-radius:2px;padding:8px 10px;resize:vertical}
 
@@ -663,7 +676,7 @@ let LIVE={};
 const data=k=>LIVE[k]||SEED[k]||{headers:[],rows:[]};
 
 /* ---------- models ---------- */
-let CH=[],CHMAP={},FLOORS=[],TYPES=[],STYLES=[],SC=[],SEALS=[];
+let CH=[],CHMAP={},FLOORS=[],TYPES=[],STYLES=[],SC=[],SEALS=[],TEAMS={};
 const ALIAS={"煤炭":"煤墨","オッタ―貿易":"オッター貿易"};
 function condHit(cond,c){const k=ALIAS[cond]||cond;if(k==="女性")return c.gender==="女";if(k==="男性")return c.gender==="男";return [c.attr,c.order,c.rank,c.style,c.base].includes(k);}
 function scMatch(s,c){const n=s.conds.filter(x=>condHit(x,c)).length;return{n,roleOk:!s.role||s.role===c.role||s.role==="ワイルド"};}
@@ -698,6 +711,11 @@ function buildModels(){
     f.lines=analyzeEffects(f.eff);
     FLOORS.push(f);
   });
+  /* 編成例（teams）：階層キー → [{name, members:[{id,star,sc}], comment}] */
+  TEAMS={};const td=data("teams");const ti=n=>colOf(td,[n]);
+  td.rows.forEach(r=>{const v=n=>{const i=ti(n);return i>=0?String(r[i]||"").trim():"";};const key=v("バベル種類")+"|"+v("階層");const name=v("編成名");if(!name)return;
+    const members=v("メンバー").split("\n").map(l=>{const [id,star,sc]=l.split("|");return{id:(id||"").trim(),star:(star||"").trim(),sc:(sc||"").trim()};}).filter(m=>m.id||m.sc);
+    (TEAMS[key]=TEAMS[key]||[]).push({name,members,comment:v("コメント")});});
   const sd2=data("seals");const qi=n=>colOf(sd2,[n]);
   SEALS=[];
   sd2.rows.forEach(r=>{const v=n=>{const i=qi(n);return i>=0?(r[i]||"").trim():"";};const name=v("封印戦名");if(!name)return;
@@ -831,7 +849,7 @@ function renderTier(){
   if(f.recs.length)h+=`<p class="note-h">おすすめキャラ</p><div class="recs">${f.recs.map(id=>`<button data-pick="${esc(id)}">★ ${esc(CHMAP[id]?CHMAP[id].name:id)}</button>`).join("")}</div>`;
   if(f.point)h+=`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`;
   if(f.comment)h+=`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`;
-  h+=`<p class="note-h">自分用メモ</p><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など">${esc(S.notes[f.key]||"")}</textarea></div></div></div>`;
+  h+=`<p class="note-h">自分用メモ</p><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など">${esc(S.notes[f.key]||"")}</textarea></div></div>${teamsHtml(f)}</div>`;
   if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;main.innerHTML=h;return;}
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
   h+=`<details class="tcrit"${S.critOpen?" open":""}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(TDESC[t])}</dd></div>`).join("")}</dl></details>`;
@@ -1003,6 +1021,12 @@ function openScript(i){
 }
 
 /* ---------- ranking ---------- */
+/* 階層の編成例。キャラ・スクリプトはタップで詳細 */
+function teamsHtml(f){
+  const ts=!f.seal&&TEAMS[f.key];if(!ts||!ts.length)return "";
+  return `<div class="teams"><p class="note-h">編成例</p>${ts.map(t=>`<div class="team"><h3>${esc(t.name)}</h3><div class="tmrow">${t.members.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;
+    return `<div class="tm">${m.id?`<button class="tmc" ${c?`data-detail="${esc(m.id)}"`:""}>${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}<span class="tmn">${esc(c?c.name:m.id)}</span>${m.star?`<span class="tmst">★${esc(m.star)}</span>`:""}</button>`:""}${m.sc?`<button class="tms" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:""}</div>`;}).join("")}</div>${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</div>`).join("")}</div>`;
+}
 function cth(c){return IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth" title="画像未登録">${esc([...(c.name||"")][0]||"")}</span>`;}
 function sth(s){return SIMG[s.name]?`<img src="${SIMG[s.name]}" alt="" class="rowth">`:`<span class="rowth sph ${esc(s.rar)}" title="画像未登録">${esc((s.rar||"").slice(0,3))}</span>`;}
 const RKDEF={chars:[["HP最大値","HP","desc"],["攻撃力最大値","攻撃力","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"],["攻撃速度","攻撃速度","desc"],["抵抗値","抵抗値","desc"],["初期コスト","出撃コスト","asc"],["育成後コスト","育成後コスト","asc"],["再出撃時間(S)","再出撃時間","asc"],["スキルクールタイム","スキルCT","asc"],["BLADEゲージ","BLADEゲージ","asc"],["HP初期値","HP初期値","desc"],["攻撃力初期値","攻撃力初期値","desc"]],
@@ -1253,7 +1277,7 @@ async function loadSite(){
      読めなければ public/{k} を個別に読み、それも駄目なら data/*.json */
   let all=null;if(FBC){try{all=await fsGetJson("public/all");}catch(e){}}
   const part=k=>all?(all[k]!=null?Promise.resolve(all[k]):Promise.reject(new Error("none"))):FBC?fsGetJson("public/"+k):Promise.reject(new Error("no firebase"));
-  await Promise.all(["chars","scripts","babel","seals"].map(async k=>{
+  await Promise.all(["chars","scripts","babel","teams","seals"].map(async k=>{
     try{const v=await part(k);if(v&&v.rows){st[k]=v;return;}}catch(e){}
     st[k]=await get(`data/${k}.json`).catch(()=>null);
   }).concat([
@@ -1446,7 +1470,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=20");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=21");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
