@@ -228,6 +228,9 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .sw>.sw-w{border-color:var(--bad)}.sw-w b{color:var(--bad)}
 @media (max-width:820px){.sw{grid-template-columns:1fr}}
 .tfilter{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;background:var(--panel);box-shadow:var(--shadow);padding:8px 10px;margin-bottom:8px}
+.limsw{display:inline-flex;align-items:center;gap:6px}
+.tile.limdim{filter:grayscale(1);opacity:.35}
+.tile.limdim:hover,.tile.limdim[aria-pressed="true"]{opacity:.7}
 .tfilter .tfl{font-size:11.5px;font-weight:700;color:var(--accent-ink);letter-spacing:.1em}
 .teams{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .team{border:1px solid var(--line);background:var(--field);padding:10px 12px;margin-top:8px;border-radius:3px}
@@ -1101,8 +1104,11 @@ function floorIntoView(){const b=main.querySelector('.floorbtn[aria-current="tru
 function tierShow(c){return cfMatch(c,CFS.tier);}
 function tierFilterBar(){
   const b=cfBar("tier");
-  return `<div class="tfilter">${b.btn}${b.chips}</div>`;
+  /* 限定キャラ：なし にすると、限定キャラをグレーにする（消さない） */
+  const lim=CH.some(c=>c.lim)?`<span class="limsw"><span class="count">限定</span><span class="viewsw"><button data-act="limon" aria-pressed="${!S.limOff}">あり</button><button data-act="limoff" aria-pressed="${!!S.limOff}">なし</button></span></span>`:"";
+  return `<div class="tfilter">${b.btn}${lim}${b.chips}</div>`;
 }
+const limDim=c=>S.limOff&&c.lim?" limdim":"";
 /* ---------- 効果タグ（ゲーム内フィルターと同じ「攻撃／防御／HP／その他」）----------
    スキル・BLADE・特性の説明文から自動で付ける（1文の中にすべての条件が出てくれば該当。{not:…} はその言葉があれば対象外）。
    キャラの列「効果タグ」で直せる：「+タグ」で追加、「-タグ」で外す（カンマ区切り。管理画面のチェックで編集） */
@@ -1376,11 +1382,11 @@ const starLabel=st=>st?"★"+st:"";
 function tile(c,f,fits,e){
   const img=IMG[c.id];
   const k=e?e.k:c.id,st=e?e.star:"";
-  return `<button class="tile ticon" draggable="${CANEDIT()}" data-id="${esc(k)}" aria-pressed="${sel===k}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}${st?" "+starLabel(st):""}（${esc(c.attr)}・${esc(c.role)}）" aria-label="${esc(c.name)}${st?" "+starLabel(st):""}">${img?`<img src="${img}" alt="" loading="lazy">`:`<span class="nm">${esc(c.name)}</span>`}${st?`<span class="tstar">★${esc(st)}</span>`:""}</button>`;
+  return `<button class="tile ticon${limDim(c)}" draggable="${CANEDIT()}" data-id="${esc(k)}" aria-pressed="${sel===k}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}${st?" "+starLabel(st):""}（${esc(c.attr)}・${esc(c.role)}）" aria-label="${esc(c.name)}${st?" "+starLabel(st):""}">${img?`<img src="${img}" alt="" loading="lazy">`:`<span class="nm">${esc(c.name)}</span>`}${st?`<span class="tstar">★${esc(st)}</span>`:""}</button>`;
 }
 function ptile(c){
   const img=IMG[c.id];
-  return `<button class="tile pic" draggable="${CANEDIT()}" data-id="${esc(c.id)}" aria-pressed="${sel===c.id}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}" aria-label="${esc(c.name)}">${img?`<img src="${img}" alt="">`:`<span class="nm">${esc(c.name)}</span>`}</button>`;
+  return `<button class="tile pic${limDim(c)}" draggable="${CANEDIT()}" data-id="${esc(c.id)}" aria-pressed="${sel===c.id}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}" aria-label="${esc(c.name)}">${img?`<img src="${img}" alt="">`:`<span class="nm">${esc(c.name)}</span>`}</button>`;
 }
 function attrColor(a){return a==="破壊"?"var(--a-break)":a==="衝撃"?"var(--a-impact)":a==="爆発"?"var(--a-blast)":"var(--line)";}
 function moveTo(id,tier){
@@ -1703,6 +1709,7 @@ document.addEventListener("click",e=>{
     if(!se.star){const base=String(RAR[CHMAP[se.id].rar]||3);moveTo(sel,"");moveTo(ekey(se.id,base),t0);used.delete("");used.add(base);sel=ekey(se.id,base);}
     const nx=["1","2","3","4","5"].find(n=>!used.has(n)&&+n>(+eparse(sel).star||0))||["1","2","3","4","5"].find(n=>!used.has(n));if(!nx){toast("★1〜★5 がすべて置いてあります");render();return;}
     moveTo(ekey(se.id,nx),t0);sel=ekey(se.id,nx);render();toast(`★${nx} の枠を追加しました。星は下のバーで変えられます`);}
+  else if(a==="limon"||a==="limoff"){S.limOff=a==="limoff";save();render();}
   else if(a==="nolim"){S.noLim=!S.noLim;save();render();}
   else if(a==="tfclear"){pool.attr=null;pool.role=null;S.onlyOwn=false;S.noLim=false;save();render();}
   else if(a==="mytext"){const f=curFloor();const tx=f&&floorText(f);if(!tx){toast("まだ配置がありません");return;}navigator.clipboard.writeText(tx).then(()=>toast("テキストをコピーしました。SNSなどに貼り付けられます"),()=>toast("コピーできませんでした"));}
