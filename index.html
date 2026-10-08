@@ -264,6 +264,51 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .empty h2{color:var(--ink);font-weight:900;margin:0 0 6px;transform:skewX(-6deg)}
 .empty .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px}
 
+/* ===== ホーム・ガイド ===== */
+.home{display:grid;gap:16px}
+.hwelcome{background:var(--panel);box-shadow:var(--shadow);padding:16px 18px}
+.hwelcome h2{margin:0 0 4px;font-size:19px;font-weight:900}
+.hwelcome p{margin:0;color:var(--muted);font-size:13.5px}
+.hlast{margin-top:12px}
+.hgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hcard{background:var(--panel);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.hcmain{border:0;background:none;padding:0;text-align:left;cursor:pointer;color:var(--ink);display:flex;flex-direction:column}
+.hcimg{height:120px;background:#16233f center 30%/cover no-repeat;position:relative}
+.hcimg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(5,16,42,.55))}
+.hcimg.none{background:linear-gradient(120deg,#0d3b8c,#1a86ff)}
+.hctxt{display:grid;gap:2px;padding:10px 14px 12px}
+.hctxt small{font-family:var(--display);font-style:italic;font-weight:700;color:var(--accent);letter-spacing:.12em;font-size:11px}
+.hctxt b{font-size:18px;font-weight:900}
+.hctxt span{color:var(--muted);font-size:12.5px}
+.hcmain:hover .hctxt b{color:var(--accent-ink)}
+.hquick{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 12px}
+.hquick button{border:1px solid var(--line2);background:var(--field);padding:4px 10px;font-size:12px;font-weight:700;color:var(--accent-ink);cursor:pointer;border-radius:3px}
+.hquick button:hover{background:var(--soft)}
+.hgrid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hbox{background:var(--panel);box-shadow:var(--shadow);padding:14px 16px;display:grid;gap:6px;align-content:start}
+.hbox h3{margin:0 0 4px;font-size:15px;font-weight:900}
+.hbox>.btn{justify-self:start}
+.hnews{border:0;border-bottom:1px solid var(--line);background:none;text-align:left;padding:6px 0;cursor:pointer;color:var(--ink);display:flex;gap:10px;align-items:baseline}
+.hnews .ndate{color:var(--muted);font-size:12px;flex:0 0 auto}
+.hnews b{font-size:13.5px}
+.hlinks button{border:1px solid var(--line);background:var(--field);text-align:left;padding:10px 12px;cursor:pointer;color:var(--ink);display:grid;gap:2px;border-radius:3px}
+.hlinks button:hover{background:var(--soft)}
+.hlinks b{font-size:14px}.hlinks span{font-size:12px;color:var(--muted)}
+.hstart{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.doc{display:grid;gap:12px;max-width:860px}
+.doctoc{display:flex;flex-wrap:wrap;gap:6px}
+.doctoc a{background:var(--panel);box-shadow:var(--shadow);padding:5px 10px;font-size:12.5px;font-weight:700;color:var(--accent-ink);text-decoration:none}
+.docsec{background:var(--panel);box-shadow:var(--shadow);padding:14px 18px;scroll-margin-top:12px}
+.docsec h3{margin:0 0 6px;font-size:16px;font-weight:900;color:var(--accent-ink)}
+.docsec p,.docsec li{font-size:14px;line-height:1.75}
+.docsec ul,.docsec ol{margin:4px 0;padding-left:1.4em}
+.faq{background:var(--panel);box-shadow:var(--shadow);padding:0 16px}
+.faq summary{cursor:pointer;padding:12px 0;font-weight:700;font-size:14.5px;list-style:none}
+.faq summary::before{content:"Q.";color:var(--accent);font-family:var(--display);font-weight:700;margin-right:8px}
+.faq[open] summary{border-bottom:1px solid var(--line)}
+.faq p{margin:0;padding:10px 0 14px;font-size:14px;line-height:1.75}
+.faq p::before{content:"A.";color:#e0a400;font-family:var(--display);font-weight:700;margin-right:8px}
+@media (max-width:820px){.hgrid,.hgrid2{grid-template-columns:1fr}.hcimg{height:100px}}
 /* ===== tables ===== */
 .tscroll{overflow:auto;max-height:75vh}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
@@ -363,7 +408,8 @@ dialog{overflow:auto;overscroll-behavior:contain}
   main{padding:16px 14px 40px}
   .hero{min-height:170px}
   .brand{padding:20px 14px 46px}
-  .tabs{padding:0 14px}
+  .tabs{padding:0 10px;gap:1px}
+  .tabs button{padding:8px 9px 7px;font-size:12.5px;letter-spacing:0;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
   .tierwrap{grid-template-columns:1fr}
   .tower{position:static;align-items:stretch}
   .tower .seg{flex-direction:row;width:auto;margin:0 0 8px;overflow-x:auto}
@@ -579,7 +625,8 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
     </div>
   </div>
   <nav class="tabs" id="userTabs" role="tablist">
-    <button role="tab" data-top="chara" aria-selected="true">キャラクター</button>
+    <button role="tab" data-top="home" aria-selected="true">ホーム</button>
+    <button role="tab" data-top="chara" aria-selected="false">キャラクター</button>
     <button role="tab" data-top="script" aria-selected="false">スクリプト</button>
     <button role="tab" data-top="babel" aria-selected="false">バベル</button>
     <button role="tab" data-top="seal" aria-selected="false">封印戦</button>
@@ -771,7 +818,9 @@ function fit(c,f){
 }
 
 /* ---------- ui state ---------- */
-let tab="chars",sel=null;
+/* 最初の画面はホーム。ホームで「前回のページから開く」を選んだ人は、前回見ていたページから */
+const HOMETABS=["home","guide","faq"];
+let tab=(S.startLast&&S.lastTab)?(S.lastTab.startsWith("rank:")?S.lastTab.slice(5):S.lastTab):"home",sel=null;
 const pool={q:"",attr:null,role:null,sort:"fit"};
 const tstate={chars:{q:"",sort:-1,dir:1,attr:null,role:null,all:false},scripts:{q:"",sort:-1,dir:1,rar:null,role:null},babel:{q:""}};
 let TIER_CTX="babel";   // 管理画面の Tier 編集で 封印戦 を扱うとき "seal"
@@ -787,7 +836,7 @@ const place=fk=>MINE()?((S.tiers||{})[fk]||EMPTY_P):(OFFICIAL[fk]||EMPTY_P);
 function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">公式Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${(tab==="tier"||tab==="seal")&&hasOwn()?`<button class="btn small ownbtn" data-act="onlyown" aria-pressed="${!!S.onlyOwn}">${S.onlyOwn?"✓ ":""}持っているキャラだけ</button>`:""}${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">公式の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
-const TOPS={chara:[["chars","キャラ一覧"],["own","所持率チェッカー"],["rank:chars","ランキング"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]],seal:[["seal","攻略・Tier表"]]};
+const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラ一覧"],["own","所持率チェッカー"],["rank:chars","ランキング"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]],seal:[["seal","攻略・Tier表"]]};
 const LASTSUB={};
 function topOf(t){if(t==="rank")return RK.t==="scripts"?"script":"chara";for(const k in TOPS)if(TOPS[k].some(([x])=>x===t))return k;return "chara";}
 function subKey(){return tab==="rank"?"rank:"+RK.t:tab;}
@@ -798,18 +847,21 @@ function renderNav(){
   sn.hidden=MODE==="admin";
   sn.innerHTML=`<div class="subin">${TOPS[top].map(([k,l])=>`<button data-sub="${k}" aria-current="${k===subKey()}">${l}</button>`).join("")}</div>`;
 }
-document.querySelectorAll("#userTabs [data-top]").forEach(b=>b.addEventListener("click",()=>{const top=b.dataset.top;goSub(LASTSUB[top]||TOPS[top][0][0]);}));
+document.querySelectorAll("#userTabs [data-top]").forEach(b=>b.addEventListener("click",()=>{const top=b.dataset.top;goSub(top==="home"?"home":LASTSUB[top]||TOPS[top][0][0]);}));
 document.getElementById("subTabs").addEventListener("click",e=>{const b=e.target.closest("[data-sub]");if(b)goSub(b.dataset.sub);});
 function goSub(k){if(k.startsWith("rank:")){const t=k.slice(5);if(RK.t!==t){RK.t=t;RK.stat=RKDEF[t][0][0];RK.dir=RKDEF[t][0][2];RK.focus=null;RK.role=null;RK.rar=null;RK.attr=null;}switchTab("rank");}else switchTab(k);}
-function switchTab(t){track("tab",{tab:t});tab=t;sel=null;render();window.scrollTo(0,0);}
+function switchTab(t){track("tab",{tab:t});tab=t;sel=null;HEROKEY=null;if(!HOMETABS.includes(t)){S.lastTab=t==="rank"?"rank:"+RK.t:t;save();}render();window.scrollTo(0,0);}
 /* 日本語入力（IME）の変換中は再描画しない */
 function liveInput(el,fn){if(!el)return;el.addEventListener("input",e=>{if(e.isComposing||el._comp)return;fn();});el.addEventListener("compositionstart",()=>{el._comp=true;});el.addEventListener("compositionend",()=>{el._comp=false;fn();});}
 let main=document.getElementById("main");
 function render(){
   if(MODE==="admin"){if(ADMIN_LIST)ADMIN_LIST();return;}
   if(!SITE_LOADED){main.innerHTML=`<div class="empty"><h2>読み込み中…</h2><p>データを読み込んでいます。</p></div>`;return;}
-  renderNav();
-  if(tab==="tier"||tab==="seal")renderTier();
+  renderNav();tabHero();
+  if(tab==="home")renderHome();
+  else if(tab==="guide")renderGuide();
+  else if(tab==="faq")renderFaq();
+  else if(tab==="tier"||tab==="seal")renderTier();
   else if(tab==="own")renderOwn();
   else if(tab==="sum")renderSum();
   else if(tab==="chars")renderChars();
@@ -824,6 +876,82 @@ function emptyBlock(kind){
   return `<div class="empty"><h2>${L}データがまだありません</h2><p>${ADMIN?"管理画面の「読み込み・書き出し」から登録できます。":"管理者がデータを登録すると、ここに表示されます。"}</p><div class="row">${ADMIN?`<button class="btn primary" data-act="admin">管理画面で読み込む</button>`:""}</div></div>`;
 }
 
+/* ---------- ホーム・使い方ガイド・Q&A ---------- */
+const TABNAME={chars:"キャラ一覧",own:"所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",seal:"封印戦 攻略・Tier表"};
+function lastLabel(){const k=S.lastTab;if(!k||!TABNAME[k])return "";let t=TABNAME[k];
+  if(k==="tier"){const f=FLOORS.find(x=>x.key===S.curFloor);if(f)t+=`（${f.type} ${f.floor}F）`;}
+  if(k==="seal"){const f=FLOORS.find(x=>x.key===S.curSeal);if(f)t+=`（${f.floor}）`;}return t;}
+function renderHome(){
+  const rnd=a=>a.length?a[Math.floor(Math.random()*a.length)]:"";
+  const cimg=rnd(CH.map(c=>BANNER[c.id]||IMG[c.id]).filter(Boolean)),simg=rnd(SC.map(s=>SFULL[s.name]||SIMG[s.name]).filter(Boolean));
+  const sealImg=SEALS.map(f=>SEALF[f.floor]||SEAL[f.floor]).find(Boolean)||"";
+  const tops=TYPES.map(t=>{const fs=FLOORS.filter(f=>f.type===t&&!f.seal);const top=fs.reduce((a,f)=>(parseFloat(f.floor)||0)>(parseFloat(a&&a.floor)||-1)?f:a,null);return top;}).filter(Boolean);
+  const last=lastLabel();const news=newsSorted().slice(0,3);
+  const card=(go,img,kick,title,desc,extra)=>`<div class="hcard"><button class="hcmain" data-gosub="${go}">${img?`<span class="hcimg" style="background-image:url('${encodeURI(img)}')"></span>`:'<span class="hcimg none"></span>'}<span class="hctxt"><small>${kick}</small><b>${title}</b><span>${desc}</span></span></button>${extra||""}</div>`;
+  let h=`<section class="home">
+  <div class="hwelcome"><h2>リバリバの攻略情報をまとめたファンメイドwiki</h2><p>バベルの階層ごとのTier表・解析データ・編成例、キャラとスクリプトのデータ、封印戦の情報が見られます。</p>
+  ${last?`<button class="btn primary hlast" data-gosub="${esc(S.lastTab)}">▶ 前回の続き：${esc(last)}</button>`:""}</div>
+  <div class="hgrid">
+  ${card("tier",HERO,"BABEL","バベル","階層ごとの公式Tier表・解析データ・攻略のコツ・編成例",tops.length?`<div class="hquick">${tops.map(f=>`<button data-homefloor="${esc(f.key)}">${esc(f.type)} <b>${esc(f.floor)}F</b></button>`).join("")}</div>`:"")}
+  ${card("chars",cimg,"CHARACTERS","キャラクター","キャラのステータス・スキル・特性。所持率チェッカー・ランキングも",`<div class="hquick"><button data-gosub="own">所持率チェッカー</button><button data-gosub="rank:chars">ランキング</button></div>`)}
+  ${card("scripts",simg,"SCRIPTS","スクリプト","スクリプトの効果と、条件に合うキャラ",`<div class="hquick"><button data-gosub="rank:scripts">ランキング</button></div>`)}
+  ${card("seal",sealImg,"SEAL BATTLE","封印戦","封印戦ごとのTier表・ステージ効果・過去の開催日")}
+  </div>
+  <div class="hgrid2">
+    <div class="hbox"><h3>お知らせ</h3>${news.length?news.map(n=>`<button class="hnews" data-news><span class="ndate">${fmtDate(n.date)}</span><b>${n.pin?"📌 ":""}${esc(n.title||"")}</b></button>`).join(""):'<p class="count">お知らせはまだありません。</p>'}<button class="btn small" data-news>すべて見る</button></div>
+    <div class="hbox hlinks"><h3>はじめての方へ・サポート</h3>
+      <button data-gosub="guide"><b>📘 使い方ガイド</b><span>Tier表の見方、自分のTier表の作り方など</span></button>
+      <button data-gosub="faq"><b>❓ Q&amp;A</b><span>よくある質問</span></button>
+      <button data-feedback><b>✉ お問い合わせ</b><span>不具合・データの間違い・ご要望はこちら</span></button>
+    </div>
+  </div>
+  <label class="hstart"><input type="checkbox" id="startLast" ${S.startLast?"checked":""}> 次からはホームを飛ばして、前回見ていたページを開く</label>
+  </section>`;
+  main.innerHTML=h;
+  const cb=document.getElementById("startLast");cb.addEventListener("change",()=>{S.startLast=cb.checked;save();toast(cb.checked?"次から前回のページを開きます（ホームはメニューの「ホーム」から）":"次からホームを開きます");});
+}
+/* 使い方ガイド・Q&A（草案） */
+const GUIDE=[
+  ["このサイトでできること",`<ul><li><b>バベル</b>：階層ごとの公式Tier表・解析データ・攻略のコツ・おすすめキャラ・編成例</li><li><b>キャラクター</b>：全キャラのステータス・スキル・BLADE・特性。所持率チェッカー、ステータスのランキング</li><li><b>スクリプト</b>：スクリプトの効果と、スキルの条件に合うキャラ</li><li><b>封印戦</b>：封印戦ごとのTier表・ステージ効果・過去の開催日</li></ul><p>ログインや登録は不要で、無料で使えます。</p>`],
+  ["バベルのTier表を見る",`<ol><li>メニューの「バベル」→「攻略・Tier表」を開きます。</li><li>上のボタンで <b>リバースバベル／アナザーバベル／バベルリビルド</b> を切り替え、塔の階層ボタンで階層を選びます（スマホでは横に並んでいます）。</li><li>階層の情報（ボス・推奨属性・解析データ・攻略のコツ・おすすめキャラ・編成例）の下に、運営がつけた<b>公式Tier表</b>が出ます。</li><li>キャラのアイコンをタップすると、そのキャラの詳細と、この階層との相性（解析データとの一致）が見られます。</li></ol><p>解析データの緑の行は味方に有利、赤の行は不利な効果です。</p>`],
+  ["編成例を見る",`<p>階層のページの下の方に、運営が登録した<b>編成例</b>が出ます。キャラ・星の数・スクリプトの組み合わせとコメントを参考にしてください。キャラやスクリプトをタップすると詳細が開きます。</p>`],
+  ["自分のTier表をつくる",`<ol><li>Tier表の上の「<b>自分のTier表をつくる</b>」に切り替えます。</li><li>下の一覧からキャラを選び、出てきたバーでTierを選ぶか、ドラッグで好きなTierに動かします。</li><li>作ったTier表は<b>このブラウザの中だけ</b>に保存されます（ほかの人には見えません）。</li><li>「画像で共有」で画像にしてSNSに投稿したり、テキストでコピーしたりできます。</li></ol>`],
+  ["持っているキャラだけで考える",`<ol><li>「キャラクター」→「所持率チェッカー」で、持っているキャラをタップして登録します。</li><li>Tier表の上の「持っているキャラだけ」を押すと、手持ちのキャラだけで表示されます。</li></ol><p>所持率は画像にして共有することもできます。</p>`],
+  ["キャラ・スクリプトの一覧",`<ul><li>検索欄にはスキルの効果なども入力できます（例：「クールタイム」）。</li><li>属性・ロールなどのボタンで絞り込み、表の見出しをタップで並び替えができます。</li><li>表は<b>横にスクロール</b>できます。表の上の ◀ ▶ ボタンでも動かせます。</li><li>キャラ名・スクリプト名をタップすると詳細が開きます。スクリプトの詳細では、条件に合うキャラも確認できます。</li></ul>`],
+  ["全階層まとめ・階層一覧",`<ul><li><b>全階層まとめ</b>：キャラごとに、各階層のTierと平均（SSS=7 … D=1）を一覧で比べられます。</li><li><b>階層一覧</b>：各階層のボス・推奨属性・解析データを表で見られます。行をタップするとその階層のTier表が開きます。</li></ul>`],
+  ["封印戦",`<p>メニューの「封印戦」で、左の一覧から封印戦を選ぶと、ステージ効果・過去の開催日・Tier表が見られます。</p>`],
+];
+const FAQ=[
+  ["公式Tier表は誰が決めていますか？","このサイトの運営メンバーが、解析データや実際の使用感をもとに決めています。あくまで目安として、手持ちや育成状況に合わせて調整してください。"],
+  ["ゲームの公式サイトですか？","いいえ、ファンが作っている非公式のサイトです。ゲーム内の画像・テキストの権利は各権利者に帰属します。"],
+  ["ログインや料金は必要ですか？","どちらも不要です。どなたでも無料で使えます。"],
+  ["自分のTier表は、ほかの人に見られますか？","見られません。自分のTier表・所持キャラ・自分用メモは、お使いのブラウザの中だけに保存されます。人に見せたいときは「画像で共有」やテキストのコピーを使ってください。"],
+  ["スマホとPCで、自分のTier表を同じにできますか？","いまは端末（ブラウザ）ごとに別々に保存されます。別の端末で使いたいときは、テキストで書き出して控えておいてください。"],
+  ["自分のTier表や所持キャラが消えてしまいました","ブラウザの履歴・サイトデータを消したり、シークレットモードで開いたりすると消えてしまいます。大切なTier表は画像やテキストで保存しておくのがおすすめです。"],
+  ["新しいキャラやバベルの階層はいつ反映されますか？","運営メンバーが登録しだい反映します。実装直後は少しお待ちください。"],
+  ["データが間違っています／載っていない情報があります","お手数ですが、ページ下の「不具合・ご要望を送る」から教えてください。どのページのどの情報かを書いていただけると助かります。"],
+  ["表の右側が見切れています","表は横にスクロールできます。指で左右になぞるか、表の上の ◀ ▶ ボタンを使ってください。"],
+  ["表示が古いままです","ページを再読み込みしてください。それでも直らないときは、時間をおいて開き直すか、お問い合わせからお知らせください。"],
+];
+function renderGuide(){
+  main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>GUIDE</small>使い方ガイド</h2></div>
+  <nav class="doctoc">${GUIDE.map(([t],i)=>`<a href="#g${i}" data-toc="g${i}">${esc(t)}</a>`).join("")}</nav>
+  ${GUIDE.map(([t,b],i)=>`<article class="docsec" id="g${i}"><h3>${esc(t)}</h3>${b}</article>`).join("")}
+  <p class="hint">わからないことがあれば <a href="#" data-gosub="faq">Q&amp;A</a> か <a href="#" data-feedback>お問い合わせ</a> へ。</p></section>`;
+}
+function renderFaq(){
+  main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>Q&amp;A</small>よくある質問</h2></div>
+  ${FAQ.map(([q,a])=>`<details class="faq"><summary>${esc(q)}</summary><p>${esc(a)}</p></details>`).join("")}
+  <div class="hbox hlinks" style="margin-top:16px"><button data-feedback><b>✉ 解決しないときはお問い合わせ</b><span>不具合・データの間違い・ご要望を送れます</span></button></div></section>`;
+}
+document.addEventListener("click",e=>{
+  if(MODE==="admin")return;
+  const g=e.target.closest("[data-gosub],[data-homefloor],[data-toc]");if(!g||!document.getElementById("main").contains(g))return;
+  e.preventDefault();
+  if(g.dataset.toc){const el=document.getElementById(g.dataset.toc);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});return;}
+  if(g.dataset.homefloor){const f=FLOORS.find(x=>x.key===g.dataset.homefloor);if(f){S.curType=f.type;S.curFloor=f.key;save();}goSub("tier");return;}
+  goSub(g.dataset.gosub);
+});
 /* ---------- tier view ---------- */
 function renderTier(){
   const seal=SEALCTX();
@@ -1208,7 +1336,19 @@ document.getElementById("expCopy").addEventListener("click",async e=>{
 let ADMIN=false,MODE="user";const DLCAP=null;
 let CROPS={};const CROPURL={};
 function toast(msg,ms){const el=document.getElementById("toast");el.textContent=msg;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>{el.hidden=true;},ms||2600);}
-function setHero(){document.getElementById("hero").style.setProperty("--hero",HERO?`url(${HERO})`:"none");}
+function setHero(){showHero(HERO);HEROKEY=null;}
+function showHero(u){document.getElementById("hero").style.setProperty("--hero",u?`url("${encodeURI(u)}")`:"none");}
+/* ヘッダーの背景：キャラ＝ランダムな覚醒イラスト、スクリプト＝ランダムなスクリプトイラスト、
+   封印戦＝その封印戦のテーマイラスト（images.json の sealfull / seals。なければ通常の画像）、ほか＝通常の画像。
+   タブを開くたび・再読み込みのたびに選び直す */
+let HEROKEY=null;
+function tabHero(){
+  if(MODE==="admin")return;
+  const top=topOf(tab);const rnd=o=>{const v=Object.values(o).filter(Boolean);return v.length?v[Math.floor(Math.random()*v.length)]:"";};
+  if(top==="chara"||top==="script"){if(HEROKEY===top)return;HEROKEY=top;showHero(rnd(top==="chara"?BANNER:SFULL)||HERO);return;}
+  if(top==="seal"){const f=curFloor();const k="seal|"+(f?f.key:"");if(HEROKEY===k)return;HEROKEY=k;showHero(f&&(SEALF[f.floor]||SEAL[f.floor])||HERO);return;}
+  if(HEROKEY==="base")return;HEROKEY="base";showHero(HERO);
+}
 function hashId(s){let h1=0x811c9dc5,h2=0x1234567;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,16777619)>>>0;h2=Math.imul(h2^c,2246822519)>>>0;}return h1.toString(36)+h2.toString(36);}
 function applyMedia(){
   for(const k in IMG)delete IMG[k];Object.assign(IMG,BASE.IMG);
@@ -1442,7 +1582,7 @@ document.getElementById("dlgShare").addEventListener("click",async e=>{
   if(k==="copytext"){navigator.clipboard.writeText(SHARE.text+"\n"+SHARE.link).then(()=>toast("コピーしました"),()=>toast("コピーできませんでした"));return;}
 });
 /* 共有リンク（?floor=種類|階層）で開いたときはその階層を表示 */
-function applyFloorParam(){try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&["own","chars","scripts","tier","sum","babel","seal"].includes(tp)){tab=tp;history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+function applyFloorParam(){try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&["home","guide","faq","own","chars","scripts","tier","sum","babel","seal"].includes(tp)){tab=tp;history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 
 /* ================= お知らせ ================= */
 let NEWS=[];
@@ -1484,10 +1624,10 @@ function track(name,params){try{if(window.gtag)gtag("event",name,params||{});}ca
 
 /* ================= feedback form ================= */
 const dlgF=document.getElementById("dlgFeedback");
-document.querySelectorAll("[data-feedback]").forEach(b=>b.addEventListener("click",ev=>{ev.preventDefault();
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-feedback]");if(!b)return;ev.preventDefault();
   document.getElementById("fbText").value="";document.getElementById("fbContact").value="";document.getElementById("fbErr").textContent="";
-  document.getElementById("fbPage").textContent=feedbackPage();dlgF.showModal();}));
-function feedbackPage(){const f=curFloor();const t={tier:"バベル攻略",seal:"封印戦",sum:"全階層まとめ",chars:"キャラ一覧",babel:"階層一覧",scripts:"スクリプト",rank:"ランキング",own:"所持率チェッカー"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
+  document.getElementById("fbPage").textContent=feedbackPage();dlgF.showModal();});
+function feedbackPage(){const f=curFloor();const t={home:"ホーム",guide:"使い方ガイド",faq:"Q&A",tier:"バベル攻略",seal:"封印戦",sum:"全階層まとめ",chars:"キャラ一覧",babel:"階層一覧",scripts:"スクリプト",rank:"ランキング",own:"所持率チェッカー"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
 document.getElementById("fbSend").addEventListener("click",async e=>{
   const text=document.getElementById("fbText").value.trim(),contact=document.getElementById("fbContact").value.trim(),kind=document.querySelector('input[name="fbKind"]:checked').value;
   const err=document.getElementById("fbErr");

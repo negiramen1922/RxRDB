@@ -4,6 +4,7 @@
 
 ## 構成
 - `index.html` … 公開サイト本体（HTML/CSS/JS 1ファイル）。`window.SITE` に GA4 の ID と Firebase（apiKey / projectId）を設定する。一般の閲覧では Firebase SDK は読み込まず、Firestore REST で `public/all`（公開データ一式）を1回読むだけ（読めなければ `public/*` を個別に、それも駄目なら data/*.json）。
+- 公開サイトのメニュー：ホーム（入口・お知らせ・前回の続き）／使い方ガイド／Q&A（`GUIDE`・`FAQ` 配列。index.html 内）、キャラクター、スクリプト、バベル、封印戦。最初はホーム（ホームの「前回見ていたページを開く」で前回のページから）。ヘッダー背景はキャラ＝ランダムな覚醒イラスト（banners）、スクリプト＝ランダムなスクリプトイラスト（sfull）、封印戦＝その封印戦のテーマイラスト（sealfull/seals）、ほか＝hero（`tabHero`）。
 - `js/admin.js` … 管理画面（`#admin` / フッターの「管理者ログイン」で読み込む ES module）。Google ログイン、データ編集、読み込み・書き出し、画像、変更履歴、ご意見、アクセス、メンバー。
 - `js/fb.js` … Firebase 初期化（gstatic 10.12.2）とオーナーのメールアドレス。
 - `firestore.rules` … Firestore のセキュリティルール。変えたら Firebase コンソールのルールにも貼る。
