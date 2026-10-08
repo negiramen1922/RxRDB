@@ -1967,7 +1967,8 @@ async function showShare(make,text,link,name,title){
 const KNFL={view:"list",order:null,q:""};
 /* 騎士団の中の並び（選択肢の「階級」の順番とは別に固定） */
 const KN_RANK=["KING","QUEEN","FORTRESS","KNIGHT","WIZARD","JOKER"];
-const knFace=k=>KN[k.name]||IMG[`${k.name}_DEFAULT`]||CH.filter(c=>c.base===k.name).map(c=>IMG[c.id]).find(Boolean)||"";
+/* 顔アイコンはキャラ（DEFAULT スタイル）のサムネイルを優先。立ち絵は全身のシートなので、無いときだけ立ち絵から切り抜いたもの */
+const knFace=k=>IMG[`${k.name}_DEFAULT`]||CH.filter(c=>c.base===k.name).map(c=>IMG[c.id]).find(Boolean)||KN[k.name]||"";
 const knStyles=k=>CH.filter(c=>c.base===k.name).sort((a,b)=>a.date-b.date);
 function knCard(k){const f=knFace(k);return `<button class="kncard" data-knight="${esc(k.name)}">${f?`<img src="${f}" alt="" loading="lazy">`:'<span class="noimg"></span>'}<span><b>${esc(k.name)}</b><small>${esc(k.kana)}</small><span class="kntags">${k.order?`<span>${ic(k.order,"ord")}${esc(k.order)}</span>`:""}${k.rank?`<span>${ic(k.rank)}${esc(k.rank)}</span>`:""}${k.bday?`<span>🎂 ${esc(k.bday)}</span>`:""}</span></span></button>`;}
 function jstToday(){const d=new Date(Date.now()+9*3600e3);return {m:d.getUTCMonth()+1,d:d.getUTCDate(),y:d.getUTCFullYear()};}
@@ -2123,7 +2124,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=37");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=38");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }

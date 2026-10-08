@@ -623,7 +623,7 @@ function customList(k) {
     const list = [...T.people.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
     return `<div class="toolbar"><h2><small>KNIGHTS</small>騎士</h2><input class="search" id="clq" placeholder="名前・騎士団などで検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.people.rows.size}</span></div>
     <p class="hint" style="margin:-6px 0 12px">スタイルに関係なく、そのキャラ自身の情報です。ここの騎士団・階級・性別が、各スタイルのキャラデータに自動で使われます。</p>
-    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = R.KN[c["名前"]] || R.IMG[`${c["名前"]}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean);
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = R.IMG[`${c["名前"]}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean) || R.KN[c["名前"]];
       const who = othersOn("people", r.id);
       return `<button class="pcard" data-adrow="${esc(r.id)}">${face ? `<img src="${esc(face)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b><small>${esc(c["ふりがな"] || "")}</small>
       <span class="ptags">${c["騎士団"] ? `<span>${R.ic(c["騎士団"], "ord")}${esc(c["騎士団"])}</span>` : '<span class="miss">騎士団未設定</span>'}${c["階級"] ? `<span>${R.ic(c["階級"])}${esc(c["階級"])}</span>` : ""}${c["性別"] ? `<span>${esc(c["性別"])}</span>` : ""}${c["誕生日"] ? `<span>🎂${esc(c["誕生日"])}</span>` : ""}</span>
