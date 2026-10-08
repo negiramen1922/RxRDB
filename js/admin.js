@@ -14,7 +14,7 @@ const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["s
 // t: text / num / auto（自動で入る・編集不可） / floor（バベルの階層を選ぶ） / hide（フォームに出さない） / team（編成のキャラ6人） / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
 const SCHEMA = {
   chars: [
-    { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["No", "auto"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
+    { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["No", "auto"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定|周年限定"], ["実装", "sel:未実装"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
     { g: "騎士の設定から（自動）", note: "騎士団・階級・性別は「騎士」の設定がそのまま使われます。変えるときは騎士のほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
     { g: "強いところ・弱いところ", note: "キャラ詳細の上の方に表示されます。改行もそのまま出ます。", f: [["強いところ", "long"], ["弱いところ", "long"]] },
     { g: "効果タグ", note: "キャラ一覧の絞り込み（攻撃・防御・HP・その他）に使います。説明文から自動で付いたものに「自動」と出ます。チェックで追加・外すことができ、説明文を直すと自動の分も変わります。", f: [["効果タグ", "tags"]] },
@@ -26,7 +26,7 @@ const SCHEMA = {
     { g: "特性", f: [["特性名称", "text"], ["Lv1 特性効果", "long"], ["Lv3 特性効果", "long"], ["Lv5 特性効果", "long"], ["特性開放 ★4", "long"], ["特性開放 ★5", "long"]] },
   ],
   scripts: [
-    { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"]] },
+    { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定|周年限定"], ["ロール", "opt:ロール"], ["実装日", "date"]] },
     { g: "ステータス", note: "スクリプトの Lv200 のステータスは星で変わりません。完凸（限界突破しきった状態）の値は分かるものだけ入れてください。", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
     { g: "スキル1", f: [["スキル1効果", "long"]] },
     { g: "スキル2", f: [["条件2", "cond"], ["スキル2効果", "long"]] },
@@ -84,6 +84,7 @@ let STATS = null;        // [{day, pv, uv}]
 let NEWSLIST = [];
 let OPTS = null;         // public/options（プルダウンの選択肢）
 let TIERPUB = {};        // public/tiers の中身（サーバー側）
+let TIERORD = {};        // public/tiers の orders（Tier行の中の並び順）
 const TIERPEND = [];     // 送信中の配置変更（画面には先に反映）       // public/news
 let GH = null;           // {token, repo, branch} GitHub 連携（secrets/github）
 
@@ -192,7 +193,7 @@ async function resolveRole(u) {
 }
 
 /* ================= live listeners ================= */
-function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = false; }
+function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = false; TODODOC = null; }
 function startListeners() {
   const on = (ref, fn, opt) => S.unsubs.push(F.onSnapshot(ref, opt || {}, fn, err => {
     console.warn(ref.path, err);
@@ -208,7 +209,7 @@ function startListeners() {
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
     if (BUNDLE_KEYS.includes(k)) { PUBRAW[k] = d && typeof d.json === "string" ? d.json : null; scheduleBundle(); }
     if (k === "crops") { try { R.setCrops(d && d.json ? JSON.parse(d.json) : {}); } catch (e) { } }
-    else if (k === "tiers") { let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
+    else if (k === "tiers") { let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; TIERORD = v.orders || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
     else if (k === "options") { try { OPTS = d && d.json ? JSON.parse(d.json) : null; } catch (e) { OPTS = null; } if (OPTS) R.setOptions(OPTS); softRender(); return; }
     else if (k === "guide") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } GUIDEDOC = v; GUIDEAT = d ? d.at || 0 : 0; if (v) R.setDocs(v); if (!GD.dirty) GD.draft = null; if (S.tab === "guide") softRender(); return; }
     else if (k === "news") { try { NEWSLIST = d && d.json ? JSON.parse(d.json) : []; } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
@@ -222,7 +223,7 @@ function startListeners() {
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
   initName().then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
-  S.on = on; LAZY.log = LAZY.fb = false;
+  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = false; TODODOC = null;
   // ご意見・変更履歴は、そのタブを開いたときに読む（未対応のご意見の数だけは件数クエリで数える＝1回の読み取り）
   F.getCountFromServer(F.query(F.collection(F.db, "feedback"), F.where("status", "==", "new"))).then(c => { S.fbNew = c.data().count; renderNav(); }).catch(e => console.warn("fbcount", e));
   S.unsubs.push(F.onSnapshot(F.doc(F.db, "secrets", "github"), s => { GH = s.exists() && s.data().token ? s.data() : null; softRender(); }, () => { GH = null; }));
@@ -272,7 +273,7 @@ function listenRows(k, on) {
     }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
   }
 }
-const LAZY = { log: false, fb: false };
+const LAZY = { log: false, fb: false, todo: false };
 function ensureLazy(tab) {
   if (!S.on) return;
   if (tab === "log" && !LAZY.log) { LAZY.log = true; S.on(F.query(F.collection(F.db, "log"), F.orderBy("at", "desc"), F.limit(150)), q => { LOG = q.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.tab === "log") softRender(); }); }
@@ -424,7 +425,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["todo", "やること"], ["tier", "Tier表"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = S.fbNew || 0;
@@ -460,6 +461,7 @@ function renderAdmin(soft) {
   else if (S.tab === "img") { if (!(soft && IM.files.length)) renderImg(); }
   else if (S.tab === "tier") renderTierTab(soft);
   else if (S.tab === "news") { if (!(soft && NW.edit)) renderNews(); }
+  else if (S.tab === "todo") { if (!(soft && TD.edit)) renderTodo(); }
   else if (S.tab === "guide") { if (!(soft && GD.dirty)) renderGuideTab(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
@@ -506,7 +508,7 @@ function labelOf(k, c) {
   if (k === "chars") return c["キャラ名"] || c["ID"] || "(名前なし)";
   if (k === "styles") return c["スタイル"] || "(名前なし)";
   if (k === "seals") return c["封印戦名"] || "(名前なし)";
-  if (k === "teams") return `${c["編成名"] || "(名前なし)"}（${c["バベル種類"] || ""} ${c["階層"] || ""}F）`;
+  if (k === "teams") return `${c["編成名"] || "(名前なし)"}（${teamPlace(c["バベル種類"], c["階層"])}）`;
   if (k === "events") return c["イベント名"] || "(名前なし)";
   return c["名前"] || "(名前なし)";
 }
@@ -521,7 +523,7 @@ function loadRow(k, id) {
   ED.base = Object.assign({}, r.c); ED.draft = Object.assign({}, r.c); ED.baseRev = r.rev;
   ED.dirty = false; ED.confirmDel = false; ED.remote = null; ED.gone = false; ED.conflict = null;
 }
-const EDORDER = ["chars", "scripts", "babel", "teams", "seals", "people", "styles", "bosses", "events", "options"];
+const EDORDER = ["chars", "scripts", "babel", "seals", "people", "styles", "bosses", "events", "options"];
 const EDGROUP = { babel: "", teams: "", seals: "", chars: "", scripts: "", people: "master", styles: "master", bosses: "master", events: "master", options: "master" };
 let DLG = null;
 function edDialog() {
@@ -578,7 +580,8 @@ function presHtml() {
 function renderEdit(soft) {
   if (!allReady()) { AM.innerHTML = userBar() + statusBar(); return; }
   // 一覧の表（ED.listK）と、編集ダイアログで開いている表（ED.k）は別のことがある（バベルから編成例を開いたときなど）
-  const k = DLG && DLG.open && ED.listK ? ED.listK : ED.k;
+  let k = DLG && DLG.open && ED.listK ? ED.listK : ED.k;
+  if (!EDORDER.includes(k)) k = "babel";   // 編成例はバベル・封印戦の編集画面から開く（一覧のタブは無い）
   ED.listK = k;
   const seg = `<div class="seg edseg">${EDORDER.map((t, i) => `${i && EDGROUP[t] && !EDGROUP[EDORDER[i - 1]] ? '<span class="segsep">マスター</span>' : ""}<button data-edk="${t}" aria-pressed="${k === t}">${TLABEL[t]}</button>`).join("")}</div>`;
   if (k !== "options" && !seeded(k)) {
@@ -599,7 +602,7 @@ function renderEdit(soft) {
     return;
   }
   document.getElementById("main").innerHTML = "";   // 同じ id の検索欄が重ならないように
-  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
+  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "chars" ? `<button class="btn" data-a="bulkrar">レアリティ・実装をまとめて入力</button>` : ""}${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
   if (custom) { R.setMain(null); bindCustomList(); }
   else { R.setMain(document.getElementById("admlist"), () => { if (S.tab === "edit") R.renderList(ED.k); }); R.renderList(k); }
   if (DLG && DLG.open) refreshForm();
@@ -708,20 +711,72 @@ function teamCard(r) {
   const c = r.c || {}; const ms = parseTeam(c["メンバー"]);
   return `<button class="pcard teamcard" data-adrow="${esc(r.id)}"><span class="pinfo"><b>${esc(c["編成名"] || "(名前なし)")}</b><span class="tmfaces">${ms.map(m => R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="" title="${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}">` : `<span class="tag">${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}</span>`).join("")}</span>${c["コメント"] ? `<small class="count">${esc(String(c["コメント"]).slice(0, 60))}</small>` : ""}</span></button>`;
 }
-function floorsList() { return rowsOf("babel").map(b => ({ key: keyOfCells("babel", b), label: `${b["バベル種類"] || ""} ${b["階層"] || ""}F${b["ボス"] ? " " + b["ボス"] : ""}` })).filter(x => x.key.replace("|", "")); }
+function floorsList() { return rowsOf("babel").map(b => ({ key: keyOfCells("babel", b), label: `${b["バベル種類"] || ""} ${b["階層"] || ""}F${b["ボス"] ? " " + b["ボス"] : ""}` })).filter(x => x.key.replace("|", "")).concat(seeded("seals") ? rowsOf("seals").filter(x => String(x["封印戦名"] || "").trim()).map(x => ({ key: "封印戦|" + String(x["封印戦名"]).trim(), label: `封印戦 ${x["封印戦名"]}` })) : []); }
+// 編成例の「バベル種類|階層」の表示（封印戦は「封印戦 名前」）
+const teamPlace = (t, f) => t === "封印戦" ? `封印戦 ${f || ""}` : `${t || ""} ${f || ""}F`;
 function teamField(v) {
   return `<div class="tmslots">${teamSlots(v).map((m, i) => {
     const cr = m.id ? charRow(m.id) : null; const min = cr ? (RARSTAR[cr["レアリティ"]] || 1) : 1;
     const name = m.id ? (R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id) : "";
     return `<div class="tmslot"><span class="tmno">${i + 1}</span>
       <span class="tmimg">${m.id && R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="">` : '<span class="noimg"></span>'}</span>
-      <input class="tmin" data-tm="${i}|id" list="dl_chars" value="${esc(name)}" placeholder="キャラ名">
+      <button class="btn small tmpick" data-pkopen="char|${i}">${name ? esc(name) : "キャラを選ぶ"}</button>
       <select data-tm="${i}|star"><option value="">★</option>${[1, 2, 3, 4, 5].filter(n => n >= min || String(n) === m.star).map(n => `<option value="${n}" ${String(n) === m.star ? "selected" : ""}>★${n}</option>`).join("")}</select>
       <span class="tmimg">${m.sc && R.SIMG[m.sc] ? `<img src="${esc(R.SIMG[m.sc])}" alt="">` : '<span class="noimg"></span>'}</span>
-      <input class="tmin" data-tm="${i}|sc" list="dl_scripts" value="${esc(m.sc)}" placeholder="スクリプト名">
+      <button class="btn small tmpick" data-pkopen="script|${i}" ${m.id ? "" : "disabled title=\"先にキャラを選んでください\""}>${m.sc ? esc(m.sc) : "スクリプトを選ぶ"}</button>
       ${m.id || m.sc ? `<button class="btn small" data-tmclear="${i}" aria-label="この枠を空にする">✕</button>` : ""}
-      ${m.id && !cr ? '<small class="err">見つからないキャラ</small>' : ""}${m.sc && !R.SC.some(x => x.name === m.sc) ? '<small class="err">見つからないスクリプト</small>' : ""}</div>`;
+      ${m.id && !cr ? '<small class="err">見つからないキャラ</small>' : ""}${m.sc && !R.SC.some(x => x.name === m.sc) ? '<small class="err">見つからないスクリプト</small>' : ""}${m.sc && m.id && !scRoleOk(m.id, m.sc) ? '<small class="err">キャラとロールが違うスクリプトです</small>' : ""}</div>`;
   }).join("")}</div>`;
+}
+/* ---- 編成例：キャラ・スクリプトを公開サイトと同じカードから選ぶ ----
+   スクリプトは、そのキャラと同じロール（とワイルド）のものだけを出す */
+const PK = { kind: "char", slot: 0, q: "", role: null, attr: null, all: false };
+const scRoleOk = (id, sc) => { const c = R.CHMAP[id], s = R.SC.find(x => x.name === sc); return !c || !s || !s.role || !c.role || s.role === c.role || s.role === "ワイルド"; };
+let PKDLG = null;
+function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement("dialog"); PKDLG.id = "dlgPick"; PKDLG.className = "wide"; PKDLG.innerHTML = `<div class="dlg" id="pkBody"></div>`; document.body.appendChild(PKDLG);
+  PKDLG.addEventListener("click", e => { if (e.target === PKDLG) { PKDLG.close(); return; } const b = e.target.closest("[data-pk],[data-pkrole],[data-pkattr],[data-pkall],[data-pkclose]"); if (!b) return; const ds = b.dataset;
+    if (ds.pkclose) { PKDLG.close(); return; }
+    if (ds.pk !== undefined) { pickApply(ds.pk); return; }
+    if (ds.pkrole) PK.role = PK.role === ds.pkrole ? null : ds.pkrole; if (ds.pkattr) PK.attr = PK.attr === ds.pkattr ? null : ds.pkattr; if (ds.pkall) PK.all = !PK.all;
+    pickRender(); });
+  return PKDLG; }
+function openPick(kind, slot) { PK.kind = kind; PK.slot = +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
+function pickList() {
+  const slots = teamSlots(ED.draft["メンバー"]); const cur = slots[PK.slot] || {}; const q = PK.q.trim().toLowerCase();
+  if (PK.kind === "char") {
+    const inTeam = new Set(slots.map(x => x.id).filter(Boolean));
+    let l = R.CH.slice(); if (PK.role) l = l.filter(c => c.role === PK.role); if (PK.attr) l = l.filter(c => c.attr === PK.attr);
+    if (q) { const hi = R.data("chars").headers.indexOf("名前 ひらがな"); l = l.filter(c => (c.name + c.id + (hi >= 0 ? c.row[hi] || "" : "")).toLowerCase().includes(q)); }
+    return { items: l, inTeam, cur };
+  }
+  const c = R.CHMAP[cur.id]; let l = R.SC.slice();
+  if (c && c.role && !PK.all) l = l.filter(s => !s.role || s.role === c.role || s.role === "ワイルド");
+  if (PK.attr) l = l.filter(s => s.conds.includes(PK.attr));
+  if (q) l = l.filter(s => s.row.some(x => String(x || "").toLowerCase().includes(q)));
+  l.sort((a, b) => ({ SSR: 3, SR: 2, R: 1 }[b.rar] || 0) - ({ SSR: 3, SR: 2, R: 1 }[a.rar] || 0));
+  return { items: l, c, cur };
+}
+function pickRender() {
+  const body = document.getElementById("pkBody"); if (!body) return; const L = pickList(); const isC = PK.kind === "char";
+  const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
+      return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? '<span class="ccbadges"><span class="ccown">編成中</span></span>' : ""}</button>`; }).join("")
+    : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
+      return `<button class="ccard scard2 pkcard${s.name === L.cur.sc ? " pkcur" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span></button>`; }).join("");
+  const head = isC ? `<div class="chips">${R.ROLES.map(r => `<button class="chip" data-pkrole="${esc(r)}" aria-pressed="${PK.role === r}">${R.ic(r)}${esc(r)}</button>`).join("")}</div>`
+    : (L.c && L.c.role ? `<span class="count">${esc(L.c.name)} は <b>${R.ic(L.c.role)}${esc(L.c.role)}</b> なので、${esc(L.c.role)}（とワイルド）のスクリプトだけを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : "");
+  body.innerHTML = `<div class="pkhead"><h2>${isC ? "キャラを選ぶ" : "スクリプトを選ぶ"}<small class="count">（${PK.slot + 1}人目）</small></h2><input class="search" id="pkQ" placeholder="${isC ? "名前・ひらがなで検索" : "名前・効果・条件で検索"}" value="${esc(PK.q)}"><span class="count">${L.items.length}件</span></div>
+    <div class="pkfil">${head}<div class="chips">${R.ATTRS.map(a => `<button class="chip" data-pkattr="${esc(a)}" aria-pressed="${PK.attr === a}">${R.ic(a)}${isC ? "" : "条件："}${esc(a)}</button>`).join("")}</div></div>
+    <div class="pkgrid"><div class="ccards">${cards || '<p class="count">該当するものがありません</p>'}</div></div>
+    <div class="formfoot"><span class="count">カードを押すと選ばれます。</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
+  const q = document.getElementById("pkQ"); R.liveInput(q, () => { PK.q = q.value; const p = q.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
+}
+function pickApply(v) {
+  const slots = teamSlots(ED.draft["メンバー"]); const m = slots[PK.slot];
+  if (PK.kind === "char") { m.id = v; const cr = charRow(v); const min = cr ? (RARSTAR[cr["レアリティ"]] || 1) : 1; if (!m.star || +m.star < min) m.star = String(min);
+    if (m.sc && !scRoleOk(v, m.sc)) { m.sc = ""; toast("ロールが違うのでスクリプトを外しました"); } }
+  else m.sc = v;
+  ED.draft["メンバー"] = slotsStr(slots); ED.dirty = true; ED.leaveOk = false; PKDLG.close(); renderForm();
+  if (PK.kind === "char" && !m.sc) setTimeout(() => openPick("script", PK.slot), 50);   // 続けてスクリプトも選べるように
 }
 // 入力欄の値をメンバー列に反映（キャラ名 → キャラID）
 function teamInput(el) {
@@ -779,12 +834,59 @@ function renderForm() {
   body.querySelectorAll("[data-tagck]").forEach(el => el.addEventListener("change", () => { tagInput(); renderForm(); }));
   body.querySelectorAll("[data-syn]").forEach(el => el.addEventListener(el.tagName === "TEXTAREA" ? "input" : "change", () => { synInput(el); if (el.tagName !== "TEXTAREA") renderForm(); }));
   body.querySelectorAll("[data-tm]").forEach(el => el.addEventListener("change", () => { teamInput(el); renderForm(); }));
-  body.querySelectorAll("[data-floorsel]").forEach(el => el.addEventListener("change", () => { const [t, f] = el.value.split("|"); ED.draft["バベル種類"] = t || ""; ED.draft["階層"] = f || ""; ED.dirty = true; ED.leaveOk = false; renderForm(); }));
+  body.querySelectorAll("[data-floorsel]").forEach(el => el.addEventListener("change", () => { const i = el.value.indexOf("|"), t = i < 0 ? el.value : el.value.slice(0, i), f = i < 0 ? "" : el.value.slice(i + 1); ED.draft["バベル種類"] = t || ""; ED.draft["階層"] = f || ""; ED.dirty = true; ED.leaveOk = false; renderForm(); }));
   const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const io = IMGOF[ED.k]; quickUpload(io[0], ED.base[io[1]], f); });
   body.querySelectorAll(".cpin").forEach(cp => cp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); pickAdd(cp.dataset.cpfield); } }));
 }
 /* ---- 選択肢（プルダウン） ---- */
 const ICONKEYS = ["騎士団", "階級", "ロール", "属性"];
+/* ---- キャラのレアリティ・実装済み／未実装をまとめて入力 ----
+   レアリティ（R=★1・SR=★2・SSR=★3 の初期の星）は編成例の星の下限やキャラ一覧の★に使う */
+const BK = { q: "", ch: {}, busy: false, only: false };
+let BKDLG = null;
+function bulkDialog() { if (BKDLG) return BKDLG; BKDLG = document.createElement("dialog"); BKDLG.id = "dlgBulk"; BKDLG.className = "wide"; BKDLG.innerHTML = `<div class="dlg" id="bkBody"></div>`; document.body.appendChild(BKDLG);
+  BKDLG.addEventListener("cancel", e => { if (Object.keys(BK.ch).length && !confirm("保存していない変更を破棄しますか？")) e.preventDefault(); else BK.ch = {}; });
+  BKDLG.addEventListener("change", e => { if (e.target.dataset.bkonly) { BK.only = e.target.checked; bulkRender(); } });
+  BKDLG.addEventListener("click", e => { const b = e.target.closest("[data-bk],[data-bkall],[data-bkclose],[data-bksave]"); if (!b) return; const ds = b.dataset;
+    if (ds.bkclose) { if (Object.keys(BK.ch).length && !confirm("保存していない変更を破棄しますか？")) return; BK.ch = {}; BKDLG.close(); return; }
+    if (ds.bksave) { bulkSave(); return; }
+    const set = (id, f, v, force) => { const r = T.chars.rows.get(id); if (!r) return; const cur = String((r.c || {})[f] || ""); const ch = BK.ch[id] || (BK.ch[id] = {}); const now0 = f in ch ? ch[f] : cur; const nv = !force && now0 === v ? "" : v; if (nv === cur) delete ch[f]; else ch[f] = nv; if (!Object.keys(ch).length) delete BK.ch[id]; };
+    if (ds.bk) { const [id, f, v] = ds.bk.split("|"); set(id, f, v); bulkRender(); return; }
+    if (ds.bkall) { const [f, v] = ds.bkall.split("|"); bulkList().forEach(r => set(r.id, f, v, true)); bulkRender(); return; }
+  });
+  return BKDLG; }
+const bkVal = (r, f) => { const ch = BK.ch[r.id] || {}; return f in ch ? ch[f] : String((r.c || {})[f] || ""); };
+function bulkList() { const q = BK.q.toLowerCase(); return [...T.chars.rows.values()].sort((a, b) => (a.o || 0) - (b.o || 0)).filter(r => { const c = r.c || {}; if (q && !(String(c["キャラ名"] || "") + String(c["ID"] || "") + String(c["名前 ひらがな"] || "")).toLowerCase().includes(q)) return false; if (BK.only && String((r.c || {})["レアリティ"] || "")) return false; return true; }); }
+function bulkRender() {
+  const list = bulkList(); const n = Object.keys(BK.ch).length; const noRar = [...T.chars.rows.values()].filter(r => !bkVal(r, "レアリティ")).length;
+  const chip = (id, f, v, cur) => `<button class="chip" data-bk="${esc(id)}|${f}|${v}" aria-pressed="${cur === v}">${v}</button>`;
+  const sc = document.querySelector("#dlgBulk .pkgrid"); const top = sc ? sc.scrollTop : 0;
+  document.getElementById("bkBody").innerHTML = `<div class="pkhead"><h2>レアリティ・実装をまとめて入力</h2><input class="search" id="bkQ" placeholder="キャラ名で絞り込み" value="${esc(BK.q)}"><button class="btn small" data-bkclose="1">閉じる</button></div>
+  <p class="hint" style="margin:6px 0">レアリティは初期の星（R=★1・SR=★2・SSR=★3）として、編成例の星の下限やキャラ一覧の★に使われます。押した所をもう一度押すと空に戻ります。「未実装」にしたキャラは所持率チェッカーで数えません。</p>
+  <div class="pkfil"><label class="cfall"><input type="checkbox" data-bkonly="1" ${BK.only ? "checked" : ""}> 保存済みのレアリティが空のキャラだけ（いま空：${noRar}人）</label><span style="flex:1"></span><span class="count">表示中をまとめて：</span>${["SSR", "SR", "R"].map(v => `<button class="btn small" data-bkall="レアリティ|${v}">${v}</button>`).join("")}</div>
+  <div class="pkgrid bkgrid">${list.map(r => { const c = r.c || {}; const rar = bkVal(r, "レアリティ"), rel = bkVal(r, "実装"); const im = R.IMG[c["ID"]];
+    return `<div class="bkrow${BK.ch[r.id] ? " bkch" : ""}">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg"></span>'}<b title="${esc(c["ID"] || "")}">${esc(c["キャラ名"] || c["ID"] || "")}</b><span class="chips">${["SSR", "SR", "R"].map(v => chip(r.id, "レアリティ", v, rar)).join("")}</span><span class="chips">${chip(r.id, "実装", "未実装", rel)}</span></div>`; }).join("") || '<p class="count">該当するキャラがいません</p>'}</div>
+  <div class="row2" style="margin-top:10px"><span class="count">${n ? `${n}人を変更中（まだ保存していません）` : "変更はありません"}</span><span style="flex:1"></span><button class="btn primary" data-bksave="1" ${n && !BK.busy ? "" : "disabled"}>${BK.busy ? "保存中…" : "保存して公開"}</button></div>`;
+  const sc2 = document.querySelector("#dlgBulk .pkgrid"); if (sc2) sc2.scrollTop = top;
+  const qi = document.getElementById("bkQ"); R.liveInput(qi, () => { BK.q = qi.value; const p = qi.selectionStart; bulkRender(); const nq = document.getElementById("bkQ"); nq.focus(); nq.setSelectionRange(p, p); });
+}
+function openBulk() { if (!seeded("chars")) { toast("キャラの表を準備しています。数秒後にもう一度押してください"); return; } BK.ch = {}; bulkDialog(); bulkRender(); if (!BKDLG.open) BKDLG.showModal(); }
+async function bulkSave() {
+  const ids = Object.keys(BK.ch); if (!ids.length || BK.busy) return;
+  BK.busy = true; bulkRender();
+  try {
+    const hd = T.chars.headers.slice(); const add = ["レアリティ", "実装"].filter(h => !hd.includes(h) && ids.some(id => h in BK.ch[id]));
+    let b = F.writeBatch(F.db), n = 0;
+    if (add.length) { b.set(F.doc(F.db, "tables", "chars"), { headers: hd.concat(add), t: now(), by: meId() }, { merge: true }); n++; }
+    for (const id of ids) { const r = T.chars.rows.get(id); if (!r) continue; const c = Object.assign({}, r.c || {}, BK.ch[id]);
+      b.set(F.doc(F.db, "tables", "chars", "rows", id), { c, o: r.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() });
+      if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; } }
+    b.set(F.doc(F.db, "log", rid()), logDoc({ act: "import", k: "chars", label: `キャラのレアリティ・実装をまとめて変更（${ids.length}人）` }));
+    await b.commit();
+    toast(`${ids.length}人を保存しました。数秒で公開サイトに反映されます`); BK.ch = {};
+  } catch (e) { toast(fbErr(e), 6000); }
+  BK.busy = false; if (BKDLG && BKDLG.open) bulkRender();
+}
 const OPT_KEYS = ["騎士団", "階級", "ロール", "属性", "ダメージタイプ", "性別", "攻撃速度", "レアリティ", "バベル種類", "効果キーワード"];
 const OPT_NOTE = { "効果キーワード": "キャラ・スクリプトの説明文の中でリンクになる言葉です。押すと、同じ言葉を含むキャラ・スクリプトの一覧が出ます（長い言葉が優先）。",  "騎士団": "騎士の所属。公開サイトの絞り込み・アイコンにも使われます", "階級": "KING・QUEEN など", "ロール": "キャラ・スクリプトのロール", "属性": "破壊・衝撃・爆発", "攻撃速度": "A・Aplus など", "バベル種類": "リバースバベル など" };
 function colVals(k, col) { if (!T[k] || !seeded(k)) return []; const out = []; T[k].rows.forEach(r => { const v = String((r.c || {})[col] || "").trim(); if (v && !out.includes(v)) out.push(v); }); return out; }
@@ -869,8 +971,8 @@ function fieldHtml(name, type, i, both) {
     return "";
   } else if (type === "floor") {
     const cur = keyOfCells("babel", ED.draft); const fs = floorsList();
-    label = "バベルの階層";
-    inner = `<select id="${id}" data-floorsel="1"><option value="">（階層を選択）</option>${fs.map(x => `<option value="${esc(x.key)}" ${x.key === cur ? "selected" : ""}>${esc(x.label)}</option>`).join("")}${cur.replace("|", "") && !fs.some(x => x.key === cur) ? `<option value="${esc(cur)}" selected>${esc(cur.replace("|", " "))}F（バベルにない階層）</option>` : ""}</select>`;
+    label = "バベルの階層・封印戦";
+    inner = `<select id="${id}" data-floorsel="1"><option value="">（階層・封印戦を選択）</option>${fs.map(x => `<option value="${esc(x.key)}" ${x.key === cur ? "selected" : ""}>${esc(x.label)}</option>`).join("")}${cur.replace("|", "") && !fs.some(x => x.key === cur) ? `<option value="${esc(cur)}" selected>${esc(teamPlace(...cur.split("|")))}（見つかりません）</option>` : ""}</select>`;
   } else if (type === "tags") {
     cls += " long"; inner = tagField(v);
   } else if (type === "synergy") {
@@ -897,7 +999,7 @@ function fieldHtml(name, type, i, both) {
   } else if (type === "cond") {
     inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_cond" placeholder="属性・騎士団・階級・スタイル・キャラ名・女性/男性">`;
   } else if (type.startsWith("sel:")) {
-    inner = selectHtml(id, name, type.slice(4).split("|"), v);
+    inner = selectHtml(id, name, type.slice(4).split("|"), v, name === "実装" ? "実装済み" : "");
   } else if (type === "datelist") {
     cls += " long"; const ds = splitList(v);
     inner = `<div class="cpchips">${ds.map(d => `<span class="cpchip datechip">${esc(fmtD(d))}<button data-dlrm="${esc(name)}|${esc(d)}" aria-label="外す">✕</button></span>`).join("") || '<span class="count">まだありません</span>'}</div>
@@ -930,11 +1032,16 @@ function linkInfo() {
     const fl = floorsOfBoss(ED.base["名前"]), ev = eventsOfBoss(ED.base["名前"]);
     return box("つながっているデータ（自動）", `<p class="hint fgnote">バベルの「ボス」・イベントの「登場ボス」に同じ名前があるものです。</p><div class="linkrow"><b>バベル</b>${fl.map(f => `<span class="tag">${esc(f["バベル種類"])} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">なし</span>'}</div><div class="linkrow"><b>イベント</b>${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("") || '<span class="count">なし</span>'}</div>`);
   }
-  if (ED.k === "seals") { const n = Object.keys(R.OFFICIAL["封印戦|" + ED.base["封印戦名"]] || {}).length; return box("Tier表", `<div class="linkrow"><span>${n ? `${n}体を配置済み` : "まだ配置していません"}</span><button class="btn small primary" data-a="sealtier">この封印戦のTier表を編集</button></div>`); }
+  const tierBox = (fk, what) => { const n = Object.keys(R.OFFICIAL[fk] || {}).length; return box("運営Tier表", `<div class="linkrow"><span>${n ? `${n}体を配置済み` : "まだ配置していません"}</span><button class="btn small primary" data-a="${ED.k === "seals" ? "sealtier" : "babeltier"}">この${what}のTier表を作る・編集する</button></div>`); };
+  const teamsBox = (fk, what) => { const ts = seeded("teams") ? [...T.teams.rows.values()].filter(r => keyOfCells("babel", r.c || {}) === fk).sort((a, b) => a.o - b.o) : [];
+    return box("編成例", `<div class="pgrid">${ts.map(r => teamCard(r).replace('data-adrow=', 'data-teamedit=')).join("") || '<span class="count">まだありません</span>'}</div><div class="row2"><button class="btn small primary" data-a="teamadd">＋ この${what}の編成例を追加</button></div>`); };
+  if (ED.k === "seals") { const fk = "封印戦|" + String(ED.base["封印戦名"] || "").trim(); return tierBox(fk, "封印戦") + teamsBox(fk, "封印戦"); }
   if (ED.k === "chars") { const ev = eventsOfChar(ED.base["ID"]); return ev.length ? box("実装イベント（自動）", `<div class="linkrow">${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("")}</div>`) : ""; }
-  if (ED.k === "teams") { const fk = keyOfCells("babel", ED.base); const b = [...T.babel.rows.values()].find(r => keyOfCells("babel", r.c || {}) === fk); return b ? box("バベルの階層", `<div class="linkrow"><span>${esc(fk.replace("|", " "))}F</span><button class="btn small" data-teamfloor="${esc(b.id)}">この階層の編集に戻る</button></div>`) : ""; }
-  if (ED.k === "babel") { const fk = keyOfCells("babel", ED.base); const ts = [...T.teams.rows.values()].filter(r => keyOfCells("babel", r.c || {}) === fk).sort((a, b) => a.o - b.o);
-    const tb = box("編成例", `<div class="pgrid">${ts.map(r => teamCard(r).replace('data-adrow=', 'data-teamedit=')).join("") || '<span class="count">まだありません</span>'}</div><div class="row2"><button class="btn small primary" data-a="teamadd">＋ この階層の編成例を追加</button></div>`);
+  if (ED.k === "teams") { const fk = keyOfCells("babel", ED.base); const sealT = ED.base["バベル種類"] === "封印戦";
+    const b = sealT ? (seeded("seals") ? [...T.seals.rows.values()].find(r => String((r.c || {})["封印戦名"] || "").trim() === String(ED.base["階層"] || "").trim()) : null) : [...T.babel.rows.values()].find(r => keyOfCells("babel", r.c || {}) === fk);
+    return b ? box(sealT ? "封印戦" : "バベルの階層", `<div class="linkrow"><span>${esc(teamPlace(ED.base["バベル種類"], ED.base["階層"]))}</span><button class="btn small" data-teamfloor="${sealT ? "seals" : "babel"}|${esc(b.id)}">この${sealT ? "封印戦" : "階層"}の編集に戻る</button></div>`) : ""; }
+  if (ED.k === "babel") { const fk = keyOfCells("babel", ED.base);
+    const tb = tierBox(fk, "階層") + teamsBox(fk, "階層");
     const b = rowsOf("bosses").find(c => bnorm(c["名前"]) === bnorm(ED.base["ボス"])); return tb + box("ボス（自動）", b ? `<div class="linkrow">${R.BOSS[b["名前"]] ? `<img class="linkimg" src="${esc(R.BOSS[b["名前"]])}" alt="">` : ""}<b>${esc(b["名前"])}</b><span class="count">ボスの画像・説明は「ボス」で編集できます</span></div>` : `<p class="hint fgnote">「ボス」の一覧にこの名前がありません。ボスに追加すると画像などがつながります。</p>`); }
   return "";
 }
@@ -1030,7 +1137,7 @@ async function saveRow(force) {
   const hd = T[k].headers.concat(extra);
   const cells = {}; hd.forEach(h => { cells[h] = String(ED.draft[h] == null ? "" : ED.draft[h]); });
   const dup = dupKey(k, cells, ED.id);
-  if (k === "teams" && (!keyOfCells("babel", cells).split("|").every(Boolean) || !cells["編成名"].trim())) { toast("バベルの階層と編成名を入れてください", 4000); return; }
+  if (k === "teams" && (!keyOfCells("babel", cells).split("|").every(Boolean) || !cells["編成名"].trim())) { toast("バベルの階層（または封印戦）と編成名を入れてください", 4000); return; }
   if (dup === "empty") { toast(k === "chars" ? "キャラとスタイルを選んでください" : `「${KEYCOLS[k].join("」「")}」を入力してください`, 4000); return; }
   if (dup) { toast(k === "chars" ? `このキャラとスタイルの組み合わせ（${cells["ID"]}）はすでに「${dup}」としてあります` : `「${KEYCOLS[k].join("・")}」が「${dup}」と同じです。別の値にしてください`, 6000); return; }
   const creating = ED.isNew || ED.gone;
@@ -1251,7 +1358,7 @@ async function ioAction(a, btn) {
     try { const Z = await loadJSZip(); const z = new Z(); TABLES.forEach(t => { const d = curData(t); if (d.headers.length) z.file(`data/${t}.json`, JSON.stringify({ headers: d.headers, rows: d.rows }, null, 1)); });
       z.file("data/news.json", JSON.stringify(NEWSLIST, null, 1));
       if (GUIDEDOC) z.file("data/guide.json", JSON.stringify(GUIDEDOC, null, 1));
-      z.file("data/tiers.json", JSON.stringify({ tiers: TIERPUB, at: now() }, null, 1));
+      z.file("data/tiers.json", JSON.stringify({ tiers: TIERPUB, orders: TIERORD, at: now() }, null, 1));
       download(`rxrdb-data-${R.jstDay()}.zip`, await z.generateAsync({ type: "blob" })); toast("data/*.json を書き出しました"); }
     catch (e) { toast("ZIP を作れませんでした。通信状態を確認してください", 5000); } return;
   }
@@ -1644,13 +1751,15 @@ async function revertLog(id) {
 /* ================= official tier (運営のTier表) ================= */
 function applyOfficial(at) {
   const o = JSON.parse(JSON.stringify(TIERPUB));
-  TIERPEND.forEach(([fk, id, t]) => { const P = o[fk] || (o[fk] = {}); if (t) P[id] = t; else delete P[id]; });
-  R.setOfficial(o, at);
+  const ord = JSON.parse(JSON.stringify(TIERORD));
+  TIERPEND.forEach(([fk, id, t, ol]) => { if (ol) { ord[fk] = ol; return; } const P = o[fk] || (o[fk] = {}); if (t) P[id] = t; else delete P[id]; });
+  R.setOfficial(o, at, ord);
 }
 function floorLabel(fk) { const [t, f] = String(fk).split("|"); return t === "封印戦" ? `封印戦 ${f}` : `${t} ${f}F`; }
 const TIERQ = { busy: false, q: [] };
-function onTierMove(fk, id, tier, prev) {
-  const op = [fk, id, tier]; TIERPEND.push(op);
+// ol があれば並び順の変更（その階層のキーの配列）
+function onTierMove(fk, id, tier, prev, ol) {
+  const op = ol ? [fk, "", "", ol] : [fk, id, tier]; TIERPEND.push(op);
   TIERQ.q.push({ op, prev });
   flushTier();
 }
@@ -1663,12 +1772,14 @@ async function flushTier() {
     await F.runTransaction(F.db, async tx => {
       const ref = F.doc(F.db, "public", "tiers"); const s = await tx.get(ref);
       let v = {}; try { v = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
-      const tiers = v.tiers || {};
-      batch.forEach(({ op: [fk, id, t] }) => { const P = tiers[fk] || (tiers[fk] = {}); if (t) P[id] = t; else delete P[id]; if (!Object.keys(P).length) delete tiers[fk]; });
-      const json = JSON.stringify({ tiers, at: now() });
+      const tiers = v.tiers || {}, orders = v.orders || {};
+      batch.forEach(({ op: [fk, id, t, ol] }) => { if (ol) { orders[fk] = ol; return; } const P = tiers[fk] || (tiers[fk] = {}); if (t) P[id] = t; else delete P[id]; if (!Object.keys(P).length) delete tiers[fk]; });
+      // 並び順は配置されているキーだけ残す
+      Object.keys(orders).forEach(fk => { const P = tiers[fk] || {}; orders[fk] = (orders[fk] || []).filter(k => P[k]); if (!orders[fk].length) delete orders[fk]; });
+      const json = JSON.stringify({ tiers, orders, at: now() });
       tx.set(ref, { json, at: now(), count: Object.keys(tiers).length });
       const name = k => { const m = /^(.*)~(\d)$/.exec(k); const id = m ? m[1] : k; return (R.CHMAP[id] ? R.CHMAP[id].name : id) + (m ? " ★" + m[2] : ""); };
-      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "tier", label: batch.map(({ op: [fk, id, t], prev }) => `${floorLabel(fk)} ${name(id)}：${prev || "未配置"} → ${t || "未配置"}`).join(" ／ ").slice(0, 600) }));
+      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "tier", label: (batch.filter(b => !b.op[3]).map(({ op: [fk, id, t], prev }) => `${floorLabel(fk)} ${name(id)}：${prev || "未配置"} → ${t || "未配置"}`).join(" ／ ") || `${[...new Set(batch.map(b => floorLabel(b.op[0])))].join("・")} の並び順を変更`).slice(0, 600) }));
     });
   } catch (e) {
     toast("Tier表を保存できませんでした：" + fbErr(e), 6000);
@@ -1770,6 +1881,95 @@ async function delNews(id) {
     });
     NW.confirm = null; toast("削除しました"); renderNews();
   } catch (er) { toast(fbErr(er), 5000); }
+}
+
+/* ================= やること（公開までの進捗） =================
+   進捗はデータから自動で数える。担当・メモ・手動の完了・追加の項目は tables/todo（1ドキュメント）に保存し、このタブを開いたときだけ読む */
+let TODODOC = null; const TD = { open: null, edit: null };
+const nonEmpty = v => { const s = String(v == null ? "" : v).trim(); return !!s && s !== "—" && s !== "-"; };
+function rowsCheck(k, fields, okFn, label) {
+  const rows = [...(T[k] ? T[k].rows.values() : [])].sort((a, b) => a.o - b.o);
+  const per = {}; (fields || []).forEach(f => per[f] = 0);
+  const missing = [];
+  rows.forEach(r => { const c = r.c || {}; let ok = true;
+    (fields || []).forEach(f => { if (nonEmpty(c[f])) per[f]++; else ok = false; });
+    if (okFn && !okFn(c)) ok = false;
+    if (!ok) missing.push({ id: r.id, k, label: label ? label(c) : labelOf(k, c), lack: (fields || []).filter(f => !nonEmpty(c[f])) }); });
+  return { done: rows.length - missing.length, total: rows.length, per, missing };
+}
+function todoItems() {
+  const floorNo = c => parseFloat(String(c["階層"] || "").replace(/[^\d.]/g, ""));
+  const mid = c => { const n = floorNo(c); return n >= 55 && n <= 100; };
+  const babelMid = () => [...T.babel.rows.values()].filter(r => mid(r.c || {})).sort((a, b) => a.o - b.o);
+  const midCheck = (name, fn) => { const rs = babelMid(); const miss = rs.filter(r => !fn(r.c || {})); return { done: rs.length - miss.length, total: rs.length, missing: miss.map(r => ({ id: r.id, k: "babel", label: labelOf("babel", r.c || {}) })), sub: name }; };
+  const teamKeys = new Set([...T.teams.rows.values()].map(r => keyOfCells("babel", r.c || {})));
+  return [
+    { id: "cimg", g: "公開まで", t: "キャラ画像のインポート", note: "サムネイルと覚醒イラストの両方", r: () => rowsCheck("chars", null, c => R.IMG[c["ID"]] && R.BANNER[c["ID"]], c => c["キャラ名"] || c["ID"]), lackNote: c => [!R.IMG[c["ID"]] && "サムネイル", !R.BANNER[c["ID"]] && "覚醒イラスト"].filter(Boolean) },
+    { id: "simg", g: "公開まで", t: "スクリプト画像のインポート", note: "サムネイルとイラストの両方", r: () => rowsCheck("scripts", null, c => R.SIMG[c["名前"]] && R.SFULL[c["名前"]]) },
+    { id: "cdata", g: "公開まで", t: "キャラデータの入力", note: "完凸時の HP・攻撃力、防御、攻撃速度などの基本ステータス", r: () => rowsCheck("chars", ["完凸 HP", "完凸 攻撃力", "物理防御", "特殊防御", "攻撃速度", "抵抗値"]) },
+    { id: "sdata", g: "公開まで", t: "スクリプトデータの入力", note: "Lv200 の HP・攻撃力と、各スキルの条件・効果", r: () => rowsCheck("scripts", ["Lv200 HP", "Lv200 攻撃力", "スキル1効果", "スキル2効果", "スキル3効果"]) },
+    { id: "beff", g: "公開まで", t: "全バベルのステージ効果", note: "解析データ（ステージ効果）", r: () => rowsCheck("babel", ["解析データ"]) },
+    { id: "btier", g: "公開まで", t: "各バベル 55〜100 の Tier表・おすすめ編成・コツ", note: "Tier表の配置・編成例・攻略のコツがそろった階層", multi: () => [
+      midCheck("Tier表", c => Object.keys(R.OFFICIAL[keyOfCells("babel", c)] || {}).length > 0),
+      midCheck("おすすめ編成", c => teamKeys.has(keyOfCells("babel", c))),
+      midCheck("攻略のコツ", c => nonEmpty(c["攻略のコツ"]))] },
+    { id: "seal", g: "公開まで", t: "各封印戦の画像と特性", note: "テーマイラストとステージ効果", r: () => rowsCheck("seals", ["ステージ効果"], c => R.SEAL[c["封印戦名"]] || R.SEALF[c["封印戦名"]]) },
+    { id: "csw", g: "追加", t: "全キャラの強いところ・弱いところ", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
+    { id: "misc", g: "追加", t: "もろもろの各データ", note: "進捗は手動で更新してください", manual: true },
+  ];
+}
+function todoProgress(it) {
+  if (it.manual) { const m = (TODODOC && TODODOC.items && TODODOC.items[it.id]) || {}; return { pct: m.done ? 100 : (+m.pct || 0), label: m.done ? "完了" : (m.pct ? m.pct + "%" : "未着手") }; }
+  if (it.multi) { const ps = it.multi(); const tot = ps.reduce((a, p) => a + p.total, 0), dn = ps.reduce((a, p) => a + p.done, 0); return { pct: tot ? Math.round(dn / tot * 100) : 0, label: tot ? `${dn} / ${tot}` : "対象なし", parts: ps }; }
+  const r = it.r(); return { pct: r.total ? Math.round(r.done / r.total * 100) : 0, label: r.total ? `${r.done} / ${r.total}` : "未登録", r };
+}
+function todoBar(pct) { return `<span class="tdbar"><i style="width:${pct}%;background:${pct >= 100 ? "var(--good)" : pct >= 50 ? "var(--accent)" : "#e0a400"}"></i></span>`; }
+function renderTodo() {
+  if (TODODOC === null && S.on && !LAZY.todo) { LAZY.todo = true; S.on(F.doc(F.db, "tables", "todo"), s => { TODODOC = s.exists() ? s.data() : {}; if (S.tab === "todo" && !TD.edit) renderTodo(); }); }
+  const items = todoItems().concat(((TODODOC && TODODOC.extra) || []).map(x => Object.assign({ manual: true, g: "追加", t: x.t, extra: true }, x)));
+  const main = items.filter(i => i.g === "公開まで").map(todoProgress);
+  const overall = main.length ? Math.round(main.reduce((a, p) => a + p.pct, 0) / main.length) : 0;
+  const meta = id => (TODODOC && TODODOC.items && TODODOC.items[id]) || {};
+  const row = it => { const p = todoProgress(it); const m = it.extra ? it : meta(it.id); const open = TD.open === it.id; const ed = TD.edit === it.id;
+    let det = "";
+    if (open && !it.manual) {
+      if (p.parts) det = p.parts.map(x => `<div class="tdsub"><b>${esc(x.sub)}</b>${todoBar(x.total ? Math.round(x.done / x.total * 100) : 0)}<span class="count">${x.done} / ${x.total}</span></div>${x.missing.length ? `<div class="tdmiss">${x.missing.slice(0, 60).map(mm => `<button class="tag" data-tdgo="${mm.k}|${esc(mm.id)}">${esc(mm.label)}</button>`).join("")}${x.missing.length > 60 ? `<span class="count">ほか ${x.missing.length - 60}</span>` : ""}</div>` : ""}`).join("");
+      else if (p.r) { const r = p.r;
+        det = (Object.keys(r.per).length ? `<div class="tdfields">${Object.entries(r.per).map(([f, n]) => `<span>${esc(f)} <b>${n}</b>/${r.total}</span>`).join("")}</div>` : "") +
+          (r.missing.length ? `<p class="count" style="margin:6px 0 4px">まだのもの（押すと編集画面が開きます）</p><div class="tdmiss">${r.missing.slice(0, 80).map(mm => `<button class="tag" data-tdgo="${mm.k}|${esc(mm.id)}" title="${esc((mm.lack || []).join("・"))}">${esc(mm.label)}${mm.lack && mm.lack.length && mm.lack.length < 4 ? `<small> ${esc(mm.lack.join("・"))}</small>` : ""}</button>`).join("")}${r.missing.length > 80 ? `<span class="count">ほか ${r.missing.length - 80}件</span>` : ""}</div>` : `<p class="count">すべて入力済みです 🎉</p>`); }
+    }
+    const form = ed ? `<div class="tdform"><label>担当 <input id="tdWho" maxlength="40" value="${esc(m.who || "")}" placeholder="例：ねぎ・すず"></label>${it.manual ? `<label>進捗 <select id="tdPct">${[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(n => `<option value="${n}" ${(+m.pct || 0) === n ? "selected" : ""}>${n}%</option>`).join("")}</select></label>` : ""}${it.extra ? `<label>項目名 <input id="tdT" maxlength="80" value="${esc(it.t)}"></label>` : ""}<label class="wide">メモ <textarea id="tdMemo" rows="2" maxlength="500">${esc(m.memo || "")}</textarea></label>
+      <div class="row2"><button class="btn small primary" data-tdsave="${esc(it.id)}">保存</button><button class="btn small" data-tdcancel="1">やめる</button>${it.extra ? `<span style="flex:1"></span><button class="btn small danger" data-tddel="${esc(it.id)}">この項目を削除</button>` : ""}</div></div>` : "";
+    return `<div class="tdrow${p.pct >= 100 ? " done" : ""}"><button class="tdhead" data-tdopen="${esc(it.id)}"><span class="tdchk">${p.pct >= 100 ? "✔" : ""}</span><span class="tdt"><b>${esc(it.t)}</b>${it.note ? `<small>${esc(it.note)}</small>` : ""}</span>${todoBar(p.pct)}<span class="tdpct">${p.pct}%</span><span class="count tdlab">${esc(p.label)}</span></button>
+      <div class="tdmeta">${m.who ? `<span class="tag">担当：${esc(m.who)}</span>` : ""}${m.memo ? `<span class="count">${esc(m.memo)}</span>` : ""}<button class="btn small" data-tdedit="${esc(it.id)}">担当・メモ</button></div>${det}${form}</div>`; };
+  const grp = g => items.filter(i => i.g === g).map(row).join("");
+  AM.innerHTML = userBar() + `<div class="toolbar"><h2><small>TODO</small>やること（公開までの進捗）</h2></div>
+  <section class="apanel tdall"><b>公開までの進捗</b>${todoBar(overall)}<span class="tdbig">${overall}%</span><span class="count">「公開まで」の ${main.length} 項目の平均。データから自動で数えています（「もろもろ」などは手動）。</span></section>
+  <h3 class="fgh">公開まで</h3><div class="tdlist">${grp("公開まで")}</div>
+  <h3 class="fgh">追加</h3><div class="tdlist">${grp("追加")}</div>
+  <div class="row2" style="margin-top:10px"><button class="btn" data-tdadd="1">＋ やることを追加</button></div>`;
+}
+async function saveTodo(id) {
+  const who = (document.getElementById("tdWho") || {}).value || "", memo = (document.getElementById("tdMemo") || {}).value || "";
+  const pctEl = document.getElementById("tdPct"), tEl = document.getElementById("tdT");
+  try {
+    const extra = ((TODODOC && TODODOC.extra) || []).slice(); const ei = extra.findIndex(x => x.id === id);
+    if (ei >= 0) { extra[ei] = Object.assign({}, extra[ei], { who, memo, pct: pctEl ? +pctEl.value : 0, done: pctEl ? +pctEl.value >= 100 : false, t: tEl ? tEl.value.trim() || extra[ei].t : extra[ei].t }); await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); }
+    else await F.setDoc(F.doc(F.db, "tables", "todo"), { items: { [id]: Object.assign({ who, memo }, pctEl ? { pct: +pctEl.value, done: +pctEl.value >= 100 } : {}) }, at: now(), by: meId() }, { merge: true });
+    TD.edit = null; toast("保存しました");
+  } catch (e) { toast(fbErr(e), 5000); }
+  renderTodo();
+}
+async function todoAction(ds) {
+  if (ds.tdopen) { TD.open = TD.open === ds.tdopen ? null : ds.tdopen; renderTodo(); return; }
+  if (ds.tdedit) { TD.edit = TD.edit === ds.tdedit ? null : ds.tdedit; renderTodo(); return; }
+  if (ds.tdcancel) { TD.edit = null; renderTodo(); return; }
+  if (ds.tdsave) { saveTodo(ds.tdsave); return; }
+  if (ds.tdgo) { const [k, id] = ds.tdgo.split("|"); S.tab = "edit"; ED.k = k; ED.listK = k; renderAll(); openEditor(k, id); return; }
+  if (ds.tdadd) { const t = prompt("追加するやることの名前"); if (!t || !t.trim()) return; const extra = ((TODODOC && TODODOC.extra) || []).concat([{ id: "x" + rid(), t: t.trim().slice(0, 80), who: "", memo: "", pct: 0 }]);
+    try { await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); toast("追加しました"); } catch (e) { toast(fbErr(e), 5000); } return; }
+  if (ds.tddel) { if (!confirm("この項目を削除しますか？")) return; const extra = ((TODODOC && TODODOC.extra) || []).filter(x => x.id !== ds.tddel);
+    try { await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); TD.edit = null; } catch (e) { toast(fbErr(e), 5000); } return; }
 }
 
 /* ================= guide / Q&A（使い方ガイドとよくある質問） ================= */
@@ -1969,7 +2169,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-pkopen],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -1977,15 +2177,17 @@ function onAdminClick(e) {
   if (ds.a === "seed") { seedAll(); return; }
   if (ds.a === "ghhide") { const g = GHNEW[ED.k]; if (g && g.sig) { try { localStorage.setItem("rxr-ghnew-hide-" + ED.k, g.sig); } catch (e) { } g.added = []; } const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(ED.k); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
+  if (ds.tdopen || ds.tdedit || ds.tdcancel || ds.tdsave || ds.tdgo || ds.tdadd || ds.tddel) { todoAction(ds); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
   if (ds.teamedit || ds.teamfloor || ds.a === "teamadd") {
     if (ED.dirty && !ED.isNew) { toast("先にこの画面の変更を保存するか、取り消してください", 4000); return; }
     if (ds.teamedit) { openEditor("teams", ds.teamedit); return; }
-    if (ds.teamfloor) { openEditor("babel", ds.teamfloor); return; }
-    if (!seeded("teams")) { toast("編成例の表を準備しています。数秒後にもう一度押してください"); return; }
-    const t = ED.base["バベル種類"], f = ED.base["階層"]; ED.k = "teams"; resetEd(); edAction("new"); ED.draft["バベル種類"] = t; ED.draft["階層"] = f; renderForm(); return;
+    if (ds.teamfloor) { const i = ds.teamfloor.indexOf("|"); openEditor(ds.teamfloor.slice(0, i), ds.teamfloor.slice(i + 1)); return; }
+    if (!seeded("teams")) { toast("編成例の表を準備しています。数秒後にもう一度押してください"); seedAll(); return; }
+    const sealT = ED.k === "seals"; const t = sealT ? "封印戦" : ED.base["バベル種類"], f = sealT ? String(ED.base["封印戦名"] || "").trim() : ED.base["階層"]; ED.k = "teams"; resetEd(); edAction("new"); ED.draft["バベル種類"] = t; ED.draft["階層"] = f; renderForm(); return;
   }
+  if (ds.pkopen) { const [k, i] = ds.pkopen.split("|"); openPick(k, i); return; }
   if (ds.synadd) { const rows = synRows(ED.draft["おすすめセット"]); rows.push({ id: "?", t: "" }); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); const ins = document.querySelectorAll('#edBody [data-syn$="|id"]'); if (ins.length) { ins[ins.length - 1].value = ""; ins[ins.length - 1].focus(); } return; }
   if (ds.synrm !== undefined) { const rows = synRows(ED.draft["おすすめセット"]); rows.splice(+ds.synrm, 1); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); return; }
   if (ds.tmclear !== undefined) { const sl = teamSlots(ED.draft["メンバー"]); sl[+ds.tmclear] = { id: "", star: "", sc: "" }; ED.draft["メンバー"] = slotsStr(sl); ED.dirty = true; renderForm(); return; }
@@ -1993,7 +2195,9 @@ function onAdminClick(e) {
   if (ds.dladd) { const inp = document.querySelector(`#edBody .dlin[data-dlfield="${CSS.escape(ds.dladd)}"]`); const v = inp && fromDate(inp.value); if (!v) { toast("日付を選んでください"); return; } const cur = splitList(ED.draft[ds.dladd]); if (!cur.includes(v)) cur.push(v); cur.sort((a, b) => toDate(a).localeCompare(toDate(b))); ED.draft[ds.dladd] = cur.join("、"); ED.dirty = true; renderForm(); return; }
   if (ds.dlrm) { const [f, x] = ds.dlrm.split("|"); ED.draft[f] = splitList(ED.draft[f]).filter(y => y !== x).join("、"); ED.dirty = true; renderForm(); return; }
   if (ds.a === "sealtier") { const name = ED.base["封印戦名"]; if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("seal"); R.setCurSeal("封印戦|" + name); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
+  if (ds.a === "babeltier") { const fk = keyOfCells("babel", ED.base); if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("babel"); R.setCurFloor(fk); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
   if (ds.a === "tieradd") { tierAdd(); return; }
+  if (ds.a === "bulkrar") { openBulk(); return; }
   if (ds.a === "tieredit") { tierEdit(); return; }
   if (ds.tierctx) { R.setTierCtx(ds.tierctx); renderTierTab(false); return; }
   if (ds.cprm) { const [f, x] = ds.cprm.split("|"); const isC = f !== "登場ボス"; ED.draft[f] = (isC ? String(ED.draft[f] || "").split(/[,、，\s]+/).filter(Boolean) : splitList(ED.draft[f])).filter(y => y !== x).join(isC ? "," : "、"); ED.dirty = true; renderForm(); return; }
@@ -2197,6 +2401,36 @@ function injectStyle() {
 .tagopt.on{border-color:var(--accent);background:var(--soft)}
 .tagopt.edited{outline:2px dashed #e0a400;outline-offset:1px}
 .tagopt small{font-size:10px;color:var(--muted);border:1px solid var(--line2);padding:0 3px;border-radius:2px}
+.tdall{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px}
+.tdall .tdbar{flex:1 1 240px;height:14px}.tdbig{font-family:var(--display);font-size:26px;font-weight:700;color:var(--accent-ink)}
+.tdlist{display:grid;gap:6px;margin-bottom:12px}
+.tdrow{background:var(--panel);box-shadow:var(--shadow);padding:8px 12px}
+.tdrow.done{opacity:.8}
+.tdhead{display:grid;grid-template-columns:22px minmax(0,1fr) minmax(90px,200px) 44px auto;gap:10px;align-items:center;width:100%;border:0;background:none;text-align:left;cursor:pointer;color:var(--ink);padding:2px 0}
+.tdchk{width:20px;height:20px;border:2px solid var(--line2);display:grid;place-items:center;color:#fff;font-weight:900;font-size:12px}
+.tdrow.done .tdchk{background:var(--good);border-color:var(--good)}
+.tdt{display:grid}.tdt small{color:var(--muted);font-size:12px}
+.tdbar{display:block;height:10px;background:var(--soft);border-radius:6px;overflow:hidden}.tdbar i{display:block;height:100%;border-radius:6px}
+.tdpct{font-family:var(--display);font-weight:700;text-align:right}
+.tdmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0 0 32px}
+.tdsub{display:grid;grid-template-columns:8em minmax(90px,240px) auto;gap:8px;align-items:center;margin:8px 0 2px 32px}
+.tdfields{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0 32px;font-size:12.5px}
+.tdmiss{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 0 32px}.tdmiss .tag{cursor:pointer;border:1px solid var(--line2);background:var(--field)}
+.tdform{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 10px;margin:8px 0 0 32px}.tdform .wide{grid-column:1/-1}.tdform label{display:grid;gap:2px;font-size:12px}
+@media (max-width:820px){.tdhead{grid-template-columns:22px minmax(0,1fr) 44px}.tdhead .tdbar,.tdhead .tdlab{grid-column:2/-1}.tdmeta,.tdsub,.tdfields,.tdmiss,.tdform{margin-left:0}}
+.tmpick{min-width:9em;max-width:16em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;justify-content:flex-start}
+#dlgPick,#dlgBulk{width:min(1100px,calc(100% - 24px));margin-top:4vh;margin-bottom:auto}
+.bkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:6px;align-content:start}
+.bkrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:4px 8px;background:var(--panel);border:1px solid var(--line2)}
+.bkrow img,.bkrow .noimg{width:40px;height:40px;object-fit:cover;display:block}.bkrow b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bkrow .chips{gap:3px;flex-wrap:nowrap}.bkrow .chip{padding:2px 7px;font-size:12px}.bkrow.bkch{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.pkhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.pkhead h2{margin:0}.pkhead .search{flex:1;min-width:200px}
+.pkfil{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.pkgrid{height:min(58vh,560px);overflow:auto;padding:2px}
+.pkgrid .ccards{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.pkcard .ccname b{font-size:15px}
+.pkcur{outline:4px solid #ffd54a;outline-offset:-4px}
+.pkused{opacity:.55}
 .synrows{display:grid;gap:6px}
 .synrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);background:var(--field);padding:6px 8px;border-radius:3px}
 .synin{flex:1;display:grid;gap:4px}

@@ -181,6 +181,13 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .scard2 .cctop .rar{font-size:12px;padding:1px 8px}
 .sccond{display:flex;flex-wrap:wrap;gap:2px 6px;align-items:center}
 .sccond .ic{width:16px;height:16px;background:rgba(255,255,255,.92);border-radius:2px;padding:1px;vertical-align:-3px;margin-right:2px}
+.ccbadges{position:absolute;z-index:1;right:6px;top:6px;display:flex;gap:4px;align-items:center}
+.limb{display:inline-block;background:linear-gradient(100deg,#e8414f,#ff8a3c);color:#fff;font-size:11px;font-weight:900;padding:1px 7px;border-radius:2px;letter-spacing:.05em;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.limb.unrel{background:#6b7a92;color:#fff}
+.limb.anv{background:linear-gradient(100deg,#b8860b,#ffd54a,#b8860b);color:#3a2a00}
+.limimg{height:22px;width:auto;display:inline-block}
+.limb.inh,.limimg.inh{vertical-align:middle;font-size:12px}h2 .limimg.inh{height:26px}
+.ccbadges .ccown{position:static}
 .ccown{position:absolute;z-index:1;right:8px;top:8px;background:#ffd54a;color:#3a2a00;font-size:11px;font-weight:900;padding:1px 6px;border-radius:2px}
 @media (max-width:820px){.ccards{grid-template-columns:1fr 1fr;gap:6px}.ccname b{font-size:14px}.cctop .ic{width:20px;height:20px}.tbright{margin-left:0}}
 .cfbtn b{display:inline-grid;place-items:center;min-width:1.5em;height:1.5em;border-radius:1em;background:#fff;color:var(--accent-ink);font-size:11px;margin-left:4px}
@@ -824,19 +831,19 @@ function buildModels(){
   const iId=Math.max(0,colOf(d,["ID","キャラID"])>=0?colOf(d,["ID","キャラID"]):colOf(d,["キャラ名","名前"]));
   const iNm=colOf(d,["キャラ名","名前"]);
   const g=n=>colOf(d,[n]);
-  const ix={attr:g("属性"),role:g("ロール"),rank:g("階級"),order:g("騎士団"),style:g("スタイル"),base:g("キャラ"),date:g("実装日"),dtype:g("ダメージタイプ"),gender:g("性別"),lim:g("限定"),rar:g("レアリティ"),tagedit:g("効果タグ")};const ecols=effCols(d);
+  const ix={attr:g("属性"),role:g("ロール"),rank:g("階級"),order:g("騎士団"),style:g("スタイル"),base:g("キャラ"),date:g("実装日"),dtype:g("ダメージタイプ"),gender:g("性別"),lim:g("限定"),rar:g("レアリティ"),rel:g("実装"),tagedit:g("効果タグ")};const ecols=effCols(d);
   CH=[];CHMAP={};
   d.rows.forEach((r,i)=>{
     const id=(r[iId]||"").trim();if(!id||CHMAP[id])return;
     const v=k=>ix[k]>=0?(r[ix[k]]||"").trim():"";
-    const c={id,name:(iNm>=0&&r[iNm]?r[iNm]:id).trim(),row:r,i,attr:v("attr"),role:v("role"),rank:v("rank"),order:v("order"),style:v("style"),base:v("base"),dtype:v("dtype"),gender:v("gender"),lim:v("lim")==="限定",rar:v("rar"),date:parseDate(v("date"))};
+    const c={id,name:(iNm>=0&&r[iNm]?r[iNm]:id).trim(),row:r,i,attr:v("attr"),role:v("role"),rank:v("rank"),order:v("order"),style:v("style"),base:v("base"),dtype:v("dtype"),gender:v("gender"),limit:v("lim"),lim:!!v("lim"),rar:v("rar"),unrel:v("rel")==="未実装",date:parseDate(v("date"))};
     c.autoTags=autoTagsOf(ecols.map(([,i])=>r[i]||"").join("\n"));c.tags=applyTagEdits(c.autoTags,v("tagedit"));
     CH.push(c);CHMAP[id]=c;
   });
   STYLES=[...new Set(CH.map(c=>c.style).filter(Boolean))];
   const sd=data("scripts");const si=n=>colOf(sd,[n]);
-  const SI={name:si("名前"),role:si("ロール"),rar:si("レアリティ"),date:si("実装日"),c2:si("条件2"),c3:si("条件3")};
-  SC=sd.rows.map((r,i)=>{const v=k=>SI[k]>=0?(r[SI[k]]||"").trim():"";return{i,row:r,name:v("name")||r[0],role:v("role"),rar:v("rar"),date:parseDate(v("date")),conds:[v("c2"),v("c3")].filter(Boolean)};});
+  const SI={name:si("名前"),role:si("ロール"),rar:si("レアリティ"),date:si("実装日"),c2:si("条件2"),c3:si("条件3"),lim:si("限定")};
+  SC=sd.rows.map((r,i)=>{const v=k=>SI[k]>=0?(r[SI[k]]||"").trim():"";return{i,row:r,name:v("name")||r[0],role:v("role"),rar:v("rar"),date:parseDate(v("date")),limit:v("lim"),conds:[v("c2"),v("c3")].filter(Boolean)};});
   const b=data("babel");const bi=n=>colOf(b,[n]);
   const B={type:bi("バベル種類"),floor:bi("階層"),boss:bi("ボス"),attr:bi("推奨属性"),eff:bi("解析データ"),point:colOf(b,["攻略のコツ","ポイント"]),rec:bi("おすすめキャラID"),comment:bi("コメント")};
   FLOORS=[];TYPES=[];
@@ -918,16 +925,26 @@ let TIER_CTX="babel";   // 管理画面の Tier 編集で 封印戦 を扱うと
 const SEALCTX=()=>MODE==="admin"?TIER_CTX==="seal":tab==="seal";
 const curFloor=()=>SEALCTX()?(FLOORS.find(f=>f.key===S.curSeal)||null):(FLOORS.find(f=>f.key===S.curFloor)||null);
 /* 運営Tier（運営が管理画面で作成し public/tiers で公開） */
-let OFFICIAL={},OFFICIAL_AT=0,TIER_EDIT=false,TIER_HOOK=null;
+let OFFICIAL={},OFFICIAL_ORD={},OFFICIAL_AT=0,TIER_EDIT=false,TIER_HOOK=null;
 const EMPTY_P=Object.freeze({});
 /* 自分のTier表（このブラウザだけに保存）: S.view==="mine" のとき */
 const MINE=()=>MODE!=="admin"&&S.view==="mine";
 const CANEDIT=()=>TIER_EDIT||MINE();
 const place=fk=>MINE()?((S.tiers||{})[fk]||EMPTY_P):(OFFICIAL[fk]||EMPTY_P);
+/* Tier行の中の並び順（左→右）。階層ごとにキーの配列。並べていないキャラは後ろに環境適性の順 */
+const tord=fk=>(MINE()?(S.tord||{})[fk]:OFFICIAL_ORD[fk])||[];
+function rowSort(fk,list,fits){const o=tord(fk),ix={};o.forEach((k,i)=>ix[k]=i);const at=k=>k in ix?ix[k]:1e9;return list.sort((a,b)=>at(a.k)-at(b.k)||(fits?(fits[b.id]||0)-(fits[a.id]||0):0)||a.id.localeCompare(b.id)||(+a.star||0)-(+b.star||0));}
+function setOrder(fk,arr){if(MINE()){S.tord=S.tord||{};if(arr.length)S.tord[fk]=arr;else delete S.tord[fk];save();return;}if(!TIER_EDIT)return;OFFICIAL_ORD[fk]=arr;if(TIER_HOOK)TIER_HOOK(fk,"","","",arr);}
+/* 行 tier の中で key を before の前（before が無ければ末尾）に入れ直す */
+function reorder(key,tier,before){const f=curFloor();if(!f)return;const P=place(f.key);const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
+  let row=rowSort(f.key,entries(P).filter(e=>e.t===tier),fits).map(e=>e.k).filter(k=>k!==key);
+  const i=before?row.indexOf(before):-1;row.splice(i<0?row.length:i,0,key);
+  const all=[];TIERS.forEach(t=>{if(t===tier)all.push(...row);else all.push(...rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k));});setOrder(f.key,all);}
+function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(!t)return;const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);const row=rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k);const i=row.indexOf(key),j=i+d;if(i<0||j<0||j>=row.length)return;reorder(key,t,d<0?row[j]:row[j+1]);}
 function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
-const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラ一覧"],["own","所持率チェッカー"],["rank:chars","ランキング"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]],seal:[["seal","攻略・Tier表"]]};
+const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラ一覧"],["rank:chars","ランキング"],["own","所持率チェッカー"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率チェッカー"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]],seal:[["seal","攻略・Tier表"]]};
 const LASTSUB={};
 function topOf(t){if(t==="rank")return RK.t==="scripts"?"script":"chara";for(const k in TOPS)if(TOPS[k].some(([x])=>x===t))return k;return "chara";}
 function subKey(){return tab==="rank"?"rank:"+RK.t:tab;}
@@ -953,7 +970,7 @@ function render(){
   else if(tab==="guide")renderGuide();
   else if(tab==="faq")renderFaq();
   else if(tab==="tier"||tab==="seal")renderTier();
-  else if(tab==="own")renderOwn();
+  else if(tab==="own"||tab==="sown")renderOwn();
   else if(tab==="sum")renderSum();
   else if(tab==="chars")renderChars();
   else if(tab==="babel")renderBabel();
@@ -968,7 +985,7 @@ function emptyBlock(kind){
 }
 
 /* ---------- ホーム・使い方ガイド・Q&A ---------- */
-const TABNAME={chars:"キャラ一覧",own:"所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",seal:"封印戦 攻略・Tier表"};
+const TABNAME={chars:"キャラ一覧",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",seal:"封印戦 攻略・Tier表"};
 function lastLabel(){const k=S.lastTab;if(!k||!TABNAME[k])return "";let t=TABNAME[k];
   if(k==="tier"){const f=FLOORS.find(x=>x.key===S.curFloor);if(f)t+=`（${f.type} ${f.floor}F）`;}
   if(k==="seal"){const f=FLOORS.find(x=>x.key===S.curSeal);if(f)t+=`（${f.floor}）`;}return t;}
@@ -1110,11 +1127,14 @@ function applyTagEdits(auto,edits){const set=new Set(auto);String(edits||"").spl
 /* キャラ一覧のフィルター（ゲーム内と同じタブ）。同じ欄の中は「どれか」、欄どうしは「すべて」。効果タグはどれか／すべてを切り替え */
 const CF={tab:"基本",sel:{},tagAll:false};
 const cfBase=()=>[["ロール","role",ROLES.map(x=>[x,ic(x)])],["攻撃属性","attr",ATTRS.map(x=>[x,ic(x)])],["騎士団","order",ORDERS.map(x=>[x,ic(x,"ord")])],["階級","rank",RANKS.map(x=>[x,ic(x)])],
-  ["攻撃種","dtype",[["物理",""],["特殊",""],["その他",""]]],["レアリティ","rar",[["SSR",""],["SR",""],["R",""]]],["所持","own",[["持っている",""],["持っていない",""]]]];
+  ["攻撃種","dtype",[["物理",""],["特殊",""],["その他",""]]],["レアリティ","rar",[["SSR",""],["SR",""],["R",""]]],["限定","limit",[["限定",""],["周年限定",""],["通常",""]]],["スタイル","sty",[["アナザー",""],["リビルド",""],["それ以外",""]]],["実装","rel",[["実装済み",""],["未実装",""]]],["所持","own",[["持っている",""],["持っていない",""]]]];
+/* スタイルの「アナザー」「リビルド」（「アナザー2」なども含む）。騎士団と組み合わせて「〇〇騎士団のアナザー」を出せる */
+const styKind=c=>/アナザー/i.test(c.style)?"アナザー":/リビルド/i.test(c.style)?"リビルド":"それ以外";
+const unrelBadge=(c,cls)=>c.unrel?`<span class="limb unrel ${cls||""}">未実装</span>`:"";
 function cfMatch(c){
   for(const [k,vals] of Object.entries(CF.sel)){if(!vals.length)continue;
     if(k==="tags"){const hit=vals.filter(t=>c.tags.includes(t)).length;if(CF.tagAll?hit<vals.length:!hit)return false;continue;}
-    const v=k==="dtype"?(c.dtype==="物理"||c.dtype==="特殊"?c.dtype:"その他"):k==="own"?(OWN()[c.id]?"持っている":"持っていない"):c[k];
+    const v=k==="limit"?(c.limit||"通常"):k==="dtype"?(c.dtype==="物理"||c.dtype==="特殊"?c.dtype:"その他"):k==="own"?(OWN()[c.id]?"持っている":"持っていない"):k==="sty"?styKind(c):k==="rel"?(c.unrel?"未実装":"実装済み"):c[k];
     if(!vals.includes(v))return false;}
   return true;
 }
@@ -1196,15 +1216,17 @@ document.addEventListener("click",e=>{
 ["dlgCF","dlgSF","dlgSort"].forEach(id=>{const dl=document.getElementById(id);if(!dl)return;
   dl.addEventListener("click",e=>{if(e.target===dl)dl.close();});
   dl.addEventListener("close",()=>{if(MODE==="admin")return;if(tab==="chars")renderChars();else if(tab==="scripts")renderScripts();});});
+/* 限定・周年限定のバッジ（images.json の icons に「限定」「周年限定」の画像があれば画像、なければ文字） */
+function limBadge(v,cls){if(!v)return "";return ICON[v]?`<img class="limimg ${cls||""}" src="${ICON[v]}" alt="${esc(v)}" title="${esc(v)}">`:`<span class="limb ${v==="周年限定"?"anv":""} ${cls||""}">${esc(v)}</span>`;}
 /* キャラのカード表示（ゲーム内のキャラ一覧に近い形） */
 function charCard(c){const img=BANNER[c.id]||IMG[c.id];const st=RAR[c.rar]||0;
   return `<button class="ccard" data-detail="${esc(c.id)}">${img?`<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>`:'<span class="ccimg none"></span>'}
   <span class="cctop">${ic(c.role)}${ic(c.attr)}${st?`<span class="ccstar">${"★".repeat(st)}</span>`:""}</span>
-  <span class="ccname"><b>${esc(c.base||c.name)}</b>${c.style?`<small>[${esc(c.style)}]</small>`:""}</span>${OWN()[c.id]?'<span class="ccown">所持</span>':""}</button>`;}
+  <span class="ccname"><b>${esc(c.base||c.name)}</b>${c.style?`<small>[${esc(c.style)}]</small>`:""}</span><span class="ccbadges">${OWN()[c.id]?'<span class="ccown">所持</span>':""}${limBadge(c.limit)}${unrelBadge(c)}</span></button>`;}
 /* スクリプトのカード表示 */
 function scriptCard(s){const img=SFULL[s.name]||SIMG[s.name];
   return `<button class="ccard scard2" data-sdetail="${s.i}">${img?`<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>`:'<span class="ccimg none"></span>'}
-  <span class="cctop">${s.rar?`<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>`:""}${ic(s.role)}</span>
+  <span class="cctop">${s.rar?`<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>`:""}${ic(s.role)}</span>${s.limit?`<span class="ccbadges">${limBadge(s.limit)}</span>`:""}
   <span class="ccname"><b>${esc(s.name)}</b>${s.conds.length?`<small class="sccond">${s.conds.map(x=>`${ic(ALIAS[x]||x,ORDERS.includes(x)?"ord":"")}${esc(x)}`).join(" ／ ")}</small>`:""}</span></button>`;}
 /* スクリプトの絞り込み（ダイアログ） */
 const SC_EFF2=["攻撃力","HP","防御","攻撃速度","クールタイム","BLADE","回復","ダメージ","クリティカル","コスト","シールド","鈍化"];
@@ -1216,6 +1238,7 @@ function sfDialogHtml(){
   return `<h2 class="sorthd">絞り込み</h2><div class="cfbody">
   <div class="cfsec"><b>レアリティ</b><div class="cfopts">${["SSR","SR","R"].map(r=>opt("rar",r)).join("")}</div></div>
   <div class="cfsec"><b>ロール</b><div class="cfopts">${roles.map(r=>opt("role",r,ic(r))).join("")}</div></div>
+  <div class="cfsec"><b>限定</b><div class="cfopts">${["限定","周年限定","通常"].map(r=>opt("limit",r)).join("")}</div></div>
   <div class="cfsec"><b>条件の属性</b><div class="cfopts">${ATTRS.map(a=>opt("cattr",a,ic(a))).join("")}</div></div>
   <div class="cfsec"><b>条件</b><div class="cfopts"><select id="sfcond"><option value="">すべて</option><option value="(なし)" ${st.cond==="(なし)"?"selected":""}>条件なし</option>${conds.map(x=>`<option ${st.cond===x?"selected":""}>${esc(x)}</option>`).join("")}</select></div></div>
   <div class="cfsec"><b>効果</b><div class="cfopts">${SC_EFF2.map(k=>opt("eff",k)).join("")}</div></div>
@@ -1227,19 +1250,20 @@ function scFiltered(){
   if(st.q){const q=st.q.toLowerCase();list=list.filter(s=>s.row.some(c=>(c||"").toLowerCase().includes(q)));}
   if(st.rar)list=list.filter(s=>s.rar===st.rar);
   if(st.role)list=list.filter(s=>s.role===st.role);
+  if(st.limit)list=list.filter(s=>(s.limit||"通常")===st.limit);
   if(st.cattr)list=list.filter(s=>s.conds.some(x=>(ALIAS[x]||x)===st.cattr));
   if(st.cond)list=list.filter(s=>st.cond==="(なし)"?!s.conds.length:s.conds.some(x=>(ALIAS[x]||x)===st.cond));
   if(st.eff){const k=st.eff;list=list.filter(s=>s.row.some((c,i)=>/効果/.test(d.headers[i])&&(c||"").includes(k)));}
   if(st.own&&hasOwn()){const mine=CH.filter(c=>OWN()[c.id]);list=list.filter(s=>mine.some(c=>{const m=scMatch(s,c);return m.n===s.conds.length&&m.roleOk;}));}
   return list;
 }
-const sfActive=()=>{const st=tstate.scripts;return [["rar",st.rar],["role",st.role],["cattr",st.cattr&&"条件:"+st.cattr],["cond",st.cond&&"条件:"+(st.cond==="(なし)"?"なし":st.cond)],["eff",st.eff&&"効果:"+st.eff],["own",st.own&&hasOwn()&&"手持ちで条件を満たせる"]].filter(([,v])=>v);};
+const sfActive=()=>{const st=tstate.scripts;return [["rar",st.rar],["role",st.role],["limit",st.limit],["cattr",st.cattr&&"条件:"+st.cattr],["cond",st.cond&&"条件:"+(st.cond==="(なし)"?"なし":st.cond)],["eff",st.eff&&"効果:"+st.eff],["own",st.own&&hasOwn()&&"手持ちで条件を満たせる"]].filter(([,v])=>v);};
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-sf],[data-sfact],[data-sfopen],[data-sfrm]");if(!b)return;const ds=b.dataset,st=tstate.scripts;
   if(ds.sfopen!==undefined){const dl=document.getElementById("dlgSF");document.getElementById("sfBody").innerHTML=sfDialogHtml();if(!dl.open)dl.showModal();return;}
   if(ds.sfrm){st[ds.sfrm]=ds.sfrm==="own"?false:ds.sfrm==="cond"?"":null;renderScripts();return;}
   if(ds.sfact==="close"){document.getElementById("dlgSF").close();renderScripts();return;}
-  if(ds.sfact==="reset")Object.assign(st,{rar:null,role:null,cattr:null,cond:"",eff:null,own:false});
+  if(ds.sfact==="reset")Object.assign(st,{rar:null,role:null,limit:null,cattr:null,cond:"",eff:null,own:false});
   if(ds.sf){const [k,v]=ds.sf.split("|");if(k==="own"){if(!hasOwn()){toast("先に「キャラクター」→「所持率チェッカー」で持っているキャラを登録してください",4000);return;}st.own=!st.own;}else st[k]=st[k]===v?null:v;}
   document.getElementById("sfBody").innerHTML=sfDialogHtml();
 });
@@ -1278,7 +1302,7 @@ function renderTier(){
   else if(!TIER_EDIT)h+=`<p class="offnote">${placed?`このTier表は運営メンバーが作成しています。キャラを押すと詳細が見られます。${OFFICIAL_AT?`<span class="count">最終更新 ${fmtDay(OFFICIAL_AT)}</span>`:""}`:`この階層のTier表は準備中です。もうしばらくお待ちください。`}</p>`;
   h+=tierFilterBar()+`<div class="board">`;
   TIERS.forEach((t,i)=>{
-    const inT=entries(P).filter(e=>e.t===t&&tierShow(e.c)).sort((a,b)=>fits[b.id]-fits[a.id]||a.id.localeCompare(b.id)||(+a.star||0)-(+b.star||0));
+    const inT=rowSort(f.key,entries(P).filter(e=>e.t===t&&tierShow(e.c)),fits);
     h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(TDESC[t])}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(e=>tile(e.c,f,fits,e)).join(""):`<span class="zhint">${esc(TDESC[t])}</span>`}</div></div>`;
   });
   h+=`</div>`;
@@ -1294,7 +1318,7 @@ function renderTier(){
     <input class="search" id="poolQ" placeholder="キャラ名で絞り込み" value="${esc(pool.q)}">
     <div class="seg"><button data-psort="fit" aria-pressed="${pool.sort==="fit"}">適性順</button><button data-psort="new" aria-pressed="${pool.sort==="new"}">新しい順</button><button data-psort="name" aria-pressed="${pool.sort==="name"}">名前順</button></div>
   </div><div class="zone${sel?" armed":""}" data-zone="" style="min-height:70px">${list.map(c=>ptile(c)).join("")||'<span class="count">ここに表示するキャラはいません</span>'}</div></div>
-  <p class="hint">未配置のキャラは、解析データと推奨属性から出した「環境適性」の高い順に並んでいます（▲▼の数字は配置後のタイルに表示）。★はおすすめキャラ。タップで選んで下のバーからTierを選択、PCはドラッグでも動かせます。ダブルクリックで詳細。</p>
+  <p class="hint">未配置のキャラは、解析データと推奨属性から出した「環境適性」の高い順に並んでいます（▲▼の数字は配置後のタイルに表示）。★はおすすめキャラ。タップで選んで下のバーからTierを選択、PCはドラッグでも動かせます。Tierの中の左右の並びは、バーの◀▶か、タイルの間にドラッグして変えられます。ダブルクリックで詳細。</p>
   </section></div>`;
   main.innerHTML=h;
   const memo=document.getElementById("memo");
@@ -1336,7 +1360,11 @@ function bindDrag(){
   main.querySelectorAll(".zone").forEach(z=>{
     z.addEventListener("dragover",e=>{e.preventDefault();z.classList.add("over");});
     z.addEventListener("dragleave",()=>z.classList.remove("over"));
-    z.addEventListener("drop",e=>{e.preventDefault();const id=e.dataTransfer.getData("text/plain");if(id){moveTo(id,z.dataset.zone);sel=null;render();}});
+    z.addEventListener("drop",e=>{e.preventDefault();const id=e.dataTransfer.getData("text/plain");if(!id)return;const tier=z.dataset.zone;moveTo(id,tier);
+      if(tier){const on=e.target.closest(".tile");let before=on&&on.dataset.id!==id?on.dataset.id:null;
+        if(on&&before){const r=on.getBoundingClientRect();if(e.clientX>r.left+r.width/2){const nx=on.nextElementSibling;before=nx&&nx.classList.contains("tile")?nx.dataset.id:null;if(before===id){const n2=nx.nextElementSibling;before=n2&&n2.classList.contains("tile")?n2.dataset.id:null;}}}
+        reorder(id,tier,before);}
+      sel=null;render();});
   });
 }
 function renderActionBar(){
@@ -1345,8 +1373,9 @@ function renderActionBar(){
   if(!CANEDIT()||!se||!CHMAP[se.id]){bar.classList.add("hidden");bar.innerHTML="";return;}
   const P=place(curFloor().key),cur=P[sel];
   const stars=cur?`<span class="abstars"><small>星</small>${["",1,2,3,4,5].map(n=>`<button class="btn small ghost-dark" data-star="${n}" aria-pressed="${String(n)===se.star}">${n?"★"+n:"なし"}</button>`).join("")}<button class="btn small ghost-dark" data-act="addstar" title="同じキャラを星違いでもう1枠置く">＋星違い</button></span>`:"";
+  const lr=cur?`<span class="abstars"><small>並び</small><button class="btn small ghost-dark" data-act="tleft" aria-label="左へ">◀</button><button class="btn small ghost-dark" data-act="tright" aria-label="右へ">▶</button></span>`:"";
   bar.innerHTML=`<b>${esc(CHMAP[se.id].name)}${se.star?" ★"+esc(se.star):""}</b>`+TIERS.map((t,i)=>`<button class="tb" style="background:${TCOL[i]};${cur===t?"outline:2px solid #fff;outline-offset:-3px":""}" data-moveto="${t}">${t}</button>`).join("")+
-  stars+`<button class="btn small ghost-dark" data-moveto="">未配置へ</button><button class="btn small ghost-dark" data-detail="${esc(se.id)}">詳細</button><button class="btn small ghost-dark" data-act="unsel" aria-label="選択解除">✕</button>`;
+  lr+stars+`<button class="btn small ghost-dark" data-moveto="">未配置へ</button><button class="btn small ghost-dark" data-detail="${esc(se.id)}">詳細</button><button class="btn small ghost-dark" data-act="unsel" aria-label="選択解除">✕</button>`;
   bar.classList.remove("hidden");
 }
 
@@ -1429,7 +1458,7 @@ function openScript(i){
   const s=SC.find(x=>x.i===i);if(!s)return;const d=data("scripts");
   const v=n=>{const k=d.headers.indexOf(n);return k>=0?(s.row[k]||"").trim():"";};
   let h=SFULL[s.name]?`<img class="sart" src="${SFULL[s.name]}" alt="">`:"";
-  h+=`<h2>${esc(s.name)}</h2><div class="metarow"><span class="rar ${esc(s.rar)}">${esc(s.rar)}</span><span class="m">${ic(s.role)} ${esc(s.role)}</span>${v("実装日")?`<span class="m">${esc(v("実装日"))}</span>`:""}</div>`;
+  h+=`<h2>${esc(s.name)} ${limBadge(s.limit,"inh")}</h2><div class="metarow"><span class="rar ${esc(s.rar)}">${esc(s.rar)}</span><span class="m">${ic(s.role)} ${esc(s.role)}</span>${v("実装日")?`<span class="m">${esc(v("実装日"))}</span>`:""}</div>`;
   const stats=["HP初期値","Lv200 HP","完凸 HP","攻撃力初期値","Lv200 攻撃力","完凸 攻撃力","物理防御","特殊防御"].filter(n=>v(n));
   if(stats.length){const col=n=>{const i=d.headers.indexOf(n);return SC.map(x=>i>=0?num(x.row[i]):null);};
     const ok=x=>x&&x!=="—";
@@ -1456,7 +1485,7 @@ function openScript(i){
 /* ---------- ranking ---------- */
 /* 階層の編成例。キャラ・スクリプトはタップで詳細 */
 function teamsHtml(f){
-  const ts=!f.seal&&TEAMS[f.key];if(!ts||!ts.length)return "";
+  const ts=TEAMS[f.key];if(!ts||!ts.length)return "";
   return `<div class="teams"><p class="note-h">編成例</p>${ts.map(t=>`<div class="team"><h3>${esc(t.name)}</h3><div class="tmrow">${t.members.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;
     return `<div class="tm">${m.id?`<button class="tmc" ${c?`data-detail="${esc(m.id)}"`:""}>${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}<span class="tmn">${esc(c?c.name:m.id)}</span>${m.star?`<span class="tmst">★${esc(m.star)}</span>`:""}</button>`:""}${m.sc?`<button class="tms" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:""}</div>`;}).join("")}</div>${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</div>`).join("")}</div>`;
 }
@@ -1542,7 +1571,7 @@ function openChar(id){
   const v=n=>{const i=d.headers.indexOf(n);return i>=0?(c.row[i]||"").trim():"";};
   const used=new Set();const take=n=>{used.add(n);return v(n);};
   let h=BANNER[c.id]?`<img class="banner" src="${BANNER[c.id]}" alt="">`:"";
-  h+=`<h2>${esc(c.name)}</h2><div class="metarow">${c.attr?`${ic(c.attr,"big")}<span class="attr ${esc(c.attr)}">${esc(c.attr)}</span>`:""}${["騎士団","階級","ロール","スタイル","ダメージタイプ","性別","実装日"].map(n=>take(n)?`<span class="m">${ic(v(n),n==="騎士団"?"ord":"")} ${esc(v(n))}</span>`:"").join("")}<span class="m">${esc(c.id)}</span></div>`;
+  take("実装");h+=`<h2>${esc(c.name)} ${limBadge(c.limit,"inh")}${unrelBadge(c,"inh")}</h2><div class="metarow">${c.attr?`${ic(c.attr,"big")}<span class="attr ${esc(c.attr)}">${esc(c.attr)}</span>`:""}${["騎士団","階級","ロール","スタイル","ダメージタイプ","性別","実装日"].map(n=>take(n)?`<span class="m">${ic(v(n),n==="騎士団"?"ord":"")} ${esc(v(n))}</span>`:"").join("")}<span class="m">${esc(c.id)}</span></div>`;
   {const sg=take("強いところ"),wk=take("弱いところ");
    if(sg||wk)h+=`<div class="sw">${sg?`<div class="sw-s"><b>強いところ</b><p>${esc(sg).replace(/\n/g,"<br>")}</p></div>`:""}${wk?`<div class="sw-w"><b>弱いところ</b><p>${esc(wk).replace(/\n/g,"<br>")}</p></div>`:""}</div>`;}
   take("効果タグ");if(c.tags.length)h+=`<div class="ctags">${c.tags.map(t=>`<button class="chip" data-tagfilter="${esc(t)}" title="この効果を持つキャラを一覧で見る">${esc(t)}</button>`).join("")}</div>`;
@@ -1582,7 +1611,7 @@ document.addEventListener("click",e=>{
   if(!t)return;const ds=t.dataset;
   if(t.hasAttribute("data-close")){t.closest("dialog").close();return;}
   if(MODE==="admin"){const inA=t.closest("#admin");if(!inA&&!t.closest("#actionbar"))return;if(inA&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN&&window.RXR_ADMIN.pick(ds))return;}
-  if(ds.star!==undefined){if(sel){const P=place(curFloor().key),t0=P[sel];if(t0){const se=eparse(sel),nk=ekey(se.id,ds.star);if(nk!==sel){if(P[nk]){toast("その星はもう置いてあります");return;}moveTo(sel,"");moveTo(nk,t0);sel=nk;}render();}}return;}
+  if(ds.star!==undefined){if(sel){const P=place(curFloor().key),t0=P[sel];if(t0){const se=eparse(sel),nk=ekey(se.id,ds.star);if(nk!==sel){if(P[nk]){toast("その星はもう置いてあります");return;}const o=tord(curFloor().key).slice(),oi=o.indexOf(sel);moveTo(sel,"");moveTo(nk,t0);if(oi>=0){o[oi]=nk;setOrder(curFloor().key,o);}sel=nk;}render();}}return;}
   if(t.classList.contains("tile")){if(!CANEDIT()){openChar(eparse(ds.id).id);return;}sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
   if(ds.moveto!==undefined){if(sel){moveTo(sel,ds.moveto);sel=null;render();}return;}
   if(ds.zone!==undefined){if(sel){moveTo(sel,ds.zone);sel=null;render();}return;}
@@ -1614,13 +1643,14 @@ document.addEventListener("click",e=>{
   if(ds.view){S.view=ds.view==="mine"?"mine":"official";sel=null;save();render();track("view",{view:S.view});return;}
   const a=ds.act;
   if(a==="unsel"){sel=null;render();}
+  else if(a==="tleft"||a==="tright"){if(sel){nudge(sel,a==="tleft"?-1:1);render();}}
   else if(a==="admin")enterAdmin();
-  else if(a==="mycopy"){const fk=curFloor().key;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の運営Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、運営の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);save();render();toast("運営の配置をコピーしました。ここから自由に動かせます");}
-  else if(a==="myclear"){const fk=curFloor().key;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];sel=null;save();render();toast("リセットしました");}
+  else if(a==="mycopy"){const fk=curFloor().key;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の運営Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、運営の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);S.tord=S.tord||{};if(OFFICIAL_ORD[fk])S.tord[fk]=OFFICIAL_ORD[fk].slice();else delete S.tord[fk];save();render();toast("運営の配置をコピーしました。ここから自由に動かせます");}
+  else if(a==="myclear"){const fk=curFloor().key;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];if(S.tord)delete S.tord[fk];sel=null;save();render();toast("リセットしました");}
   else if(a==="share")openShare();
-  else if(a==="ownshare"){const st=ownStats(CH);if(!st.k){toast("まず持っているキャラを選んでください");return;}showShare(makeOwnImage,`リバリバのキャラ所持率は ${st.p}%（${st.k}/${st.n}）でした！\n#リバリバ #RxRwiki`,SITE_URL+"?tab=own",`rxr-collection.png`,"所持率を共有");track("share_open",{floor:"own"});}
-  else if(a==="ownall"){const o=OWN();main.querySelectorAll("[data-owntoggle]").forEach(b=>{const id=b.dataset.owntoggle;if(!o[id])o[id]=1;});save();renderOwn();}
-  else if(a==="ownreset"){if(!confirm("所持の記録をすべて消しますか？"))return;S.own={};save();renderOwn();}
+  else if(a==="ownshare"){const K=OKIND(),W=K==="s"?"スクリプト":"キャラ";const st=ownStats(ownItems(K),K==="s"?SOWN():OWN());if(!st.k){toast(`まず持っている${W}を選んでください`);return;}showShare(makeOwnImage,`リバリバの${W}所持率は ${st.p}%（${st.k}/${st.n}）でした！\n#リバリバ #RxRwiki`,SITE_URL+"?tab="+tab,`rxr-collection${K==="s"?"-script":""}.png`,"所持率を共有");track("share_open",{floor:tab});}
+  else if(a==="ownall"){const o=OKIND()==="s"?SOWN():OWN();main.querySelectorAll("[data-owntoggle]").forEach(b=>{const id=b.dataset.owntoggle;if(!o[id])o[id]=1;});save();renderOwn();}
+  else if(a==="ownreset"){if(!confirm(`${OKIND()==="s"?"スクリプト":"キャラ"}の所持の記録をすべて消しますか？`))return;if(OKIND()==="s")S.sown={};else S.own={};save();renderOwn();}
   else if(a==="onlyown"){if(!hasOwn()){toast("先に「キャラクター」→「所持率チェッカー」で持っているキャラを登録してください",4000);return;}S.onlyOwn=!S.onlyOwn;save();render();}
   else if(a==="addstar"){if(!sel)return;const P=place(curFloor().key),t0=P[sel];if(!t0)return;const se=eparse(sel);const used=new Set(entries(P).filter(e=>e.id===se.id).map(e=>e.star));
     if(!se.star){const base=String(RAR[CHMAP[se.id].rar]||3);moveTo(sel,"");moveTo(ekey(se.id,base),t0);used.delete("");used.add(base);sel=ekey(se.id,base);}
@@ -1655,7 +1685,7 @@ document.getElementById("openExport")?.addEventListener("click",()=>{updExport()
 document.querySelectorAll("#expKind .chip").forEach(c=>c.addEventListener("click",()=>{expKind=c.dataset.k;setChips("expKind",expKind);updExport();}));
 function floorText(f){
   const P=place(f.key);let s=f.seal?`【封印戦 ${f.floor}${f.boss?" "+f.boss:""}${f.dtype?"／"+f.dtype:""}】\n`:`【${f.type} ${f.floor}F ${f.boss}${f.attr?"／推奨"+f.attr:""}】\n`;
-  let any=false;TIERS.forEach(t=>{const l=entries(P).filter(e=>e.t===t).map(e=>e.c.name+(e.star?"★"+e.star:""));if(l.length){any=true;s+=`${t}：${l.join(" / ")}\n`;}});
+  let any=false;TIERS.forEach(t=>{const l=rowSort(f.key,entries(P).filter(e=>e.t===t)).map(e=>e.c.name+(e.star?"★"+e.star:""));if(l.length){any=true;s+=`${t}：${l.join(" / ")}\n`;}});
   if(S.notes[f.key])s+=`メモ：${S.notes[f.key]}\n`;
   return any||S.notes[f.key]?s:"";
 }
@@ -1792,7 +1822,7 @@ async function loadSite(){
     part("options").then(setOptions).catch(()=>{}),
     part("news").catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
     part("guide").catch(()=>get("data/guide.json")).then(v=>{setDocs(v);}).catch(()=>{}),
-    part("tiers").catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_AT=v.at||0;}}).catch(()=>{})
+    part("tiers").catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_ORD=v.orders||{};OFFICIAL_AT=v.at||0;}}).catch(()=>{})
   ]));
   Object.entries(st).forEach(([k,v])=>{if(v)LIVE[k]={headers:v.headers,rows:v.rows};});
   if(crops)CROPS=crops;
@@ -1816,7 +1846,7 @@ async function makeTierImage(f,P,mine){
   try{await document.fonts.ready;}catch(e){}
   const W=1200,PAD=28,LW=118,TS=84,GAP=10,NAMEH=0,CELLW=TS,CELLH=TS+NAMEH;
   const perRow=Math.floor((W-PAD*2-LW-16+GAP)/(CELLW+GAP));
-  const rows=TIERS.map(t=>({t,cs:entries(P).filter(e=>e.t===t).map(e=>Object.assign(Object.create(e.c),{star:e.star}))})).filter(r=>r.cs.length);
+  const rows=TIERS.map(t=>({t,cs:rowSort(f.key,entries(P).filter(e=>e.t===t)).map(e=>Object.assign(Object.create(e.c),{star:e.star}))})).filter(r=>r.cs.length);
   const rowH=r=>Math.max(1,Math.ceil(r.cs.length/perRow))*(CELLH+GAP)-GAP+20;
   const HEAD=150,FOOT=86;
   const H=HEAD+rows.reduce((a,r)=>a+rowH(r)+6,0)+(rows.length?0:120)+FOOT+PAD;
@@ -1878,50 +1908,58 @@ async function showShare(make,text,link,name,title){
     `<button class="btn ${canFile?"":"primary"}" data-share="x">Xに投稿</button><button class="btn" data-share="save">画像を保存</button>${canCopy?`<button class="btn" data-share="copyimg">画像をコピー</button>`:""}<button class="btn" data-share="copytext">文とURLをコピー</button>`;
   document.getElementById("shareHint").textContent=canFile?"「画像を共有」から X や LINE を選ぶと、画像と URL がいっしょに投稿できます。":"「Xに投稿」は文と URL が入った投稿画面が開きます。画像は「画像を保存」または「画像をコピー」してから、投稿に貼り付けてください。";
 }
-/* ================= 所持率チェッカー ================= */
-const OWNF={q:"",attr:null,role:null,show:"all",sort:"date"};
-const OWN=()=>S.own||(S.own={});
+/* ================= 所持率チェッカー（キャラ＝own／スクリプト＝sown） ================= */
+const OWNF={q:"",attr:null,role:null,show:"all",sort:"date"},SOWNF={q:"",attr:null,role:null,show:"all",sort:"date"};
+const OWN=()=>S.own||(S.own={}),SOWN=()=>S.sown||(S.sown={});
 const hasOwn=()=>Object.keys(S.own||{}).length>0;
-function ownStats(list){const o=OWN();const n=list.length,k=list.filter(c=>o[c.id]).length;return{n,k,p:n?Math.round(k/n*1000)/10:0};}
+const OKIND=()=>tab==="sown"?"s":"c";
+const RARCOL={SSR:"#ff8a3c",SR:"#9b6bff",R:"#4c9be8"};
+/* チェッカーで数える一覧（未実装のキャラは数えない）。id＝キャラID／スクリプト名 */
+function ownItems(k){return k==="s"?SC.filter(x=>x.name).map(x=>({id:x.name,name:x.name,img:SIMG[x.name],rar:x.rar,role:x.role,date:x.date,col:RARCOL[x.rar]||"var(--line)"}))
+  :CH.filter(c=>!c.unrel).map(c=>({id:c.id,name:c.name,img:IMG[c.id],attr:c.attr,role:c.role,order:c.order,base:c.base,date:c.date,col:attrColor(c.attr)}));}
+function ownStats(list,o){o=o||OWN();const n=list.length,k=list.filter(c=>o[c.id]).length;return{n,k,p:n?Math.round(k/n*1000)/10:0};}
 function bar(label,st,icon){return `<div class="obar"><span class="obl">${icon||""}${esc(label)}</span><span class="obt"><i style="width:${st.n?st.k/st.n*100:0}%"></i></span><span class="obn">${st.k}/${st.n}</span></div>`;}
 function renderOwn(){
-  if(!CH.length){main.innerHTML=emptyBlock("chars");return;}
-  const o=OWN();const all=ownStats(CH);
-  const bases=[...new Set(CH.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>CH.some(c=>c.base===b&&o[c.id])).length;
-  const stars=[1,2,3,4,5].map(n=>CH.filter(c=>o[c.id]===n).length);
-  let list=CH.slice();const q=OWNF.q.toLowerCase();
-  if(q)list=list.filter(c=>(c.name+c.id+c.base).toLowerCase().includes(q));
-  if(OWNF.attr)list=list.filter(c=>c.attr===OWNF.attr);if(OWNF.role)list=list.filter(c=>c.role===OWNF.role);
-  if(OWNF.show==="own")list=list.filter(c=>o[c.id]);else if(OWNF.show==="not")list=list.filter(c=>!o[c.id]);
-  if(OWNF.sort==="date")list.sort((a,b)=>b.date-a.date);else if(OWNF.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));else list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
-  const attrs=ATTRS.filter(a=>CH.some(c=>c.attr===a)),roles=ROLES.filter(a=>CH.some(c=>c.role===a)),ords=ORDERS.filter(a=>CH.some(c=>c.order===a));
-  let h=`<div class="toolbar"><h2><small>COLLECTION</small>所持率チェッカー</h2><span style="flex:1"></span><button class="btn small" data-act="ownshare">画像で共有</button></div>
-  <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} スタイル</span><span>キャラクター ${bOwned} / ${bases.length}</span></div>
+  const K=OKIND(),F=K==="s"?SOWNF:OWNF,o=K==="s"?SOWN():OWN(),items=ownItems(K),W=K==="s"?"スクリプト":"キャラ";
+  if(!items.length){main.innerHTML=emptyBlock(K==="s"?"scripts":"chars");return;}
+  const all=ownStats(items,o);
+  const stars=[1,2,3,4,5].map(n=>items.filter(c=>o[c.id]===n).length);
+  let list=items.slice();const q=F.q.toLowerCase();
+  if(q)list=list.filter(c=>(c.name+c.id+(c.base||"")).toLowerCase().includes(q));
+  if(F.attr)list=list.filter(c=>(K==="s"?c.rar:c.attr)===F.attr);if(F.role)list=list.filter(c=>c.role===F.role);
+  if(F.show==="own")list=list.filter(c=>o[c.id]);else if(F.show==="not")list=list.filter(c=>!o[c.id]);
+  if(F.sort==="date")list.sort((a,b)=>b.date-a.date);else if(F.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));else list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
+  const attrs=K==="s"?["SSR","SR","R"].filter(a=>items.some(c=>c.rar===a)):ATTRS.filter(a=>items.some(c=>c.attr===a)),roles=ROLES.concat(K==="s"?["ワイルド"]:[]).filter(a=>items.some(c=>c.role===a)),ords=K==="s"?[]:ORDERS.filter(a=>items.some(c=>c.order===a));
+  const by=(a)=>items.filter(c=>(K==="s"?c.rar:c.attr)===a);
+  let sub="";if(K==="c"){const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;sub=`<span>キャラクター ${bOwned} / ${bases.length}</span>`;const un=CH.filter(c=>c.unrel).length;if(un)sub+=`<span>未実装の${un}スタイルは数えません</span>`;}
+  let h=`<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span><button class="btn small" data-act="ownshare">画像で共有</button></div>
+  <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}</span>${sub}</div>
   <div class="ownstars">${stars.map((n,i)=>`<div><span class="st">${"★".repeat(i+1)}</span><b>${n}</b></div>`).reverse().join("")}</div>
-  <div class="ownbars"><div>${attrs.map(a=>bar(a,ownStats(CH.filter(c=>c.attr===a)),ic(a))).join("")}</div><div>${roles.map(a=>bar(a,ownStats(CH.filter(c=>c.role===a)),ic(a))).join("")}</div><div>${ords.map(a=>bar(a,ownStats(CH.filter(c=>c.order===a)),ic(a,"ord"))).join("")}</div></div></div>
-  <p class="hint" style="margin:0 0 10px">キャラの画像を押すと「持っている／持っていない」が切り替わります。★を押すと凸数（星の数）を記録できます。記録はこのブラウザにだけ保存されます。</p>
-  <div class="ownctl"><input class="search" id="ownQ" placeholder="キャラ名で絞り込み" value="${esc(OWNF.q)}">
-   <div class="seg"><button data-ownshow="all" aria-pressed="${OWNF.show==="all"}">すべて</button><button data-ownshow="own" aria-pressed="${OWNF.show==="own"}">所持</button><button data-ownshow="not" aria-pressed="${OWNF.show==="not"}">未所持</button></div>
-   <div class="seg"><button data-ownsort="date" aria-pressed="${OWNF.sort==="date"}">新しい順</button><button data-ownsort="name" aria-pressed="${OWNF.sort==="name"}">名前順</button><button data-ownsort="star" aria-pressed="${OWNF.sort==="star"}">★順</button></div>
-   <div class="chips">${attrs.map(a=>`<button class="chip" data-ownattr="${a}" aria-pressed="${OWNF.attr===a}">${ic(a)}${a}</button>`).join("")}</div>
-   <div class="chips">${roles.map(a=>`<button class="chip" data-ownrole="${a}" aria-pressed="${OWNF.role===a}">${ic(a)}${a}</button>`).join("")}</div>
+  <div class="ownbars"><div>${attrs.map(a=>bar(a,ownStats(by(a),o),K==="s"?"":ic(a))).join("")}</div><div>${roles.map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div>${ords.length?`<div>${ords.map(a=>bar(a,ownStats(items.filter(c=>c.order===a),o),ic(a,"ord"))).join("")}</div>`:""}</div></div>
+  <p class="hint" style="margin:0 0 10px">${W}の画像を押すと「持っている／持っていない」が切り替わります。★を押すと凸数（星の数）を記録できます。記録はこのブラウザにだけ保存されます。</p>
+  <div class="ownctl"><input class="search" id="ownQ" placeholder="${W}名で絞り込み" value="${esc(F.q)}">
+   <div class="seg"><button data-ownshow="all" aria-pressed="${F.show==="all"}">すべて</button><button data-ownshow="own" aria-pressed="${F.show==="own"}">所持</button><button data-ownshow="not" aria-pressed="${F.show==="not"}">未所持</button></div>
+   <div class="seg"><button data-ownsort="date" aria-pressed="${F.sort==="date"}">新しい順</button><button data-ownsort="name" aria-pressed="${F.sort==="name"}">名前順</button><button data-ownsort="star" aria-pressed="${F.sort==="star"}">★順</button></div>
+   <div class="chips">${attrs.map(a=>`<button class="chip" data-ownattr="${a}" aria-pressed="${F.attr===a}">${K==="s"?"":ic(a)}${a}</button>`).join("")}</div>
+   <div class="chips">${roles.map(a=>`<button class="chip" data-ownrole="${a}" aria-pressed="${F.role===a}">${ic(a)}${a}</button>`).join("")}</div>
    <span style="flex:1"></span><button class="btn small" data-act="ownall">表示中をすべて所持に</button><button class="btn small" data-act="ownreset">リセット</button></div>
-  <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${attrColor(c.attr)}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${IMG[c.id]?`<img src="${IMG[c.id]}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span><span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}" aria-label="★${n}">★</button>`).join("")}</span></div>`;}).join("")||'<p class="count">該当するキャラがいません</p>'}</div>`;
+  <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${c.col}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${c.img?`<img src="${c.img}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span><span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}" aria-label="★${n}">★</button>`).join("")}</span></div>`;}).join("")||`<p class="count">該当する${W}がありません</p>`}</div>`;
   main.innerHTML=h;
-  const qi=document.getElementById("ownQ");liveInput(qi,()=>{OWNF.q=qi.value;const p=qi.selectionStart;renderOwn();const n=document.getElementById("ownQ");n.focus();n.setSelectionRange(p,p);});
+  const qi=document.getElementById("ownQ");liveInput(qi,()=>{F.q=qi.value;const p=qi.selectionStart;renderOwn();const n=document.getElementById("ownQ");n.focus();n.setSelectionRange(p,p);});
 }
 main.addEventListener("click",e=>{
-  if(tab!=="own")return;const t=e.target.closest("[data-owntoggle],[data-ownstar],[data-ownshow],[data-ownsort],[data-ownattr],[data-ownrole]");if(!t)return;const ds=t.dataset;const o=OWN();
+  if(tab!=="own"&&tab!=="sown")return;const t=e.target.closest("[data-owntoggle],[data-ownstar],[data-ownshow],[data-ownsort],[data-ownattr],[data-ownrole]");if(!t)return;const ds=t.dataset;const K=OKIND(),o=K==="s"?SOWN():OWN(),F=K==="s"?SOWNF:OWNF;
+  // ID に「|」が入ることはないが、スクリプト名は念のため最後の「|」で分ける
   if(ds.owntoggle){if(o[ds.owntoggle])delete o[ds.owntoggle];else o[ds.owntoggle]=1;save();renderOwn();return;}
-  if(ds.ownstar){const[id,n]=ds.ownstar.split("|");o[id]=+n;save();renderOwn();return;}
-  if(ds.ownshow){OWNF.show=ds.ownshow;renderOwn();return;}
-  if(ds.ownsort){OWNF.sort=ds.ownsort;renderOwn();return;}
-  if(ds.ownattr){OWNF.attr=OWNF.attr===ds.ownattr?null:ds.ownattr;renderOwn();return;}
-  if(ds.ownrole){OWNF.role=OWNF.role===ds.ownrole?null:ds.ownrole;renderOwn();return;}
+  if(ds.ownstar){const i=ds.ownstar.lastIndexOf("|");o[ds.ownstar.slice(0,i)]=+ds.ownstar.slice(i+1);save();renderOwn();return;}
+  if(ds.ownshow){F.show=ds.ownshow;renderOwn();return;}
+  if(ds.ownsort){F.sort=ds.ownsort;renderOwn();return;}
+  if(ds.ownattr){F.attr=F.attr===ds.ownattr?null:ds.ownattr;renderOwn();return;}
+  if(ds.ownrole){F.role=F.role===ds.ownrole?null:ds.ownrole;renderOwn();return;}
 });
 async function makeOwnImage(){
   try{await document.fonts.ready;}catch(e){}
-  const o=OWN();const list=CH.slice().sort((a,b)=>a.date-b.date);const all=ownStats(CH);
+  const K=OKIND(),o=K==="s"?SOWN():OWN();const list=ownItems(K).sort((a,b)=>a.date-b.date);const all=ownStats(list,o);
   const W=1200,PAD=28,TS=60,GAP=6,NAMEH=0,per=Math.floor((W-PAD*2+GAP)/(TS+GAP));const rows=Math.ceil(list.length/per);
   const HEAD=190,FOOT=86,H=HEAD+rows*(TS+14+GAP)+FOOT+10;
   const cv=document.createElement("canvas");cv.width=W;cv.height=H;const c=cv.getContext("2d");
@@ -1929,11 +1967,11 @@ async function makeOwnImage(){
   let g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,"#0a1d42");g.addColorStop(.4,"#1b6fe0");g.addColorStop(1,"#cfeaff");c.fillStyle=g;c.fillRect(0,0,W,H);
   const hero=await loadImgEl(HERO);if(hero){c.save();c.beginPath();c.rect(0,0,W,HEAD);c.clip();c.globalAlpha=.5;const sc=Math.max(W/hero.width,HEAD/hero.height);c.drawImage(hero,(W-hero.width*sc)/2,0,hero.width*sc,hero.height*sc);c.restore();g=c.createLinearGradient(0,0,W,0);g.addColorStop(0,"rgba(5,20,55,.92)");g.addColorStop(.75,"rgba(5,20,55,.3)");c.fillStyle=g;c.fillRect(0,0,W,HEAD);}
   c.fillStyle="#cfe3ff";c.font=`600 15px ${EN}`;c.fillText("REVERSE BLUE × REVERSE END  /  RxRwiki",PAD,36);
-  c.fillStyle="#fff";c.font=`900 34px ${JP}`;c.fillText("キャラ所持率",PAD,82);
+  c.fillStyle="#fff";c.font=`900 34px ${JP}`;c.fillText(K==="s"?"スクリプト所持率":"キャラ所持率",PAD,82);
   c.font=`700 84px ${EN}`;c.fillText(`${all.p}%`,PAD,170);const pw=c.measureText(`${all.p}%`).width;
-  c.font=`700 24px ${JP}`;c.fillStyle="#e6f0ff";c.fillText(`${all.k} / ${all.n} スタイル`,PAD+pw+24,140);
-  const stars=[5,4,3,2,1].map(n=>[n,CH.filter(ch=>o[ch.id]===n).length]);c.font=`700 20px ${JP}`;let sx=PAD+pw+24;stars.forEach(([n,k])=>{const t=`★${n}×${k}`;c.fillStyle="#ffd84a";c.fillText(t,sx,172);sx+=c.measureText(t).width+18;});
-  const imgs={};await Promise.all(list.map(async ch=>{imgs[ch.id]=await loadImgEl(IMG[ch.id]);}));
+  c.font=`700 24px ${JP}`;c.fillStyle="#e6f0ff";c.fillText(`${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}`,PAD+pw+24,140);
+  const stars=[5,4,3,2,1].map(n=>[n,list.filter(ch=>o[ch.id]===n).length]);c.font=`700 20px ${JP}`;let sx=PAD+pw+24;stars.forEach(([n,k])=>{const t=`★${n}×${k}`;c.fillStyle="#ffd84a";c.fillText(t,sx,172);sx+=c.measureText(t).width+18;});
+  const imgs={};await Promise.all(list.map(async ch=>{imgs[ch.id]=await loadImgEl(ch.img);}));
   list.forEach((ch,i)=>{const x=PAD+(i%per)*(TS+GAP),y=HEAD+10+Math.floor(i/per)*(TS+14+GAP);const st=o[ch.id]||0;
     c.save();rrect(x,c,y,TS,TS,5);c.clip();c.fillStyle=st?"#dff1ff":"#3d4f6e";c.fillRect(x,y,TS,TS);const im=imgs[ch.id];if(im){if(!st)c.filter="grayscale(1) brightness(.55)";const sc=Math.max(TS/im.width,TS/im.height);c.drawImage(im,x+(TS-im.width*sc)/2,y+(TS-im.height*sc)/2,im.width*sc,im.height*sc);c.filter="none";}else{c.fillStyle=st?"#0d2346":"#9fb3d1";c.font=`700 10px ${JP}`;const parts=ch.name.split(/\s+/);parts.slice(0,2).forEach((t,k)=>{let tt=t;while(c.measureText(tt).width>TS-6&&tt.length>1)tt=tt.slice(0,-1);c.fillText(tt,x+(TS-c.measureText(tt).width)/2,y+TS/2+(k-0.5*(Math.min(parts.length,2)-1))*13+4);});}c.restore();
     if(st){c.fillStyle="#ffd84a";c.font=`700 11px ${JP}`;const t="★".repeat(st);c.fillText(t,x+(TS-c.measureText(t).width)/2,y+TS+12);}});
@@ -1951,7 +1989,7 @@ document.getElementById("dlgShare").addEventListener("click",async e=>{
   if(k==="copytext"){navigator.clipboard.writeText(SHARE.text+"\n"+SHARE.link).then(()=>toast("コピーしました"),()=>toast("コピーできませんでした"));return;}
 });
 /* 共有リンク（?floor=種類|階層）で開いたときはその階層を表示 */
-function applyFloorParam(){try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&["home","guide","faq","own","chars","scripts","tier","sum","babel","seal"].includes(tp)){tab=tp;history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+function applyFloorParam(){try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&["home","guide","faq","own","sown","chars","scripts","tier","sum","babel","seal"].includes(tp)){tab=tp;history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 
 /* ================= お知らせ ================= */
 let NEWS=[];
@@ -1979,7 +2017,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=31");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=34");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -1996,7 +2034,7 @@ const dlgF=document.getElementById("dlgFeedback");
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-feedback]");if(!b)return;ev.preventDefault();
   document.getElementById("fbText").value="";document.getElementById("fbContact").value="";document.getElementById("fbErr").textContent="";
   document.getElementById("fbPage").textContent=feedbackPage();dlgF.showModal();});
-function feedbackPage(){const f=curFloor();const t={home:"ホーム",guide:"使い方ガイド",faq:"Q&A",tier:"バベル攻略",seal:"封印戦",sum:"全階層まとめ",chars:"キャラ一覧",babel:"階層一覧",scripts:"スクリプト",rank:"ランキング",own:"所持率チェッカー"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
+function feedbackPage(){const f=curFloor();const t={home:"ホーム",guide:"使い方ガイド",faq:"Q&A",tier:"バベル攻略",seal:"封印戦",sum:"全階層まとめ",chars:"キャラ一覧",babel:"階層一覧",scripts:"スクリプト",rank:"ランキング",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
 document.getElementById("fbSend").addEventListener("click",async e=>{
   const text=document.getElementById("fbText").value.trim(),contact=document.getElementById("fbContact").value.trim(),kind=document.querySelector('input[name="fbKind"]:checked').value;
   const err=document.getElementById("fbErr");
@@ -2021,8 +2059,8 @@ window.RXR={
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},
   setMain(el,fn){main=el||document.getElementById("main");ADMIN_LIST=fn||null;},
   renderList(k){({chars:renderChars,scripts:renderScripts,babel:renderBabel})[k]();},
-  get OFFICIAL(){return OFFICIAL;},setOfficial(v,at){OFFICIAL=v||{};if(at)OFFICIAL_AT=at;},get LOCAL_TIERS(){return S.tiers||{};},
-  setTierCtx(c){TIER_CTX=c==="seal"?"seal":"babel";sel=null;},get TIER_CTX(){return TIER_CTX;},get SEALS(){return SEALS;},setCurSeal(k){S.curSeal=k;},
+  get OFFICIAL(){return OFFICIAL;},setOfficial(v,at,ord){OFFICIAL=v||{};if(ord)OFFICIAL_ORD=ord;if(at)OFFICIAL_AT=at;},get LOCAL_TIERS(){return S.tiers||{};},
+  setTierCtx(c){TIER_CTX=c==="seal"?"seal":"babel";sel=null;},get TIER_CTX(){return TIER_CTX;},get SEALS(){return SEALS;},setCurSeal(k){S.curSeal=k;},setCurFloor(k){const f=FLOORS.find(x=>x.key===k&&!x.seal);if(f){S.curType=f.type;S.curFloor=k;}},
   setTierEdit(on,hook){TIER_EDIT=!!on;TIER_HOOK=hook||null;sel=null;renderActionBar();},renderTier(){renderTier();renderActionBar();},
   get curFloor(){return curFloor();},
   get DOCS(){return DOCS;},setDocs,docHtml,get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
