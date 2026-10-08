@@ -930,5 +930,11 @@
   "アルケ": "images/bosses/thumb/アルケ.webp",
   "シスト": "images/bosses/thumb/シスト.webp",
   "サイエ": "images/bosses/thumb/サイエ.webp"
+ },
+ "knightfull": {
+  "カノン": "images/knights/カノン.webp"
+ },
+ "knights": {
+  "カノン": "images/knights/thumb/カノン.webp"
  }
 }
