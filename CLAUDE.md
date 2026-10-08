@@ -10,7 +10,7 @@
 - `firestore.rules` … Firestore のセキュリティルール。変えたら Firebase コンソールのルールにも貼る。
 - `data/chars.json` / `data/scripts.json` / `data/babel.json` … `{headers:[...], rows:[[...]]}` 形式の表データ。列名で参照しているので列の追加・並べ替えは自由。
   - chars: `ID`（例 `カノン_DEFAULT`）がキャラの識別子。Tier配置もこのIDで保存される。
-- `data/tiers.json` / `data/news.json` … 公式Tier表とお知らせの予備（管理画面の data/*.json 書き出しに含まれる）。
+- `data/tiers.json` / `data/news.json` … 運営Tier表とお知らせの予備（管理画面の data/*.json 書き出しに含まれる）。
   - scripts: `名前` が識別子。条件2・条件3 は属性/騎士団/階級/スタイル/キャラ名/女性・男性。
   - babel: `バベル種類` + `階層` が識別子。`攻略のコツ`（旧 `ポイント`。Firestore に古い列名が残っていれば管理画面が自動で付け替える＝js/admin.js の RENAMES）。`解析データ` は1行1効果、`【味方】`などの見出し行で区切る。`おすすめキャラID` はカンマ区切りのキャラID。
   - teams（編成例）: `バベル種類`+`階層`+`編成名` が識別子。`メンバー` は1行1人「キャラID|星|スクリプト名」（最大6人）、`コメント`。管理画面のバベル編集画面か「編成例」で編集し、公開サイトは階層ページに表示。星の下限はキャラの `レアリティ`（R=★1・SR=★2・SSR=★3）。予備は data/teams.json。
@@ -19,7 +19,7 @@
 
 ## Firebase（プロジェクト my-log-vh3o3b / 表示名 RxRbabelDB、Spark プラン）
 - データの正本は Firestore。`tables/{chars|scripts|babel|teams|seals|people|styles|bosses|events}`（headers）＋ `tables/{k}/rows/{id}`（`c`=列名→値, `o`=並び順, `t`, `by`, `rev`）。
-- 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、さらに公開サイト用の一式 `public/all`（`json`={chars,scripts,babel,teams,seals,crops,options,news,tiers,guide} をまとめたもの, `sig`）を作り直す。公開サイトは public/all を読む（読み取り回数の節約）。サムネイル位置は `public/crops`、プルダウンの選択肢は `public/options`（`json`={騎士団:[...],階級:[...],ロール:[...],...}）、公式Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID:Tier}}, at}`。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
+- 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、さらに公開サイト用の一式 `public/all`（`json`={chars,scripts,babel,teams,seals,crops,options,news,tiers,guide} をまとめたもの, `sig`）を作り直す。公開サイトは public/all を読む（読み取り回数の節約）。サムネイル位置は `public/crops`、プルダウンの選択肢は `public/options`（`json`={騎士団:[...],階級:[...],ロール:[...],...}）、運営Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID:Tier}}, at}`。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
 - 同時編集: 行ごとに `rev` を比べて衝突を検出（トランザクション）。`editing/{uid}` で「編集中」を表示。`log` に変更履歴（元に戻せる）。
 - `feedback`（誰でも作成のみ）、`stats/{YYYY-MM-DD}`（pv/uv を +1 だけ）、`roles/{email}`（編集者。読み書きはオーナーのみ、本人は自分の分だけ読める）、`names/{uid}`（表示名）。メールアドレスはオーナー以外に見せない：行・履歴・公開データなどの `by` は uid（公開データには書かない）、表示は names の名前。
 - 無料枠: 読み取り 5万/日、書き込み 2万/日（日本時間16時／冬は17時にリセット）。読み取りを使い切ると保存も公開サイトの読み込みも失敗する（公開サイトは data/*.json の古い内容になる）ので、読み取りを増やす変更は避ける。画像は Firebase に置かない（Storage は有料プラン）。

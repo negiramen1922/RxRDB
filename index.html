@@ -141,6 +141,8 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
 .recs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tfilter{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;background:var(--panel);box-shadow:var(--shadow);padding:8px 10px;margin-bottom:8px}
+.tfilter .tfl{font-size:11.5px;font-weight:700;color:var(--accent-ink);letter-spacing:.1em}
 .teams{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .team{border:1px solid var(--line);background:var(--field);padding:10px 12px;margin-top:8px;border-radius:3px}
 .team h3{margin:0 0 8px;font-size:15px;font-weight:900}
@@ -735,12 +737,12 @@ function buildModels(){
   const iId=Math.max(0,colOf(d,["ID","キャラID"])>=0?colOf(d,["ID","キャラID"]):colOf(d,["キャラ名","名前"]));
   const iNm=colOf(d,["キャラ名","名前"]);
   const g=n=>colOf(d,[n]);
-  const ix={attr:g("属性"),role:g("ロール"),rank:g("階級"),order:g("騎士団"),style:g("スタイル"),base:g("キャラ"),date:g("実装日"),dtype:g("ダメージタイプ"),gender:g("性別")};
+  const ix={attr:g("属性"),role:g("ロール"),rank:g("階級"),order:g("騎士団"),style:g("スタイル"),base:g("キャラ"),date:g("実装日"),dtype:g("ダメージタイプ"),gender:g("性別"),lim:g("限定")};
   CH=[];CHMAP={};
   d.rows.forEach((r,i)=>{
     const id=(r[iId]||"").trim();if(!id||CHMAP[id])return;
     const v=k=>ix[k]>=0?(r[ix[k]]||"").trim():"";
-    const c={id,name:(iNm>=0&&r[iNm]?r[iNm]:id).trim(),row:r,i,attr:v("attr"),role:v("role"),rank:v("rank"),order:v("order"),style:v("style"),base:v("base"),dtype:v("dtype"),gender:v("gender"),date:parseDate(v("date"))};
+    const c={id,name:(iNm>=0&&r[iNm]?r[iNm]:id).trim(),row:r,i,attr:v("attr"),role:v("role"),rank:v("rank"),order:v("order"),style:v("style"),base:v("base"),dtype:v("dtype"),gender:v("gender"),lim:v("lim")==="限定",date:parseDate(v("date"))};
     CH.push(c);CHMAP[id]=c;
   });
   STYLES=[...new Set(CH.map(c=>c.style).filter(Boolean))];
@@ -823,18 +825,18 @@ function fit(c,f){
 const HOMETABS=["home","guide","faq"];
 let tab=(S.startLast&&S.lastTab)?(S.lastTab.startsWith("rank:")?S.lastTab.slice(5):S.lastTab):"home",sel=null;
 const pool={q:"",attr:null,role:null,sort:"fit"};
-const tstate={chars:{q:"",sort:-1,dir:1,attr:null,role:null,all:false},scripts:{q:"",sort:-1,dir:1,rar:null,role:null},babel:{q:""}};
+const tstate={chars:{q:"",sort:-1,dir:1,attr:null,role:null,all:false},scripts:{q:"",sort:-1,dir:1,rar:null,role:null,cattr:null,cond:"",eff:null,own:false},babel:{q:""}};
 let TIER_CTX="babel";   // 管理画面の Tier 編集で 封印戦 を扱うとき "seal"
 const SEALCTX=()=>MODE==="admin"?TIER_CTX==="seal":tab==="seal";
 const curFloor=()=>SEALCTX()?(FLOORS.find(f=>f.key===S.curSeal)||null):(FLOORS.find(f=>f.key===S.curFloor)||null);
-/* 公式Tier（運営が管理画面で作成し public/tiers で公開） */
+/* 運営Tier（運営が管理画面で作成し public/tiers で公開） */
 let OFFICIAL={},OFFICIAL_AT=0,TIER_EDIT=false,TIER_HOOK=null;
 const EMPTY_P=Object.freeze({});
 /* 自分のTier表（このブラウザだけに保存）: S.view==="mine" のとき */
 const MINE=()=>MODE!=="admin"&&S.view==="mine";
 const CANEDIT=()=>TIER_EDIT||MINE();
 const place=fk=>MINE()?((S.tiers||{})[fk]||EMPTY_P):(OFFICIAL[fk]||EMPTY_P);
-function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">公式Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${(tab==="tier"||tab==="seal")&&hasOwn()?`<button class="btn small ownbtn" data-act="onlyown" aria-pressed="${!!S.onlyOwn}">${S.onlyOwn?"✓ ":""}持っているキャラだけ</button>`:""}${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">公式の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
+function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
 const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラ一覧"],["own","所持率チェッカー"],["rank:chars","ランキング"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]],seal:[["seal","攻略・Tier表"]]};
@@ -893,7 +895,7 @@ function renderHome(){
   <div class="hwelcome"><h2>リバリバの攻略情報をまとめたファンメイドwiki</h2><p>バベルの階層ごとのTier表・解析データ・編成例、キャラとスクリプトのデータ、封印戦の情報が見られます。</p>
   ${last?`<button class="btn primary hlast" data-gosub="${esc(S.lastTab)}">▶ 前回の続き：${esc(last)}</button>`:""}</div>
   <div class="hgrid">
-  ${card("tier",HERO,"BABEL","バベル","階層ごとの公式Tier表・解析データ・攻略のコツ・編成例",tops.length?`<div class="hquick">${tops.map(f=>`<button data-homefloor="${esc(f.key)}">${esc(f.type)} <b>${esc(f.floor)}F</b></button>`).join("")}</div>`:"")}
+  ${card("tier",HERO,"BABEL","バベル","階層ごとの運営Tier表・解析データ・攻略のコツ・編成例",tops.length?`<div class="hquick">${tops.map(f=>`<button data-homefloor="${esc(f.key)}">${esc(f.type)} <b>${esc(f.floor)}F</b></button>`).join("")}</div>`:"")}
   ${card("chars",cimg,"CHARACTERS","キャラクター","キャラのステータス・スキル・特性。所持率チェッカー・ランキングも",`<div class="hquick"><button data-gosub="own">所持率チェッカー</button><button data-gosub="rank:chars">ランキング</button></div>`)}
   ${card("scripts",simg,"SCRIPTS","スクリプト","スクリプトの効果と、条件に合うキャラ",`<div class="hquick"><button data-gosub="rank:scripts">ランキング</button></div>`)}
   ${card("seal",sealImg,"SEAL BATTLE","封印戦","封印戦ごとのTier表・ステージ効果・過去の開催日")}
@@ -947,6 +949,21 @@ document.addEventListener("click",e=>{
   if(g.dataset.homefloor){const f=FLOORS.find(x=>x.key===g.dataset.homefloor);if(f){S.curType=f.type;S.curFloor=f.key;save();}goSub("tier");return;}
   goSub(g.dataset.gosub);
 });
+/* ---------- Tier表の絞り込み（Tier表と未配置の両方にかかる） ---------- */
+function tierShow(c){
+  if(pool.attr&&c.attr!==pool.attr)return false;
+  if(pool.role&&c.role!==pool.role)return false;
+  if(S.onlyOwn&&hasOwn()&&!OWN()[c.id])return false;
+  if(S.noLim&&c.lim)return false;
+  return true;
+}
+function tierFilterBar(){
+  const on=pool.attr||pool.role||(S.onlyOwn&&hasOwn())||(S.noLim&&CH.some(c=>c.lim));
+  return `<div class="tfilter"><span class="tfl">絞り込み</span>
+  <div class="chips">${ATTRS.map(a=>`<button class="chip" data-pattr="${a}" aria-pressed="${pool.attr===a}">${ic(a)}${a}</button>`).join("")}</div>
+  <div class="chips">${ROLES.map(a=>`<button class="chip" data-prole="${a}" aria-pressed="${pool.role===a}">${ic(a)}${a}</button>`).join("")}</div>
+  <div class="chips">${MODE!=="admin"?`<button class="chip" data-act="onlyown" aria-pressed="${!!(S.onlyOwn&&hasOwn())}">持っているキャラだけ</button>`:""}${CH.some(c=>c.lim)?`<button class="chip" data-act="nolim" aria-pressed="${!!S.noLim}">限定キャラを除く</button>`:""}${on?`<button class="chip" data-act="tfclear">解除</button>`:""}</div></div>`;
+}
 /* ---------- tier view ---------- */
 function renderTier(){
   const seal=SEALCTX();
@@ -977,27 +994,24 @@ function renderTier(){
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
   h+=`<details class="tcrit"${S.critOpen?" open":""}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(TDESC[t])}</dd></div>`).join("")}</dl></details>`;
   const placed=Object.keys(P).length;
-  if(MINE())h+=`<p class="offnote mine">自分用のTier表です。キャラを選んでTierを押すか、ドラッグで配置できます。<b>このブラウザにだけ保存</b>され、公式のTier表には影響しません。</p>`;
+  if(MINE())h+=`<p class="offnote mine">自分用のTier表です。キャラを選んでTierを押すか、ドラッグで配置できます。<b>このブラウザにだけ保存</b>され、運営のTier表には影響しません。</p>`;
   else if(!TIER_EDIT)h+=`<p class="offnote">${placed?`このTier表は運営メンバーが作成しています。キャラを押すと詳細が見られます。${OFFICIAL_AT?`<span class="count">最終更新 ${fmtDay(OFFICIAL_AT)}</span>`:""}`:`この階層のTier表は準備中です。もうしばらくお待ちください。`}</p>`;
-  h+=`<div class="board">`;
+  h+=tierFilterBar()+`<div class="board">`;
   TIERS.forEach((t,i)=>{
-    const inT=CH.filter(c=>P[c.id]===t&&(!S.onlyOwn||!hasOwn()||OWN()[c.id])).sort((a,b)=>fits[b.id]-fits[a.id]);
+    const inT=CH.filter(c=>P[c.id]===t&&tierShow(c)).sort((a,b)=>fits[b.id]-fits[a.id]);
     h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(TDESC[t])}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(c=>tile(c,f,fits)).join(""):`<span class="zhint">${esc(TDESC[t])}</span>`}</div></div>`;
   });
   h+=`</div>`;
   if(!CANEDIT()){h+=`</section></div>`;main.innerHTML=h;const m=document.getElementById("memo");m.addEventListener("input",()=>{S.notes[f.key]=m.value;save();});return;}
   let list=CH.filter(c=>!TIERS.includes(P[c.id]));
   if(pool.q){const q=pool.q.toLowerCase();list=list.filter(c=>(c.name+c.id).toLowerCase().includes(q));}
-  if(pool.attr)list=list.filter(c=>c.attr===pool.attr);
-  if(pool.role)list=list.filter(c=>c.role===pool.role);
+  list=list.filter(tierShow);
   if(pool.sort==="fit")list.sort((a,b)=>fits[b.id]-fits[a.id]||b.date-a.date);
   else if(pool.sort==="new")list.sort((a,b)=>b.date-a.date);
   else list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));
   h+=`<div class="pool"><div class="poolhead"><h3>未配置 <span class="count">${list.length}</span></h3>
     <input class="search" id="poolQ" placeholder="キャラ名で絞り込み" value="${esc(pool.q)}">
     <div class="seg"><button data-psort="fit" aria-pressed="${pool.sort==="fit"}">適性順</button><button data-psort="new" aria-pressed="${pool.sort==="new"}">新しい順</button><button data-psort="name" aria-pressed="${pool.sort==="name"}">名前順</button></div>
-    <div class="chips">${ATTRS.map(a=>`<button class="chip" data-pattr="${a}" aria-pressed="${pool.attr===a}">${ic(a)}${a}</button>`).join("")}</div>
-    <div class="chips">${ROLES.map(a=>`<button class="chip" data-prole="${a}" aria-pressed="${pool.role===a}">${ic(a)}${a}</button>`).join("")}</div>
   </div><div class="zone${sel?" armed":""}" data-zone="" style="min-height:70px">${list.map(c=>ptile(c)).join("")||'<span class="count">ここに表示するキャラはいません</span>'}</div></div>
   <p class="hint">未配置のキャラは、解析データと推奨属性から出した「環境適性」の高い順に並んでいます（▲▼の数字は配置後のタイルに表示）。★はおすすめキャラ。タップで選んで下のバーからTierを選択、PCはドラッグでも動かせます。ダブルクリックで詳細。</p>
   </section></div>`;
@@ -1099,6 +1113,19 @@ function renderBabel(){
 
 /* ---------- scripts ---------- */
 const SCORE=["名前","レアリティ","ロール","実装日","HP最大値","攻撃力最大値","スキル1効果","条件2","スキル2効果","条件3","スキル3効果"];
+/* スクリプトの追加の絞り込み：条件の属性・条件（騎士団/階級/スタイル/キャラなど）・効果の種類・持っているキャラで条件を満たせるもの */
+const SC_EFF=["攻撃力","HP","防御","攻撃速度","クールタイム","BLADE","回復","ダメージ","会心","コスト"];
+function scriptFilterBar(st){
+  const conds=[...new Set(SC.flatMap(s=>s.conds.map(x=>ALIAS[x]||x)))].filter(x=>!ATTRS.includes(x));
+  const grp=[["騎士団",x=>ORDERS.includes(x)],["階級",x=>RANKS.includes(x)],["性別",x=>x==="女性"||x==="男性"],["スタイル",x=>STYLES.includes(x)]];
+  const used=new Set();const opt=grp.map(([l,f])=>{const xs=conds.filter(x=>!used.has(x)&&f(x));xs.forEach(x=>used.add(x));return xs.length?`<optgroup label="${l}">${xs.map(x=>`<option ${st.cond===x?"selected":""}>${esc(x)}</option>`).join("")}</optgroup>`:"";}).join("");
+  const rest=conds.filter(x=>!used.has(x)).sort((a,b)=>a.localeCompare(b,"ja"));
+  const on=st.cattr||st.cond||st.eff||st.own;
+  return `<div class="tfilter sfilter"><span class="tfl">条件の属性</span><div class="chips">${ATTRS.map(a=>`<button class="chip" data-scattr="${a}" aria-pressed="${st.cattr===a}">${ic(a)}${a}</button>`).join("")}</div>
+  <span class="tfl">条件</span><select id="scond"><option value="">すべて</option><option ${st.cond==="(なし)"?"selected":""} value="(なし)">条件なし</option>${opt}${rest.length?`<optgroup label="キャラ">${rest.map(x=>`<option ${st.cond===x?"selected":""}>${esc(x)}</option>`).join("")}</optgroup>`:""}</select>
+  <span class="tfl">効果</span><div class="chips">${SC_EFF.map(k=>`<button class="chip" data-seff="${k}" aria-pressed="${st.eff===k}">${k}</button>`).join("")}</div>
+  <div class="chips"><button class="chip" data-act="sown" aria-pressed="${!!(st.own&&hasOwn())}">持っているキャラで条件を満たせる</button>${on?`<button class="chip" data-act="sfclear">解除</button>`:""}</div></div>`;
+}
 function renderScripts(){
   const d=data("scripts");const st=tstate.scripts;
   if(!d.rows.length){main.innerHTML=emptyBlock("scripts");return;}
@@ -1107,14 +1134,20 @@ function renderScripts(){
   if(st.q){const q=st.q.toLowerCase();list=list.filter(s=>s.row.some(c=>(c||"").toLowerCase().includes(q)));}
   if(st.rar)list=list.filter(s=>s.rar===st.rar);
   if(st.role)list=list.filter(s=>s.role===st.role);
+  if(st.cattr)list=list.filter(s=>s.conds.some(x=>(ALIAS[x]||x)===st.cattr));
+  if(st.cond)list=list.filter(s=>st.cond==="(なし)"?!s.conds.length:s.conds.some(x=>(ALIAS[x]||x)===st.cond));
+  if(st.eff){const k=st.eff;list=list.filter(s=>s.row.some((c,i)=>/効果/.test(d.headers[i])&&(c||"").includes(k)));}
+  if(st.own&&hasOwn()){const mine=CH.filter(c=>OWN()[c.id]);list=list.filter(s=>mine.some(c=>{const m=scMatch(s,c);return m.n===s.conds.length&&m.roleOk;}));}
   if(st.sort>=0){const k=st.sort;const H=d.headers[k];list.sort((a,b)=>{if(H==="実装日")return(a.date-b.date)*st.dir;if(H==="レアリティ")return((RAR[a.rar]||0)-(RAR[b.rar]||0))*st.dir;const x=a.row[k]||"",y=b.row[k]||"";const nx=parseFloat(x),ny=parseFloat(y);if(!isNaN(nx)&&!isNaN(ny))return(nx-ny)*st.dir;if(isNaN(nx)!==isNaN(ny))return isNaN(nx)?1:-1;return x.localeCompare(y,"ja")*st.dir;});}
   const roles=[...new Set(SC.map(s=>s.role).filter(Boolean))];
   let h=`<div class="toolbar"><h2><small>SCRIPTS</small>スクリプト</h2><input class="search" id="sq" placeholder="名前・効果・条件で検索" value="${esc(st.q)}"><span class="count">${list.length} / ${SC.length}</span>
   <div class="chips">${["SSR","SR","R"].map(r=>`<button class="chip" data-srar="${r}" aria-pressed="${st.rar===r}">${r}</button>`).join("")}</div>
   <div class="chips">${roles.map(r=>`<button class="chip" data-srole="${esc(r)}" aria-pressed="${st.role===r}">${ic(r)}${esc(r)}</button>`).join("")}</div></div>
+  ${scriptFilterBar(st)}
   <div class="tscroll"><table style="--thw:34px"><thead><tr>${C.map((i,n)=>`${n===0?`<th data-ssort="${i}" class="first thc"></th>`:""}<th data-ssort="${i}"${n===0?' class="nm"':""}>${esc(d.headers[i])}${st.sort===i?(st.dir>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead><tbody>`;
   list.forEach(s=>{h+=`<tr data-sdetail="${s.i}">${C.map((i,n)=>{const v=s.row[i]||"";const H=d.headers[i];if(H==="レアリティ")return `<td><span class="rar ${esc(v)}">${esc(v)}</span></td>`;if(H==="ロール")return `<td>${ic(v)} ${esc(v)}</td>`;if(H==="条件2"||H==="条件3")return `<td>${v?`${ic(ALIAS[v]||v,ORDERS.includes(v)?"ord":"")} ${esc(v)}`:""}</td>`;if(n===0)return `<td class="first thc">${sth(s)}</td><td class="nm"><b>${esc(v)}</b></td>`;return `<td${v.length>20?' class="wrap"':""}>${esc(v)}</td>`;}).join("")}</tr>`;});
   main.innerHTML=h+`</tbody></table></div><p class="hint">スクリプト名（行）をタップすると、詳細と条件に合うキャラが見られます。</p>`;
+  const scd=document.getElementById("scond");if(scd)scd.addEventListener("change",()=>{st.cond=scd.value;renderScripts();});
   const sq=document.getElementById("sq");
   liveInput(sq,()=>{st.q=sq.value;const p=sq.selectionStart;renderScripts();const n=document.getElementById("sq");n.focus();n.setSelectionRange(p,p);});
 }
@@ -1234,7 +1267,7 @@ function openRow(kind,i){
 
 /* ---------- clicks ---------- */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act],[data-view],[data-seal]");
+  const t=e.target.closest("[data-close],.tile,[data-moveto],[data-zone],[data-detail],[data-floor],[data-type],[data-pick],[data-psort],[data-pattr],[data-prole],[data-cattr],[data-crole],[data-sort],[data-ssort],[data-sdetail],[data-srar],[data-srole],[data-scattr],[data-seff],[data-rank],[data-rkstat],[data-rkt],[data-rkdir],[data-rkattr],[data-rkrole],[data-act],[data-view],[data-seal]");
   if(!t)return;const ds=t.dataset;
   if(t.hasAttribute("data-close")){t.closest("dialog").close();return;}
   if(MODE==="admin"){const inA=t.closest("#admin");if(!inA&&!t.closest("#actionbar"))return;if(inA&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN&&window.RXR_ADMIN.pick(ds))return;}
@@ -1263,17 +1296,23 @@ document.addEventListener("click",e=>{
   if(ds.sdetail!==undefined){openScript(+ds.sdetail);return;}
   if(ds.srar){tstate.scripts.rar=tstate.scripts.rar===ds.srar?null:ds.srar;renderScripts();return;}
   if(ds.srole){tstate.scripts.role=tstate.scripts.role===ds.srole?null:ds.srole;renderScripts();return;}
+  if(ds.scattr){tstate.scripts.cattr=tstate.scripts.cattr===ds.scattr?null:ds.scattr;renderScripts();return;}
+  if(ds.seff){tstate.scripts.eff=tstate.scripts.eff===ds.seff?null:ds.seff;renderScripts();return;}
   if(ds.view){S.view=ds.view==="mine"?"mine":"official";sel=null;save();render();track("view",{view:S.view});return;}
   const a=ds.act;
   if(a==="unsel"){sel=null;render();}
   else if(a==="admin")enterAdmin();
-  else if(a==="mycopy"){const fk=curFloor().key;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の公式Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、公式の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);save();render();toast("公式の配置をコピーしました。ここから自由に動かせます");}
+  else if(a==="mycopy"){const fk=curFloor().key;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の運営Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、運営の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);save();render();toast("運営の配置をコピーしました。ここから自由に動かせます");}
   else if(a==="myclear"){const fk=curFloor().key;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];sel=null;save();render();toast("リセットしました");}
   else if(a==="share")openShare();
   else if(a==="ownshare"){const st=ownStats(CH);if(!st.k){toast("まず持っているキャラを選んでください");return;}showShare(makeOwnImage,`リバリバのキャラ所持率は ${st.p}%（${st.k}/${st.n}）でした！\n#リバリバ #RxRwiki`,SITE_URL+"?tab=own",`rxr-collection.png`,"所持率を共有");track("share_open",{floor:"own"});}
   else if(a==="ownall"){const o=OWN();main.querySelectorAll("[data-owntoggle]").forEach(b=>{const id=b.dataset.owntoggle;if(!o[id])o[id]=1;});save();renderOwn();}
   else if(a==="ownreset"){if(!confirm("所持の記録をすべて消しますか？"))return;S.own={};save();renderOwn();}
-  else if(a==="onlyown"){S.onlyOwn=!S.onlyOwn;save();render();}
+  else if(a==="onlyown"){if(!hasOwn()){toast("先に「キャラクター」→「所持率チェッカー」で持っているキャラを登録してください",4000);return;}S.onlyOwn=!S.onlyOwn;save();render();}
+  else if(a==="sown"){if(!hasOwn()){toast("先に「キャラクター」→「所持率チェッカー」で持っているキャラを登録してください",4000);return;}tstate.scripts.own=!tstate.scripts.own;renderScripts();}
+  else if(a==="sfclear"){Object.assign(tstate.scripts,{cattr:null,cond:"",eff:null,own:false,rar:null,role:null});renderScripts();}
+  else if(a==="nolim"){S.noLim=!S.noLim;save();render();}
+  else if(a==="tfclear"){pool.attr=null;pool.role=null;S.onlyOwn=false;S.noLim=false;save();render();}
   else if(a==="mytext"){const f=curFloor();const tx=f&&floorText(f);if(!tx){toast("まだ配置がありません");return;}navigator.clipboard.writeText(tx).then(()=>toast("テキストをコピーしました。SNSなどに貼り付けられます"),()=>toast("コピーできませんでした"));}
   else if(a==="allcols"){tstate.chars.all=!tstate.chars.all;renderChars();}
 });
@@ -1459,7 +1498,7 @@ async function makeTierImage(f,P,mine){
   c.fillStyle="#fff";c.font=`900 40px ${JP}`;c.fillText(f.seal?`封印戦  ${f.floor}`:`${f.type}  ${f.floor}F`,PAD,86);
   c.font=`700 26px ${JP}`;c.fillText(f.boss||"",PAD,124);
   // badge
-  const label=mine?"自分のTier表":"公式Tier表";c.font=`700 18px ${JP}`;const bw=c.measureText(label).width+32;
+  const label=mine?"自分のTier表":"運営Tier表";c.font=`700 18px ${JP}`;const bw=c.measureText(label).width+32;
   g=c.createLinearGradient(W-PAD-bw,0,W-PAD,0);if(mine){g.addColorStop(0,"#a0379a");g.addColorStop(1,"#ff5fa2");}else{g.addColorStop(0,"#0d3b8c");g.addColorStop(1,"#1a86ff");}
   c.fillStyle=g;rrect(W-PAD-bw,c,30,bw,36,4);c.fill();c.fillStyle="#fff";c.fillText(label,W-PAD-bw+16,55);
   if(f.attr||f.dtype){c.font=`700 17px ${JP}`;c.fillStyle="#e6f0ff";const tx=f.seal?`ダメージ ${f.dtype}`:`推奨属性 ${f.attr}`;c.fillText(tx,W-PAD-c.measureText(tx).width,124);}
@@ -1487,8 +1526,8 @@ async function makeTierImage(f,P,mine){
 }
 async function openShare(){
   const f=curFloor();if(!f)return;const mine=MINE();const P=place(f.key);
-  if(!Object.keys(P).length){toast(mine?"まだ配置がありません。キャラを配置してから共有してください":"この階層の公式Tier表はまだありません");return;}
-  showShare(()=>makeTierImage(f,P,mine),`【リバリバ ${f.seal?"封印戦":"バベル"}】${f.seal?f.floor:`${f.type} ${f.floor}F`} ${f.boss||""} の${mine?"自分の":"公式"}Tier表\n#リバリバ #リバリババベル #RxRwiki`,`${SITE_URL}?floor=${encodeURIComponent(f.key)}`,f.seal?`seal-tier.png`:`babel-tier-${f.floor}F.png`,"画像で共有");
+  if(!Object.keys(P).length){toast(mine?"まだ配置がありません。キャラを配置してから共有してください":"この階層の運営Tier表はまだありません");return;}
+  showShare(()=>makeTierImage(f,P,mine),`【リバリバ ${f.seal?"封印戦":"バベル"}】${f.seal?f.floor:`${f.type} ${f.floor}F`} ${f.boss||""} の${mine?"自分の":"運営"}Tier表\n#リバリバ #リバリババベル #RxRwiki`,`${SITE_URL}?floor=${encodeURIComponent(f.key)}`,f.seal?`seal-tier.png`:`babel-tier-${f.floor}F.png`,"画像で共有");
   track("share_open",{floor:f.key,view:mine?"mine":"official"});
 }
 async function showShare(make,text,link,name,title){
@@ -1606,7 +1645,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=22");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=23");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
