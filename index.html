@@ -269,6 +269,22 @@ th.first,th.nm{z-index:2}
 td.thc,th.thc{padding-right:0;width:var(--thw,26px);min-width:var(--thw,26px)}
 td.thc img,td.thc .rowth,td.thc .noth{display:grid;margin:0!important;width:var(--thw,26px)!important;height:var(--thw,26px)!important;border-radius:5px;object-fit:cover}
 td.nm>b{display:inline-block;line-height:var(--thw,26px)}
+/* 詳細を開ける名前はリンクらしく見せる */
+tr[data-detail] td.nm>b,tr[data-sdetail] td.nm>b{color:var(--accent-ink);text-decoration:underline;text-decoration-color:rgba(26,134,255,.45);text-underline-offset:3px;text-decoration-thickness:1.5px}
+tr[data-detail] td.nm>b::after,tr[data-sdetail] td.nm>b::after{content:"›";display:inline-block;margin-left:4px;font-weight:900;text-decoration:none;opacity:.7}
+tr[data-detail]:hover td.nm>b,tr[data-sdetail]:hover td.nm>b{text-decoration-color:currentColor}
+/* 横スクロールできる表：右（左）端に影を出し、上に案内とボタンを出す */
+.tscroll.sr{box-shadow:var(--shadow),inset -18px 0 14px -12px rgba(13,47,110,.35)}
+.tscroll.sl{box-shadow:var(--shadow),inset 18px 0 14px -12px rgba(13,47,110,.35)}
+.tscroll.sl.sr{box-shadow:var(--shadow),inset 18px 0 14px -12px rgba(13,47,110,.35),inset -18px 0 14px -12px rgba(13,47,110,.35)}
+.scrollhint{display:flex;align-items:center;gap:6px;margin:0 0 6px;font-size:12.5px;color:var(--muted)}
+.scrollhint[hidden]{display:none}
+.scrollhint .sh-t{flex:1}
+.scrollhint .sh-t i{font-style:normal;display:inline-block;color:var(--accent-ink);font-weight:900}
+.scrollhint button{border:1px solid var(--line2);background:var(--panel);color:var(--accent-ink);font-weight:900;width:34px;height:28px;border-radius:3px;cursor:pointer;font-size:14px;line-height:1}
+.scrollhint button:disabled{opacity:.35;cursor:default}
+@media (prefers-reduced-motion:no-preference){.scrollhint .sh-t i{animation:shnudge 1.4s ease-in-out infinite}}
+@keyframes shnudge{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
 .noth{place-items:center;background:var(--soft);color:var(--muted);font-weight:900;font-size:12px}
 @media (max-width:820px){
   td.nm{position:static;background:none}
@@ -909,7 +925,7 @@ function renderChars(){
   <button class="btn small" data-act="allcols">${st.all?"主要な列だけ表示":"全部の列を表示"}</button></div>
   <div class="tscroll"><table style="--thw:26px"><thead><tr>${cols.map((i,n)=>`${n===0?`<th data-sort="${i}" class="first thc"></th>`:""}<th data-sort="${i}"${n===0?' class="nm"':""}>${esc(d.headers[i])}${st.sort===i?(st.dir>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead><tbody>`;
   list.forEach(c=>{h+=`<tr data-detail="${esc(c.id)}">${cols.map((i,n)=>{const v=c.row[i]||"";const H=d.headers[i];if(H==="属性")return `<td>${ic(v)} <span class="attr ${esc(v)}">${esc(v)}</span></td>`;if(H==="ロール"||H==="階級")return `<td>${ic(v)} ${esc(v)}</td>`;if(H==="騎士団")return `<td>${ic(v,"ord")} ${esc(v)}</td>`;if(n===0)return `<td class="first thc">${cth(c)}</td><td class="nm"><b>${esc(v)}</b></td>`;return `<td${v.length>26?' class="wrap"':""}>${esc(v)}</td>`;}).join("")}</tr>`;});
-  main.innerHTML=h+`</tbody></table></div><p class="hint">行をクリックで詳細。見出しクリックで並び替え。</p>`;
+  main.innerHTML=h+`</tbody></table></div><p class="hint">キャラ名（行）をタップすると詳細が見られます。見出しをタップで並び替え。</p>`;
   const tq=document.getElementById("tq");
   liveInput(tq,()=>{st.q=tq.value;const p=tq.selectionStart;renderChars();const n=document.getElementById("tq");n.focus();n.setSelectionRange(p,p);});
 }
@@ -923,7 +939,7 @@ function renderBabel(){
   let h=`<div class="toolbar"><h2><small>FLOOR LIST</small>バベル一覧</h2>${typeSeg()}<input class="search" id="bq" placeholder="ボス名・効果で検索" value="${esc(st.q)}"></div>
   <div class="tscroll"><table><thead><tr><th>階層</th><th>ボス</th><th>推奨</th><th>解析データ</th><th>おすすめ</th><th>配置</th></tr></thead><tbody>`;
   list.forEach(f=>{const c=Object.keys(place(f.key)).length;h+=`<tr data-floor="${esc(f.key)}" data-go="1"><td><b>${esc(f.floor)}</b></td><td>${esc(f.boss)}</td><td>${f.attr?`<span class="attr ${esc(f.attr)}">${esc(f.attr)}</span>`:""}</td><td class="wrap">${f.lines.filter(l=>!l.sec).map(l=>`<div style="color:${l.pol>0?"var(--good)":l.pol<0?"var(--bad)":"inherit"}">${esc(l.text)}</div>`).join("")}</td><td class="wrap">${f.recs.map(id=>esc(CHMAP[id]?CHMAP[id].name:id)).join("、")}</td><td>${c||""}</td></tr>`;});
-  main.innerHTML=h+`</tbody></table></div><p class="hint">行をクリックするとその階層のTier表を開きます。</p>`;
+  main.innerHTML=h+`</tbody></table></div><p class="hint">行をタップするとその階層のTier表を開きます。</p>`;
   const bq=document.getElementById("bq");
   liveInput(bq,()=>{st.q=bq.value;const p=bq.selectionStart;renderBabel();const n=document.getElementById("bq");n.focus();n.setSelectionRange(p,p);});
 }
@@ -945,7 +961,7 @@ function renderScripts(){
   <div class="chips">${roles.map(r=>`<button class="chip" data-srole="${esc(r)}" aria-pressed="${st.role===r}">${ic(r)}${esc(r)}</button>`).join("")}</div></div>
   <div class="tscroll"><table style="--thw:34px"><thead><tr>${C.map((i,n)=>`${n===0?`<th data-ssort="${i}" class="first thc"></th>`:""}<th data-ssort="${i}"${n===0?' class="nm"':""}>${esc(d.headers[i])}${st.sort===i?(st.dir>0?" ▲":" ▼"):""}</th>`).join("")}</tr></thead><tbody>`;
   list.forEach(s=>{h+=`<tr data-sdetail="${s.i}">${C.map((i,n)=>{const v=s.row[i]||"";const H=d.headers[i];if(H==="レアリティ")return `<td><span class="rar ${esc(v)}">${esc(v)}</span></td>`;if(H==="ロール")return `<td>${ic(v)} ${esc(v)}</td>`;if(H==="条件2"||H==="条件3")return `<td>${v?`${ic(ALIAS[v]||v,ORDERS.includes(v)?"ord":"")} ${esc(v)}`:""}</td>`;if(n===0)return `<td class="first thc">${sth(s)}</td><td class="nm"><b>${esc(v)}</b></td>`;return `<td${v.length>20?' class="wrap"':""}>${esc(v)}</td>`;}).join("")}</tr>`;});
-  main.innerHTML=h+`</tbody></table></div><p class="hint">行をクリックすると詳細と、条件に合うキャラが見られます。</p>`;
+  main.innerHTML=h+`</tbody></table></div><p class="hint">スクリプト名（行）をタップすると、詳細と条件に合うキャラが見られます。</p>`;
   const sq=document.getElementById("sq");
   liveInput(sq,()=>{st.q=sq.value;const p=sq.selectionStart;renderScripts();const n=document.getElementById("sq");n.focus();n.setSelectionRange(p,p);});
 }
@@ -1007,7 +1023,7 @@ function renderRank(){
     <td class="first thc">${isC?cth(x):sth(x)}</td><td class="nm"><b>${esc(x.name)}</b></td>
     <td>${isC?`${ic(x.attr)} <span class="attr ${esc(x.attr)}">${esc(x.attr)}</span>`:`<span class="rar ${esc(x.rar)}">${esc(x.rar)}</span>`}</td><td>${ic(x.role)} ${esc(x.role)}</td>
     <td><div class="rkval"><b>${esc(o.raw)}</b><span class="bar"><i style="width:${pct.toFixed(1)}%"></i></span></div></td></tr>`;});
-  main.innerHTML=h+`</tbody></table></div><p class="hint">行をクリックで詳細。${isC?"属性・ロールで絞り込むと、その中での順位になります。":"属性で絞り込むと、その属性が条件に入っているスクリプトだけになります。"}同じ値は同じ順位です。</p>`;
+  main.innerHTML=h+`</tbody></table></div><p class="hint">名前（行）をタップすると詳細が見られます。${isC?"属性・ロールで絞り込むと、その中での順位になります。":"属性で絞り込むと、その属性が条件に入っているスクリプトだけになります。"}同じ値は同じ順位です。</p>`;
   if(RK.focus!=null){const el=main.querySelector(".rkrow-focus");if(el)requestAnimationFrame(()=>el.scrollIntoView({block:"center"}));}
 }
 
@@ -1473,6 +1489,36 @@ window.RXR={
 setHero();
 buildModels();render();loadSite();loadAnalytics();
 })();
+/* ===== 横スクロールできる表の案内 =====
+   表（.tscroll）が横にはみ出しているときだけ、上に「横にスクロールできます」と ◀ ▶ ボタンを出し、端に影を付ける。
+   スマホでは最初の1回だけ、少し右に動かして戻す（スクロールできることを見せる） */
+const SH={peeked:false};
+function scrollHints(){
+  document.querySelectorAll(".tscroll").forEach(el=>{
+    let hint=el.previousElementSibling;
+    if(!hint||!hint.classList.contains("scrollhint")){
+      hint=document.createElement("div");hint.className="scrollhint";hint.hidden=true;
+      hint.innerHTML='<span class="sh-t">表は横にスクロールできます <i>→</i></span><button type="button" data-sh="-1" aria-label="左へ">◀</button><button type="button" data-sh="1" aria-label="右へ">▶</button>';
+      el.before(hint);
+      hint.addEventListener("click",e=>{const b=e.target.closest("[data-sh]");if(!b)return;e.stopPropagation();el.scrollBy({left:+b.dataset.sh*Math.max(160,el.clientWidth*.7),behavior:"smooth"});});
+      el.addEventListener("scroll",()=>shState(el,hint),{passive:true});
+    }
+    shState(el,hint);
+  });
+}
+function shState(el,hint){
+  const can=el.scrollWidth>el.clientWidth+4;
+  const l=can&&el.scrollLeft>4,r=can&&el.scrollLeft+el.clientWidth<el.scrollWidth-4;
+  el.classList.toggle("sl",l);el.classList.toggle("sr",r);
+  hint.hidden=!can;
+  const [bl,br]=hint.querySelectorAll("button");if(bl){bl.disabled=!l;br.disabled=!r;}
+  if(can&&!SH.peeked&&!el.scrollLeft&&matchMedia("(pointer:coarse)").matches&&!matchMedia("(prefers-reduced-motion:reduce)").matches){
+    SH.peeked=true;setTimeout(()=>{if(el.scrollLeft)return;el.scrollTo({left:60,behavior:"smooth"});setTimeout(()=>el.scrollTo({left:0,behavior:"smooth"}),650);},500);
+  }
+}
+{let q=0;const run=()=>{if(q)return;q=requestAnimationFrame(()=>{q=0;scrollHints();});};
+ new MutationObserver(muts=>{if(muts.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&(n.classList.contains("tscroll")||n.querySelector&&n.querySelector(".tscroll")))))run();}).observe(document.body,{childList:true,subtree:true});
+ addEventListener("resize",run);}
 </script>
 
 </body>
