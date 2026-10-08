@@ -372,6 +372,10 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .hquick{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 12px}
 .hquick button{border:1px solid var(--line2);background:var(--field);padding:4px 10px;font-size:12px;font-weight:700;color:var(--accent-ink);cursor:pointer;border-radius:3px}
 .hquick button:hover{background:var(--soft)}
+/* ホームのバベル：PCは横一列、スマホは縦一列 */
+.hquick.hfloors{display:grid;grid-auto-flow:column;grid-auto-columns:1fr}
+.hquick.hfloors button{padding:8px 10px;font-size:13px;text-align:center}
+@media (max-width:600px){.hquick.hfloors{grid-auto-flow:row;grid-auto-columns:auto}}
 .hgrid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .hbox{background:var(--panel);box-shadow:var(--shadow);padding:14px 16px;display:grid;gap:6px;align-content:start}
 .hbox h3{margin:0 0 4px;font-size:15px;font-weight:900}
@@ -1025,7 +1029,7 @@ function renderHome(){
   <div class="hgrid">
   ${card("chars",cimg,"CHARACTERS","キャラクター","キャラのステータス・スキル・特性。所持率チェッカー・ランキングも",`<div class="hquick"><button data-gosub="own">所持率チェッカー</button><button data-gosub="rank:chars">ランキング</button></div>`)}
   ${card("scripts",simg,"SCRIPTS","スクリプト","スクリプトの効果と、条件に合うキャラ",`<div class="hquick"><button data-gosub="rank:scripts">ランキング</button></div>`)}
-  ${card("tier",HERO,"BABEL","バベル","階層ごとの運営Tier表・解析データ・攻略のコツ・編成例",tops.length?`<div class="hquick">${tops.map(f=>`<button data-homefloor="${esc(f.key)}">${esc(f.type)} <b>${esc(f.floor)}F</b></button>`).join("")}</div>`:"")}
+  ${card("tier",HERO,"BABEL","バベル","階層ごとの運営Tier表・解析データ・攻略のコツ・編成例",tops.length?`<div class="hquick hfloors">${tops.map(f=>`<button data-homefloor="${esc(f.key)}">${esc(f.type)} <b>${esc(f.floor)}F</b></button>`).join("")}</div>`:"")}
   ${card("seal",sealImg,"SEAL BATTLE","封印戦","封印戦ごとのTier表・ステージ効果・過去の開催日")}
   </div>
   <div class="hgrid2">
@@ -1087,9 +1091,12 @@ document.addEventListener("click",e=>{
   const g=e.target.closest("[data-gosub],[data-homefloor],[data-toc]");if(!g||!document.getElementById("main").contains(g))return;
   e.preventDefault();
   if(g.dataset.toc){const el=document.getElementById(g.dataset.toc);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});return;}
-  if(g.dataset.homefloor){const f=FLOORS.find(x=>x.key===g.dataset.homefloor);if(f){S.curType=f.type;S.curFloor=f.key;save();}goSub("tier");return;}
+  if(g.dataset.homefloor){const f=FLOORS.find(x=>x.key===g.dataset.homefloor);if(f){S.curType=f.type;S.curFloor=f.key;save();}goSub("tier");floorIntoView();return;}
   goSub(g.dataset.gosub);
 });
+/* 横スクロールの階層ボタンの列で、選んでいる階層が見える位置までスクロール（ほかのページから来たとき） */
+function floorIntoView(){const b=main.querySelector('.floorbtn[aria-current="true"]'),fs=b&&b.closest(".floors");if(!fs||fs.scrollWidth<=fs.clientWidth)return;
+  const r=b.getBoundingClientRect(),q=fs.getBoundingClientRect();if(r.left<q.left||r.right>q.right)fs.scrollLeft+=r.left-q.left-(q.width-r.width)/2;}
 /* ---------- Tier表の絞り込み（Tier表と未配置の両方にかかる） ---------- */
 function tierShow(c){return cfMatch(c,CFS.tier);}
 function tierFilterBar(){
@@ -1658,7 +1665,9 @@ document.addEventListener("click",e=>{
   if(ds.kw){openKeyword(ds.kw);return;}
   if(ds.detail!==undefined){openChar(ds.detail);return;}
   if(ds.seal){S.curSeal=ds.seal;sel=null;save();render();return;}
-  if(ds.floor){track("floor",{floor:ds.floor});S.curFloor=ds.floor;sel=null;save();if(ds.go)switchTab("tier");else render();return;}
+  if(ds.floor){track("floor",{floor:ds.floor});S.curFloor=ds.floor;sel=null;save();if(ds.go){switchTab("tier");floorIntoView();return;}
+    // 階層ボタンの列のスクロール位置を保つ（選ぶたびに左端へ戻らないように）
+    const fs=main.querySelector(".floors"),x=fs?fs.scrollLeft:0,y=fs?fs.scrollTop:0;render();const f2=main.querySelector(".floors");if(f2){f2.scrollLeft=x;f2.scrollTop=y;}return;}
   if(ds.type){S.curType=ds.type;const fl=FLOORS.filter(f=>f.type===ds.type);S.curFloor=fl.length?fl[fl.length-1].key:null;sel=null;save();render();return;}
   if(ds.pick){if(!CANEDIT()){if(CHMAP[ds.pick])openChar(ds.pick);return;}if(CHMAP[ds.pick]){sel=ds.pick;pool.q="";render();const el=main.querySelector(`.tile[data-id="${CSS.escape(ds.pick)}"]`);if(el)el.scrollIntoView({block:"center",behavior:"smooth"});}return;}
   if(ds.psort){pool.sort=ds.psort;renderTier();return;}
