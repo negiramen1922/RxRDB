@@ -200,7 +200,7 @@ function startListeners() {
     toast(fbErr(err), 5000);
   }));
   TABLES.forEach(k => {
-    on(F.doc(F.db, "tables", k), s => { T[k].hdrExists = s.exists(); T[k].headers = s.exists() ? (s.data().headers || []) : []; T[k].dels = s.exists() ? (s.data().dels || {}) : {}; T[k].hdrReady = true; applyDels(k); tableChanged(k); });
+    on(F.doc(F.db, "tables", k), s => { T[k].hdrExists = s.exists(); T[k].headers = s.exists() ? (s.data().headers || []) : []; T[k].dels = s.exists() ? (s.data().dels || {}) : {}; T[k].delKeys = s.exists() ? (s.data().delKeys || {}) : {}; T[k].hdrReady = true; applyDels(k); tableChanged(k); });
     listenRows(k, on);
   });
   TABLES.concat(["crops", "news", "tiers", "options", "guide"]).forEach(k => on(F.doc(F.db, "public", k), s => {
@@ -242,6 +242,8 @@ function saveRowCache(k) {
   rcTimers[k] = setTimeout(() => { const t = T[k]; if (!t.rowsReady) return; const rows = {}; let ts = 0; t.rows.forEach((r, id) => { rows[id] = r; if (r.ts > ts) ts = r.ts; }); try { localStorage.setItem(RCACHE + k, JSON.stringify({ rows, ts: Math.max(ts, t.cacheTs || 0), full: t.fullAt || now() })); } catch (e) { } }, 1500);
 }
 function clearRowCache() { try { Object.keys(localStorage).filter(x => x.startsWith(RCACHE)).forEach(x => localStorage.removeItem(x)); } catch (e) { } }
+// 行を消したときの記録：dels（行ID→時刻。ほかの端末のキャッシュから消すため）と delKeys（識別子→時刻。GitHub の古いデータから復活させないため）
+function delMark(k, id, c) { const key = keyOfCells(k, c || {}); return Object.assign({ dels: { [id]: now() } }, key.replace(/\|/g, "") ? { delKeys: { [key]: now() } } : {}); }
 function applyDels(k) {
   const d = T[k].dels || {}; let ch = false;
   Object.entries(d).forEach(([id, at]) => { const r = T[k].rows.get(id); if (r && (r.t || 0) <= at) { T[k].rows.delete(id); ch = true; } });
@@ -543,7 +545,8 @@ async function checkGhNew(k) {
     const sig = R.hashId(JSON.stringify(d));
     let hidden = false; try { hidden = localStorage.getItem("rxr-ghnew-hide-" + k) === sig; } catch (e) { }
     const df = diffTables(k, curData(k), d);
-    GHNEW[k] = { at: now(), file: d, sig, added: hidden ? [] : df.added, changed: df.changed.length };
+    const dk = T[k].delKeys || {}; const added = df.added.filter(x => !dk[x]);
+    GHNEW[k] = { at: now(), file: d, sig, added: hidden ? [] : added, deleted: df.added.length - added.length, changed: df.changed.length };
   } catch (e) { GHNEW[k] = { at: now(), added: [], changed: 0 }; }
   const gn = document.getElementById("ghnew"); if (gn && ED.k === k) gn.innerHTML = ghNewHtml(k);
 }
@@ -552,7 +555,7 @@ function ghNewHtml(k) {
   const g = GHNEW[k]; if (!g) { checkGhNew(k); return ""; }
   if (!g.added || !g.added.length) return "";
   // GitHub のファイルは予備（古いことが多い）。内容が違う行を上書きすると管理画面の編集が消えるので、ここでは「無い行の追加」だけにする
-  return `<div class="astatus warn ghnewbar"><b>GitHub の data/${k}.json に、管理画面に無い${TLABEL[k]}が ${g.added.length} 件あります</b><span class="count">${esc(g.added.slice(0, 6).join("、"))}${g.added.length > 6 ? " ほか" : ""}（管理画面で削除・名前変更した行の古いデータのこともあります）</span>
+  return `<div class="astatus warn ghnewbar"><b>GitHub の data/${k}.json に、管理画面に無い${TLABEL[k]}が ${g.added.length} 件あります</b><span class="count">${esc(g.added.slice(0, 6).join("、"))}${g.added.length > 6 ? " ほか" : ""}（管理画面で削除・名前変更した行の古いデータのこともあります${g.deleted ? `。管理画面で削除した ${g.deleted} 件は出していません` : ""}）</span>
   <span class="row2"><button class="btn small primary" data-a="ghimportnew" ${g.busy ? "disabled" : ""}>${g.busy ? "追加中…" : `${g.added.length}件を追加する`}</button><button class="btn small" data-a="ghhide" ${g.busy ? "disabled" : ""}>このお知らせを消す</button></span></div>`;
 }
 async function ghImport(onlyNew) {
@@ -1078,7 +1081,7 @@ async function deleteRow() {
       const s = await tx.get(ref); if (!s.exists()) return;
       const cur = s.data();
       if (cur.rev !== ED.baseRev) throw { code: "conflict", other: cur };
-      tx.delete(ref); tx.set(F.doc(F.db, "tables", k), { dels: { [id]: now() } }, { merge: true });
+      tx.delete(ref); tx.set(F.doc(F.db, "tables", k), delMark(k, id, cur.c), { merge: true });
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "delete", k, rowid: id, label: labelOf(k, cur.c || {}), row: cur.c || {}, o: cur.o }));
     });
     toast("削除しました"); ED.dirty = false; if (DLG) DLG.close();
@@ -1176,8 +1179,8 @@ async function applyTable(k, inc, mode, act) {
   // commit in chunks
   const hdrRef = F.doc(F.db, "tables", k);
   let b = F.writeBatch(F.db); let n = 0;
-  const dels = {}; ops.forEach(op => { if (op[0] === "del") dels[op[1]] = now(); });
-  b.set(hdrRef, Object.assign({ headers: hd, t: now(), by: meId() }, Object.keys(dels).length ? { dels } : {}), { merge: true }); n++;
+  const dels = {}, delKeys = {}; ops.forEach(op => { if (op[0] === "del") { dels[op[1]] = now(); const r = T[k].rows.get(op[1]); const key = r ? keyOfCells(k, r.c || {}) : ""; if (key.replace(/\|/g, "")) delKeys[key] = now(); } });
+  b.set(hdrRef, Object.assign({ headers: hd, t: now(), by: meId() }, Object.keys(dels).length ? { dels, delKeys } : {}), { merge: true }); n++;
   for (const op of ops) {
     const ref = F.doc(F.db, "tables", k, "rows", op[1]);
     if (op[0] === "del") b.delete(ref); else { const d = Object.assign({}, op[2]); delete d.id; d.ts = F.serverTimestamp(); b.set(ref, d); }
@@ -1626,7 +1629,7 @@ async function revertLog(id) {
         tx.set(r, { c: l.row, o: l.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() });
       } else if (l.act === "create") {
         if (!s.exists()) throw { message: "この行はすでにありません" };
-        tx.delete(r); tx.set(F.doc(F.db, "tables", l.k), { dels: { [l.rowid]: now() } }, { merge: true });
+        tx.delete(r); tx.set(F.doc(F.db, "tables", l.k), delMark(l.k, l.rowid, s.data().c), { merge: true });
       } else {
         if (!s.exists()) throw { message: "この行は削除されています" };
         const c = Object.assign({}, s.data().c || {}); Object.keys(l.ch).forEach(h => { c[h] = l.ch[h][0]; });
