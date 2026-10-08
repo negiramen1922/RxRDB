@@ -35,7 +35,7 @@ const SCHEMA = {
   babel: [
     { g: "基本", f: [["バベル種類", "opt:バベル種類"], ["階層", "num"], ["ボス", "bossref"], ["推奨属性", "opt:属性"]] },
     { g: "解析データ", note: "1行に1つの効果。【特性】【味方】【敵】などの見出し行で区切ります。「上昇」「低下」などから自動で ▲▼ を判定します。", f: [["解析データ", "big"]] },
-    { g: "おすすめ・コメント", f: [["おすすめキャラID", "charpick"], ["攻略のコツ", "long"], ["コメント", "long"]] },
+    { g: "攻略のコツ・コメント", f: [["おすすめキャラID", "hide"], ["攻略のコツ", "long"], ["コメント", "long"]] },
   ],
   teams: [
     { g: "基本", f: [["バベル種類", "floor"], ["階層", "hide"], ["編成名", "text"]] },
@@ -686,10 +686,10 @@ const synStr = rows => rows.filter(x => x.id).map(x => x.id + "|" + String(x.t |
 function synField(name, v) {
   const rows = synRows(v);
   return `<div class="synrows">${rows.map((x, i) => { const c = R.CHMAP[x.id]; return `<div class="synrow"><span class="tmimg">${R.IMG[x.id] ? `<img src="${esc(R.IMG[x.id])}" alt="">` : '<span class="noimg"></span>'}</span>
-    <div class="synin"><input data-syn="${i}|id" list="dl_chars" value="${esc(c ? c.name : x.id)}" placeholder="キャラ名">${x.id && !c ? '<small class="err">見つからないキャラ</small>' : ""}
+    <div class="synin"><button class="btn small tmpick" data-pkopen="syn|${i}">${x.id && x.id !== "?" ? esc(c ? c.name : x.id) : "キャラを選ぶ"}</button>${x.id && x.id !== "?" && !c ? '<small class="err">見つからないキャラ</small>' : ""}
     <textarea data-syn="${i}|t" rows="2" placeholder="何がシナジーか（例：鈍化で足止めした敵にスキルが当たりやすい）">${esc(x.t)}</textarea></div>
     <button class="btn small" data-synrm="${i}" aria-label="外す">✕</button></div>`; }).join("") || '<span class="count">まだいません</span>'}</div>
-    <div class="addcol"><button class="btn small" data-synadd="1">＋ キャラを追加</button></div>`;
+    <div class="addcol"><button class="btn small" data-pkopen="syn|new">＋ キャラを追加</button></div>`;
 }
 function synInput(el) {
   const [i, f] = el.dataset.syn.split("|"); const rows = synRows(ED.draft["おすすめセット"]); const r = rows[+i]; if (!r) return;
@@ -730,7 +730,7 @@ function teamField(v) {
 }
 /* ---- 編成例：キャラ・スクリプトを公開サイトと同じカードから選ぶ ----
    スクリプトは、そのキャラと同じロール（とワイルド）のものだけを出す */
-const PK = { kind: "char", slot: 0, q: "", role: null, attr: null, all: false };
+const PK = { kind: "char", slot: 0, q: "", role: null, attr: null, all: false, syn: false };
 const scRoleOk = (id, sc) => { const c = R.CHMAP[id], s = R.SC.find(x => x.name === sc); return !c || !s || !s.role || !c.role || s.role === c.role || s.role === "ワイルド"; };
 let PKDLG = null;
 function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement("dialog"); PKDLG.id = "dlgPick"; PKDLG.className = "wide"; PKDLG.innerHTML = `<div class="dlg" id="pkBody"></div>`; document.body.appendChild(PKDLG);
@@ -740,11 +740,12 @@ function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement(
     if (ds.pkrole) PK.role = PK.role === ds.pkrole ? null : ds.pkrole; if (ds.pkattr) PK.attr = PK.attr === ds.pkattr ? null : ds.pkattr; if (ds.pkall) PK.all = !PK.all;
     pickRender(); });
   return PKDLG; }
-function openPick(kind, slot) { PK.kind = kind; PK.slot = +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
+// kind: char / script（編成例） / syn（おすすめセット。slot が "new" なら行を追加）
+function openPick(kind, slot) { PK.syn = kind === "syn"; PK.kind = PK.syn ? "char" : kind; PK.slot = slot === "new" ? -1 : +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
 function pickList() {
-  const slots = teamSlots(ED.draft["メンバー"]); const cur = slots[PK.slot] || {}; const q = PK.q.trim().toLowerCase();
+  const slots = PK.syn ? synRows(ED.draft["おすすめセット"]) : teamSlots(ED.draft["メンバー"]); const cur = slots[PK.slot] || {}; const q = PK.q.trim().toLowerCase();
   if (PK.kind === "char") {
-    const inTeam = new Set(slots.map(x => x.id).filter(Boolean));
+    const inTeam = new Set(slots.map(x => x.id).filter(Boolean)); if (PK.syn && ED.draft["ID"]) inTeam.add(ED.draft["ID"]);
     let l = R.CH.slice(); if (PK.role) l = l.filter(c => c.role === PK.role); if (PK.attr) l = l.filter(c => c.attr === PK.attr);
     if (q) { const hi = R.data("chars").headers.indexOf("名前 ひらがな"); l = l.filter(c => (c.name + c.id + (hi >= 0 ? c.row[hi] || "" : "")).toLowerCase().includes(q)); }
     return { items: l, inTeam, cur };
@@ -759,18 +760,26 @@ function pickList() {
 function pickRender() {
   const body = document.getElementById("pkBody"); if (!body) return; const L = pickList(); const isC = PK.kind === "char";
   const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
-      return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? '<span class="ccbadges"><span class="ccown">編成中</span></span>' : ""}</button>`; }).join("")
+      return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
     : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
       return `<button class="ccard scard2 pkcard${s.name === L.cur.sc ? " pkcur" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span></button>`; }).join("");
   const head = isC ? `<div class="chips">${R.ROLES.map(r => `<button class="chip" data-pkrole="${esc(r)}" aria-pressed="${PK.role === r}">${R.ic(r)}${esc(r)}</button>`).join("")}</div>`
     : (L.c && L.c.role ? `<span class="count">${esc(L.c.name)} は <b>${R.ic(L.c.role)}${esc(L.c.role)}</b> なので、${esc(L.c.role)}（とワイルド）のスクリプトだけを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : "");
-  body.innerHTML = `<div class="pkhead"><h2>${isC ? "キャラを選ぶ" : "スクリプトを選ぶ"}<small class="count">（${PK.slot + 1}人目）</small></h2><input class="search" id="pkQ" placeholder="${isC ? "名前・ひらがなで検索" : "名前・効果・条件で検索"}" value="${esc(PK.q)}"><span class="count">${L.items.length}件</span></div>
+  body.innerHTML = `<div class="pkhead"><h2>${isC ? "キャラを選ぶ" : "スクリプトを選ぶ"}<small class="count">${PK.syn ? "（おすすめセット）" : `（${PK.slot + 1}人目）`}</small></h2><input class="search" id="pkQ" placeholder="${isC ? "名前・ひらがなで検索" : "名前・効果・条件で検索"}" value="${esc(PK.q)}"><span class="count">${L.items.length}件</span></div>
     <div class="pkfil">${head}<div class="chips">${R.ATTRS.map(a => `<button class="chip" data-pkattr="${esc(a)}" aria-pressed="${PK.attr === a}">${R.ic(a)}${isC ? "" : "条件："}${esc(a)}</button>`).join("")}</div></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">該当するものがありません</p>'}</div></div>
     <div class="formfoot"><span class="count">カードを押すと選ばれます。</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
   const q = document.getElementById("pkQ"); R.liveInput(q, () => { PK.q = q.value; const p = q.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
 }
 function pickApply(v) {
+  if (PK.syn) {
+    if (v === ED.draft["ID"]) { toast("このキャラ自身は選べません"); return; }
+    const rows = synRows(ED.draft["おすすめセット"]);
+    if (rows.some((x, i) => x.id === v && i !== PK.slot)) { toast("すでに追加されています"); return; }
+    if (PK.slot < 0 || !rows[PK.slot]) rows.push({ id: v, t: "" }); else rows[PK.slot].id = v;
+    ED.draft["おすすめセット"] = rows.map(x => (x.id || "?") + "|" + String(x.t || "").replace(/[\r\n|]+/g, " ")).join("\n");
+    ED.dirty = true; ED.leaveOk = false; PKDLG.close(); renderForm(); return;
+  }
   const slots = teamSlots(ED.draft["メンバー"]); const m = slots[PK.slot];
   if (PK.kind === "char") { m.id = v; const cr = charRow(v); const min = cr ? (RARSTAR[cr["レアリティ"]] || 1) : 1; if (!m.star || +m.star < min) m.star = String(min);
     if (m.sc && !scRoleOk(v, m.sc)) { m.sc = ""; toast("ロールが違うのでスクリプトを外しました"); } }
