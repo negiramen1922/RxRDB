@@ -425,7 +425,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["todo", "やること"], ["tier", "Tier表"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "やること"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = S.fbNew || 0;
@@ -500,7 +500,7 @@ async function login() {
 
 /* ================= data editing ================= */
 const ED = { manual: {}, k: "chars", q: "", id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, newCol: "", remote: null, gone: false, saving: false, conflict: null, leaveOk: false };
-function resetEd() { Object.assign(ED, { manual: {}, id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, remote: null, gone: false, conflict: null }); }
+function resetEd() { Object.assign(ED, { lock: null, manual: {}, id: null, isNew: false, draft: null, base: null, baseRev: null, dirty: false, confirmDel: false, remote: null, gone: false, conflict: null }); }
 function keyOf(k, hd, r) { const g = n => { const i = hd.indexOf(n); return i >= 0 ? String(r[i] || "").trim() : ""; }; return KEYCOLS[k].map(g).join("|"); }
 function keyOfCells(k, c) { return KEYCOLS[k].map(n => String(c[n] || "").trim()).join("|"); }
 function labelOf(k, c) {
@@ -795,7 +795,27 @@ function bindCustomList() {
 }
 function openEditor(k, id) {
   if (!T[k].rows.get(id)) { toast("この行が見つかりません（ほかのメンバーが削除した可能性があります）"); return; }
-  ED.k = k; loadRow(k, id); setPresence(); renderForm();
+  ED.k = k; loadRow(k, id);
+  // ほかのメンバーが開いている行はロック（閲覧のみ）。相手が閉じると自動で編集できるようになる
+  const who = othersOn(k, id);
+  if (who.length) { ED.lock = who.map(w => w.name || "メンバー"); clearPresence(); lockTimer(); } else { ED.lock = null; setPresence(); }
+  renderForm();
+}
+// 相手が画面を閉じずにいなくなったとき（5分で期限切れ）も、自動でロックを外す
+let LOCKT = null;
+function lockTimer() { clearInterval(LOCKT); LOCKT = setInterval(() => { if (!ED.lock || !DLG || !DLG.open) { clearInterval(LOCKT); return; } refreshForm(); }, 30e3); }
+function checkLock() {
+  if (!ED.lock || !ED.id || ED.isNew) return;
+  const who = othersOn(ED.k, ED.id);
+  if (who.length) { ED.lock = who.map(w => w.name || "メンバー"); return; }
+  ED.lock = null; setPresence(); loadRow(ED.k, ED.id); toast("ロックが外れました。編集できます");
+}
+// ロック中はフォームを閲覧のみにする（閉じる・ほかの画面へ移るボタンは使える）
+const LOCK_OK = '[data-ed="close"],[data-ed="unlock"],[data-teamedit],[data-teamfloor],[data-a="sealtier"],[data-a="babeltier"],[data-close]';
+function applyLock(body) {
+  if (!ED.lock) return;
+  body.querySelectorAll("input,select,textarea").forEach(el => { el.disabled = true; });
+  body.querySelectorAll("button,label.btn").forEach(el => { if (!el.matches(LOCK_OK)) { el.disabled = true; el.classList.add("locked"); } });
 }
 function pickFromList(ds) {
   if (S.tab !== "edit") return false;
@@ -815,6 +835,7 @@ function renderForm() {
   const dl = edDialog();
   const body = document.getElementById("edBody");
   const sc = dl.open ? dl.scrollTop : 0;
+  checkLock();
   body.innerHTML = editForm();
   if (!dl.open) dl.showModal();
   dl.scrollTop = sc;
@@ -837,6 +858,7 @@ function renderForm() {
   body.querySelectorAll("[data-floorsel]").forEach(el => el.addEventListener("change", () => { const i = el.value.indexOf("|"), t = i < 0 ? el.value : el.value.slice(0, i), f = i < 0 ? "" : el.value.slice(i + 1); ED.draft["バベル種類"] = t || ""; ED.draft["階層"] = f || ""; ED.dirty = true; ED.leaveOk = false; renderForm(); }));
   const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const io = IMGOF[ED.k]; quickUpload(io[0], ED.base[io[1]], f); });
   body.querySelectorAll(".cpin").forEach(cp => cp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); pickAdd(cp.dataset.cpfield); } }));
+  applyLock(body);
 }
 /* ---- 選択肢（プルダウン） ---- */
 const ICONKEYS = ["騎士団", "階級", "ロール", "属性"];
@@ -1070,7 +1092,8 @@ function bannerHtml() {
   let h = "";
   if (ED.id && !ED.isNew) {
     const who = othersOn(ED.k, ED.id);
-    if (who.length) h += `<div class="astatus warn">${esc(who.map(w => w.name || "メンバー").join("、"))} さんもこの行を開いています。同時に保存した場合は、あとから保存した人に確認が出ます。</div>`;
+    if (ED.lock) h += `<div class="astatus warn lockbar">🔒 <b>${esc(ED.lock.join("、"))} さんが編集中です。</b>ロックされているので閲覧だけできます。相手が画面を閉じると、自動で編集できるようになります。<button class="btn small" data-ed="unlock">ロックを解除して編集する</button></div>`;
+    else if (who.length) h += `<div class="astatus warn">${esc(who.map(w => w.name || "メンバー").join("、"))} さんもこの行を開いています。同時に保存した場合は、あとから保存した人に確認が出ます。</div>`;
   }
   if (ED.gone) h += `<div class="astatus warn">この行はほかのメンバーによって削除されました。保存すると新しい行として作り直します。</div>`;
   if (ED.remote && !ED.conflict) h += `<div class="astatus warn">${esc(shortName(ED.remote.by))} さんがこの行を更新しました（${esc(ago(ED.remote.t))}）。<button class="btn small" data-ed="merge">相手の変更を取り込む</button></div>`;
@@ -1218,6 +1241,7 @@ async function edAction(a) {
   if (a === "new") { ED.manual = {}; ED.id = "new"; ED.isNew = true; ED.draft = {}; ED.base = {}; if (k === "babel") ED.draft["バベル種類"] = R.TYPES[0] || ""; if (k === "chars") ED.draft["スタイル"] = "DEFAULT"; ED.baseRev = null; ED.dirty = true; ED.confirmDel = false; ED.conflict = null; ED.remote = null; ED.gone = false; ED.newCol = ""; renderForm(); return; }
   if (a === "close") { if (ED.dirty && !ED.leaveOk) { ED.leaveOk = true; toast("保存していない変更があります。もう一度押すと破棄して閉じます", 3500); return; } if (DLG) DLG.close(); return; }
   if (a === "cancel") { loadRow(k, ED.id); renderForm(); return; }
+  if (a === "unlock") { if (!confirm(`${(ED.lock || []).join("、")} さんが編集中です。ロックを解除して編集しますか？\n（同時に保存した場合は、あとから保存した人に確認が出ます）`)) return; ED.lock = null; setPresence(); renderForm(); return; }
   if (a === "del") { ED.confirmDel = true; renderForm(); return; }
   if (a === "delno") { ED.confirmDel = false; renderForm(); return; }
   if (a === "delyes") { deleteRow(); return; }
@@ -2422,6 +2446,8 @@ function injectStyle() {
 .tdform{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 10px;margin:8px 0 0 32px}.tdform .wide{grid-column:1/-1}.tdform label{display:grid;gap:2px;font-size:12px}
 @media (max-width:820px){.tdhead{grid-template-columns:22px minmax(0,1fr) 44px}.tdhead .tdbar,.tdhead .tdlab{grid-column:2/-1}.tdmeta,.tdsub,.tdfields,.tdmiss,.tdform{margin-left:0}}
 .tmpick{min-width:9em;max-width:16em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;justify-content:flex-start}
+.lockbar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.lockbar .btn{margin-left:auto}
+#edBody .locked{opacity:.45;cursor:not-allowed}
 #dlgPick,#dlgBulk{width:min(1100px,calc(100% - 24px));margin-top:4vh;margin-bottom:auto}
 .bkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:6px;align-content:start}
 .bkrow{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:4px 8px;background:var(--panel);border:1px solid var(--line2)}
