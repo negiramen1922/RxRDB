@@ -519,7 +519,8 @@
   "ラズベリーとチョコミント": "images/scripts/thumb/ラズベリーとチョコミント.webp",
   "オンリー・イン・ラストオーダー": "images/scripts/thumb/オンリー・イン・ラストオーダー.webp",
   "ただいま充電中。": "images/scripts/thumb/ただいま充電中。.webp",
-  "メメント・ショコラ・ティーパーティ": "images/scripts/thumb/メメント・ショコラ・ティーパーティ.webp"
+  "メメント・ショコラ・ティーパーティ": "images/scripts/thumb/メメント・ショコラ・ティーパーティ.webp",
+  "デットリーエスケープ：アイデンティティ": "images/scripts/thumb/デットリーエスケープ：アイデンティティ.webp"
  },
  "sfull": {
   "鼓動天換": "images/scripts/鼓動天換.webp",
@@ -764,7 +765,8 @@
   "ラズベリーとチョコミント": "images/scripts/ラズベリーとチョコミント.webp",
   "オンリー・イン・ラストオーダー": "images/scripts/オンリー・イン・ラストオーダー.webp",
   "ただいま充電中。": "images/scripts/ただいま充電中。.webp",
-  "メメント・ショコラ・ティーパーティ": "images/scripts/メメント・ショコラ・ティーパーティ.webp"
+  "メメント・ショコラ・ティーパーティ": "images/scripts/メメント・ショコラ・ティーパーティ.webp",
+  "デットリーエスケープ：アイデンティティ": "images/scripts/デットリーエスケープ：アイデンティティ.webp"
  },
  "hero": "images/hero.webp"
 }
