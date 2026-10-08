@@ -20,6 +20,7 @@
 ## Firebase（プロジェクト my-log-vh3o3b / 表示名 RxRbabelDB、Spark プラン）
 - データの正本は Firestore。`tables/{chars|scripts|babel|teams|seals|people|styles|bosses|events}`（headers）＋ `tables/{k}/rows/{id}`（`c`=列名→値, `o`=並び順, `t`, `by`, `rev`）。
 - 保存すると管理画面が自動で `public/{k}`（`json`=`{headers,rows}` の文字列, `sig`）を作り直し、さらに公開サイト用の一式 `public/all`（`json`={chars,scripts,babel,teams,seals,crops,options,news,tiers,guide} をまとめたもの, `sig`）を作り直す。公開サイトは public/all を読む（読み取り回数の節約）。サムネイル位置は `public/crops`、プルダウンの選択肢は `public/options`（`json`={騎士団:[...],階級:[...],ロール:[...],...}）、運営Tier表は `public/tiers`（`json`=`{tiers:{"バベル種類|階層":{キャラID:Tier}}, at}`。管理画面の「Tier表」タブで運営が配置し、ユーザー画面は閲覧のみ）、ユーザー向けお知らせは `public/news`（`json`=お知らせの配列。予備は data/news.json）。
+- 管理画面の読み取り節約: 行データはブラウザ（localStorage `rxr-admin-rows-v1-*`）に保存し、開くたびに `ts`（サーバー時刻）が前回より新しい行だけを読む。行を書くときは必ず `ts: serverTimestamp()` を付け、削除は `tables/{k}.dels`（行ID→削除時刻）に記録する（ヘッダーの書き込みは `{merge:true}` で dels を消さない）。3日ごとに全件読み直し、「読み込み・書き出し」に手動の全件読み直しボタン。変更履歴とご意見は、そのタブを開いたときに読む（未対応件数は件数クエリ）。
 - 同時編集: 行ごとに `rev` を比べて衝突を検出（トランザクション）。`editing/{uid}` で「編集中」を表示。`log` に変更履歴（元に戻せる）。
 - `feedback`（誰でも作成のみ）、`stats/{YYYY-MM-DD}`（pv/uv を +1 だけ）、`roles/{email}`（編集者。読み書きはオーナーのみ、本人は自分の分だけ読める）、`names/{uid}`（表示名）。メールアドレスはオーナー以外に見せない：行・履歴・公開データなどの `by` は uid（公開データには書かない）、表示は names の名前。
 - 無料枠: 読み取り 5万/日、書き込み 2万/日（日本時間16時／冬は17時にリセット）。読み取りを使い切ると保存も公開サイトの読み込みも失敗する（公開サイトは data/*.json の古い内容になる）ので、読み取りを増やす変更は避ける。画像は Firebase に置かない（Storage は有料プラン）。

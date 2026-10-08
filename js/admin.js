@@ -189,7 +189,7 @@ async function resolveRole(u) {
 }
 
 /* ================= live listeners ================= */
-function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); }
+function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = false; }
 function startListeners() {
   const on = (ref, fn, opt) => S.unsubs.push(F.onSnapshot(ref, opt || {}, fn, err => {
     console.warn(ref.path, err);
@@ -197,12 +197,8 @@ function startListeners() {
     toast(fbErr(err), 5000);
   }));
   TABLES.forEach(k => {
-    on(F.doc(F.db, "tables", k), s => { T[k].hdrExists = s.exists(); T[k].headers = s.exists() ? (s.data().headers || []) : []; T[k].hdrReady = true; tableChanged(k); });
-    on(F.collection(F.db, "tables", k, "rows"), q => {
-      if (q.metadata.fromCache && !T[k].rowsReady) return;
-      const m = new Map(); q.docs.forEach(d => m.set(d.id, Object.assign({ id: d.id }, d.data())));
-      T[k].rows = m; T[k].rowsReady = true; T[k].pending = q.metadata.hasPendingWrites; tableChanged(k);
-    }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
+    on(F.doc(F.db, "tables", k), s => { T[k].hdrExists = s.exists(); T[k].headers = s.exists() ? (s.data().headers || []) : []; T[k].dels = s.exists() ? (s.data().dels || {}) : {}; T[k].hdrReady = true; applyDels(k); tableChanged(k); });
+    listenRows(k, on);
   });
   TABLES.concat(["crops", "news", "tiers", "options", "guide"]).forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
@@ -223,13 +219,62 @@ function startListeners() {
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
   initName().then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
-  on(F.query(F.collection(F.db, "feedback"), F.orderBy("at", "desc"), F.limit(300)), q => {
-    FEEDBACK = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: x.at && x.at.toMillis ? x.at.toMillis() : (x.at || 0) }); });
-    renderNav(); softRender();
-  });
-  on(F.query(F.collection(F.db, "log"), F.orderBy("at", "desc"), F.limit(150)), q => { LOG = q.docs.map(d => Object.assign({ id: d.id }, d.data())); softRender(); });
+  S.on = on; LAZY.log = LAZY.fb = false;
+  // ご意見・変更履歴は、そのタブを開いたときに読む（未対応のご意見の数だけは件数クエリで数える＝1回の読み取り）
+  F.getCountFromServer(F.query(F.collection(F.db, "feedback"), F.where("status", "==", "new"))).then(c => { S.fbNew = c.data().count; renderNav(); }).catch(e => console.warn("fbcount", e));
   S.unsubs.push(F.onSnapshot(F.doc(F.db, "secrets", "github"), s => { GH = s.exists() && s.data().token ? s.data() : null; softRender(); }, () => { GH = null; }));
   S.heartbeat = setInterval(() => { if (ED.id && document.visibilityState === "visible") setPresence(); }, 120e3);
+}
+/* ---- 行データの読み込み（差分だけ読む） ----
+   管理画面を開くたびに全行を読むと Firestore の読み取り枠をすぐ使い切るので、行はこのブラウザに保存しておき、
+   前回より後に変わった行（ts = サーバー時刻）だけを読む。削除は tables/{k}.dels（行ID→削除時刻）で知る。
+   保存してから RESYNC_DAYS 日たったら、念のため全行を読み直す */
+const RCACHE = "rxr-admin-rows-v1-" + F.firebaseConfig.projectId + "-";
+const RESYNC_DAYS = 3, TS_MARGIN = 5 * 60e3;
+const rowOf = d => { const x = Object.assign({ id: d.id }, d.data()); x.ts = x.ts && x.ts.toMillis ? x.ts.toMillis() : (typeof x.ts === "number" ? x.ts : 0); return x; };
+function loadRowCache(k) { try { const v = JSON.parse(localStorage.getItem(RCACHE + k) || "null"); return v && v.rows && now() - (v.full || 0) < RESYNC_DAYS * 864e5 ? v : null; } catch (e) { return null; } }
+const rcTimers = {};
+function saveRowCache(k) {
+  clearTimeout(rcTimers[k]);
+  rcTimers[k] = setTimeout(() => { const t = T[k]; if (!t.rowsReady) return; const rows = {}; let ts = 0; t.rows.forEach((r, id) => { rows[id] = r; if (r.ts > ts) ts = r.ts; }); try { localStorage.setItem(RCACHE + k, JSON.stringify({ rows, ts: Math.max(ts, t.cacheTs || 0), full: t.fullAt || now() })); } catch (e) { } }, 1500);
+}
+function clearRowCache() { try { Object.keys(localStorage).filter(x => x.startsWith(RCACHE)).forEach(x => localStorage.removeItem(x)); } catch (e) { } }
+function applyDels(k) {
+  const d = T[k].dels || {}; let ch = false;
+  Object.entries(d).forEach(([id, at]) => { const r = T[k].rows.get(id); if (r && (r.t || 0) <= at) { T[k].rows.delete(id); ch = true; } });
+  if (ch && T[k].rowsReady) saveRowCache(k);
+}
+function listenRows(k, on) {
+  const t = T[k]; const cache = loadRowCache(k);
+  const col = F.collection(F.db, "tables", k, "rows");
+  if (cache) {
+    t.rows = new Map(Object.entries(cache.rows)); t.fullAt = cache.full; t.cacheTs = cache.ts;
+    const q = F.query(col, F.where("ts", ">", F.Timestamp.fromMillis(Math.max(0, (cache.ts || 0) - TS_MARGIN))));
+    on(q, s => {
+      if (s.metadata.fromCache && !t.rowsReady) return;
+      s.docChanges().forEach(c => {
+        if (c.type === "removed") { if (!c.doc.metadata.hasPendingWrites) t.rows.delete(c.doc.id); }   // 送信中（サーバー時刻が未確定）で一時的に外れただけのときは消さない
+        else t.rows.set(c.doc.id, rowOf(c.doc));
+      });
+      t.rowsReady = true; t.pending = s.metadata.hasPendingWrites; applyDels(k); saveRowCache(k); tableChanged(k);
+    }, { includeMetadataChanges: true });
+  } else {
+    on(col, s => {
+      if (s.metadata.fromCache && !t.rowsReady) return;
+      const m = new Map(); s.docs.forEach(d => m.set(d.id, rowOf(d)));
+      if (!t.rowsReady) t.fullAt = now();
+      t.rows = m; t.rowsReady = true; t.pending = s.metadata.hasPendingWrites; saveRowCache(k); tableChanged(k);
+    }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
+  }
+}
+const LAZY = { log: false, fb: false };
+function ensureLazy(tab) {
+  if (!S.on) return;
+  if (tab === "log" && !LAZY.log) { LAZY.log = true; S.on(F.query(F.collection(F.db, "log"), F.orderBy("at", "desc"), F.limit(150)), q => { LOG = q.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.tab === "log") softRender(); }); }
+  if (tab === "fb" && !LAZY.fb) { LAZY.fb = true; S.on(F.query(F.collection(F.db, "feedback"), F.orderBy("at", "desc"), F.limit(200)), q => {
+    FEEDBACK = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: x.at && x.at.toMillis ? x.at.toMillis() : (x.at || 0) }); });
+    S.fbNew = FEEDBACK.filter(f => f.status === "new").length; renderNav(); if (S.tab === "fb") softRender();
+  }); }
 }
 function derive(k) {
   const t = T[k];
@@ -241,7 +286,7 @@ const allReady = () => TABLES.every(k => T[k].hdrReady && T[k].rowsReady);
 function tableChanged(k) {
   if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel" || k === "teams" || k === "seals")) { R.setLive(k, publicData(k)); R.rebuild(); }
   // 新しく増えた表（編成例など）は、ほかの表が登録済みなら空の表を自動で作る
-  if (T[k].hdrReady && T[k].rowsReady && !T[k].hdrExists && seeded("babel") && !AUTOHDR[k]) { AUTOHDR[k] = true; staticJson(`data/${k}.json`).then(d => F.setDoc(F.doc(F.db, "tables", k), { headers: d.headers, t: now(), by: meId() })).catch(e => { AUTOHDR[k] = false; console.warn(e); }); }
+  if (T[k].hdrReady && T[k].rowsReady && !T[k].hdrExists && seeded("babel") && !AUTOHDR[k]) { AUTOHDR[k] = true; staticJson(`data/${k}.json`).then(d => F.setDoc(F.doc(F.db, "tables", k), { headers: d.headers, t: now(), by: meId() }, { merge: true })).catch(e => { AUTOHDR[k] = false; console.warn(e); }); }
   if (k === "people" && seeded("chars")) { R.setLive("chars", publicData("chars")); R.rebuild(); maybePublish("chars"); }
   // someone else changed the row I'm editing?
   if (ED.k === k && ED.id && !ED.isNew) {
@@ -269,12 +314,12 @@ async function migrateColumns(k) {
     const hd = []; T[k].headers.forEach(h => { const x = olds.includes(h) ? m[h] : h; if (!hd.includes(x)) hd.push(x); });
     let b = F.writeBatch(F.db), n = 0;
     const hdrCh = T[k].headers.some(h => olds.includes(h));
-    if (hdrCh) { b.set(F.doc(F.db, "tables", k), { headers: hd, t: now(), by: meId() }); n++; }
+    if (hdrCh) { b.set(F.doc(F.db, "tables", k), { headers: hd, t: now(), by: meId() }, { merge: true }); n++; }
     for (const r of rows) {
       const c = Object.assign({}, r.c || {}); let ch = false;
       olds.forEach(o => { if (o in c) { if (!String(c[m[o]] || "")) c[m[o]] = c[o]; delete c[o]; ch = true; } });
       if (!ch) continue;
-      b.set(F.doc(F.db, "tables", k, "rows", r.id), { c, o: r.o || 0, t: r.t || now(), by: r.by || "", rev: rid() });
+      b.set(F.doc(F.db, "tables", k, "rows", r.id), { c, o: r.o || 0, t: r.t || now(), by: r.by || "", rev: rid(), ts: F.serverTimestamp() });
       if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; }
     }
     if (hdrCh) b.set(F.doc(F.db, "log", rid()), logDoc({ act: "columns", k, label: olds.map(o => `列「${o}」を「${m[o]}」に変更`).join("、") }));
@@ -377,7 +422,7 @@ function othersOn(k, id) {
 const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
-  const nf = FEEDBACK.filter(f => f.status === "new").length;
+  const nf = S.fbNew || 0;
   NAV.innerHTML = TABS.map(([k, l]) => `<button role="tab" data-atab="${k}" aria-selected="${S.tab === k}">${l}${k === "fb" && nf ? `<span class="nbadge">${nf}</span>` : ""}</button>`).join("");
 }
 NAV.addEventListener("click", e => {
@@ -404,6 +449,7 @@ function renderAdmin(soft) {
   if (!S.authReady) { AM.innerHTML = `<div class="empty"><h2>読み込み中…</h2></div>`; return; }
   if (!S.user) { renderLogin(); return; }
   if (!S.role) { renderDenied(); return; }
+  ensureLazy(S.tab);
   if (S.tab === "edit") renderEdit(soft);
   else if (S.tab === "io") { if (!(soft && IO.text)) renderIO(); }
   else if (S.tab === "img") { if (!(soft && IM.files.length)) renderImg(); }
@@ -951,7 +997,7 @@ async function saveRow(force) {
       const hdrRef = F.doc(F.db, "tables", k);
       const hs = extra.length ? await tx.get(hdrRef) : null;
       const s = await tx.get(ref);
-      if (hs) { const cur = hs.exists() ? (hs.data().headers || []) : []; tx.set(hdrRef, { headers: cur.concat(extra.filter(x => !cur.includes(x))), t: now(), by: meId() }); }
+      if (hs) { const cur = hs.exists() ? (hs.data().headers || []) : []; tx.set(hdrRef, { headers: cur.concat(extra.filter(x => !cur.includes(x))), t: now(), by: meId() }, { merge: true }); }
       if (!creating && !force) {
         if (!s.exists()) throw { code: "gone" };
         const cur = s.data();
@@ -959,7 +1005,7 @@ async function saveRow(force) {
       }
       const prev = s.exists() ? s.data() : null;
       const o = prev ? prev.o : Math.max(0, ...[...T[k].rows.values()].map(r => r.o || 0)) + 1;
-      tx.set(ref, { c: cells, o, t: now(), by: meId(), rev });
+      tx.set(ref, { c: cells, o, t: now(), by: meId(), rev, ts: F.serverTimestamp() });
       const ch = {};
       if (prev) diffCells(prev.c || {}, cells, hd).forEach(h => { ch[h] = [String((prev.c || {})[h] || ""), cells[h]]; });
       tx.set(F.doc(F.db, "log", rid()), logDoc(prev ? { act: "update", k, rowid: id, label: labelOf(k, cells), ch } : { act: "create", k, rowid: id, label: labelOf(k, cells), row: cells }));
@@ -988,7 +1034,7 @@ async function deleteRow() {
       const s = await tx.get(ref); if (!s.exists()) return;
       const cur = s.data();
       if (cur.rev !== ED.baseRev) throw { code: "conflict", other: cur };
-      tx.delete(ref);
+      tx.delete(ref); tx.set(F.doc(F.db, "tables", k), { dels: { [id]: now() } }, { merge: true });
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "delete", k, rowid: id, label: labelOf(k, cur.c || {}), row: cur.c || {}, o: cur.o }));
     });
     toast("削除しました"); ED.dirty = false; if (DLG) DLG.close();
@@ -1007,7 +1053,7 @@ async function addColumn() {
       const ref = F.doc(F.db, "tables", k); const s = await tx.get(ref);
       const hd = s.exists() ? (s.data().headers || []) : [];
       if (hd.includes(n)) return;
-      tx.set(ref, { headers: hd.concat([n]), t: now(), by: meId() });
+      tx.set(ref, { headers: hd.concat([n]), t: now(), by: meId() }, { merge: true });
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "columns", k, label: `列「${n}」を追加` }));
     });
     ED.newCol = ""; toast(`列「${n}」を追加しました`);
@@ -1086,10 +1132,11 @@ async function applyTable(k, inc, mode, act) {
   // commit in chunks
   const hdrRef = F.doc(F.db, "tables", k);
   let b = F.writeBatch(F.db); let n = 0;
-  b.set(hdrRef, { headers: hd, t: now(), by: meId() }); n++;
+  const dels = {}; ops.forEach(op => { if (op[0] === "del") dels[op[1]] = now(); });
+  b.set(hdrRef, Object.assign({ headers: hd, t: now(), by: meId() }, Object.keys(dels).length ? { dels } : {}), { merge: true }); n++;
   for (const op of ops) {
     const ref = F.doc(F.db, "tables", k, "rows", op[1]);
-    if (op[0] === "del") b.delete(ref); else { const d = Object.assign({}, op[2]); delete d.id; b.set(ref, d); }
+    if (op[0] === "del") b.delete(ref); else { const d = Object.assign({}, op[2]); delete d.id; d.ts = F.serverTimestamp(); b.set(ref, d); }
     if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; }
   }
   b.set(F.doc(F.db, "log", rid()), logDoc({ act: act || "import", k, label: `${TLABEL[k]}：追加${added}・変更${changed}${mode === "replace" ? `・削除${removed}` : ""}` }));
@@ -1114,6 +1161,7 @@ function renderIO() {
   <div class="row2"><button class="btn" data-io="ghdata">data/*.json を書き出す</button></div>
   <h3 class="ph" style="margin-top:22px">公開データ</h3>
   <p class="hint" style="margin-top:0">保存すると自動で公開サイトに反映されます。反映されていないときだけ押してください。</p>
+  <div class="row2"><button class="btn" data-io="resync">管理画面のデータを全件読み直す</button><span class="count">管理画面はデータをこのブラウザに保存し、開くたびに変わった分だけを読みます（${RESYNC_DAYS}日ごとに全件読み直し）。表示がおかしいときに押してください。</span></div>
   <div class="row2"><button class="btn" data-io="publish">今すぐ公開データを更新</button>${TABLES.map(t => PUB[t] ? `<span class="count">${TLABEL[t]}：${esc(fmtTime(PUB[t].at))}</span>` : "").join("")}</div>
   ${seeded(k) ? `<h3 class="ph" style="margin-top:22px">GitHub のデータを取り込む</h3><p class="hint" style="margin-top:0">GitHub の data/${k}.json を左の読み込み欄に入れて、今のデータとの差分（追加・変更）を表示します。確認してから反映できます。</p>
   <div class="row2"><button class="btn" data-io="loadgh">data/${k}.json を読み込んで差分を見る</button></div>` : ""}</section></div>`;
@@ -1160,6 +1208,7 @@ async function ioAction(a, btn) {
       download(`rxrdb-data-${R.jstDay()}.zip`, await z.generateAsync({ type: "blob" })); toast("data/*.json を書き出しました"); }
     catch (e) { toast("ZIP を作れませんでした。通信状態を確認してください", 5000); } return;
   }
+  if (a === "resync") { clearRowCache(); location.reload(); return; }
   if (a === "publish") { try { for (const t of TABLES) await publish(t, true); toast("公開データを更新しました"); } catch (e) { toast(fbErr(e), 5000); } return; }
   if (a === "no") { IO.confirm = null; renderIO(); return; }
   if (a === "loadgh") { try { const d = await staticJson(`data/${k}.json`); IO.text = toTSV(d); IO.hr = 0; IO.confirm = null; renderIO(); window.scrollTo(0, 0); toast(`data/${k}.json（${d.rows.length}件）を読み込みました。差分を確認してください`, 5000); } catch (e) { toast("data/" + k + ".json を読み込めませんでした"); } return; }
@@ -1530,14 +1579,14 @@ async function revertLog(id) {
       const s = await tx.get(r);
       if (l.act === "delete") {
         if (s.exists()) throw { message: "この行はすでにあります" };
-        tx.set(r, { c: l.row, o: l.o || 0, t: now(), by: meId(), rev: rid() });
+        tx.set(r, { c: l.row, o: l.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() });
       } else if (l.act === "create") {
         if (!s.exists()) throw { message: "この行はすでにありません" };
-        tx.delete(r);
+        tx.delete(r); tx.set(F.doc(F.db, "tables", l.k), { dels: { [l.rowid]: now() } }, { merge: true });
       } else {
         if (!s.exists()) throw { message: "この行は削除されています" };
         const c = Object.assign({}, s.data().c || {}); Object.keys(l.ch).forEach(h => { c[h] = l.ch[h][0]; });
-        tx.set(r, Object.assign({}, s.data(), { c, t: now(), by: meId(), rev: rid() }));
+        tx.set(r, Object.assign({}, s.data(), { c, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }));
       }
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "revert", k: l.k, rowid: l.rowid, label: `${l.label}（${fmtTime(l.at)} の${ACT[l.act]}を取り消し）` }));
     });
@@ -1745,7 +1794,7 @@ function renderFb() {
   const list = FEEDBACK.filter(f => FB.st === "all" ? true : FB.st === "open" ? (f.status === "new" || f.status === "doing") : f.status === FB.st);
   const c = s => FEEDBACK.filter(f => f.status === s).length;
   let h = userBar() + `<div class="toolbar"><h2><small>FEEDBACK</small>不具合・ご要望</h2><div class="seg">${[["open", `未完了 ${c("new") + c("doing")}`], ["new", `未対応 ${c("new")}`], ["doing", `対応中 ${c("doing")}`], ["done", `対応済み ${c("done")}`], ["hold", `保留 ${c("hold")}`], ["all", "すべて"]].map(([k, l]) => `<button data-fbst="${k}" aria-pressed="${FB.st === k}">${l}</button>`).join("")}</div></div>`;
-  h += `<p class="hint" style="margin:-4px 0 12px">サイト下の「不具合・ご要望を送る」から届いた内容です（最新300件）。</p>`;
+  h += `<p class="hint" style="margin:-4px 0 12px">サイト下の「不具合・ご要望を送る」から届いた内容です（最新200件）。</p>`;
   h += `<div class="fblist">${list.map(f => `<article class="fbcard st-${esc(f.status)}"><header><span class="fk k-${esc(f.kind)}">${esc(FKIND[f.kind] || f.kind)}</span><span class="count">${esc(fmtTime(f.at))}</span>${f.page ? `<span class="count">${esc(f.page)}</span>` : ""}<span style="flex:1"></span>
     <select data-fbset="${esc(f.id)}">${Object.entries(FSTAT).map(([k, l]) => `<option value="${k}" ${f.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></header>
     <p class="fbtext">${esc(f.text)}</p>${f.contact ? `<p class="count">連絡先：${esc(f.contact)}</p>` : ""}${f.note ? `<p class="count">メモ：${esc(f.note)}${f.noteBy ? `（${esc(shortName(f.noteBy))}）` : ""}</p>` : ""}
@@ -1825,7 +1874,7 @@ async function scrubEmails() {
   let n = 0; let b = F.writeBatch(F.db); let c = 0;
   const push = async (ref, data) => { b.set(ref, data); n++; if (++c >= 400) { await b.commit(); b = F.writeBatch(F.db); c = 0; } };
   for (const k of TABLES) {
-    for (const r of T[k].rows.values()) if (has(r.by)) { const d = Object.assign({}, r); delete d.id; d.by = ""; await push(F.doc(F.db, "tables", k, "rows", r.id), d); }
+    for (const r of T[k].rows.values()) if (has(r.by)) { const d = Object.assign({}, r); delete d.id; d.by = ""; d.ts = F.serverTimestamp(); await push(F.doc(F.db, "tables", k, "rows", r.id), d); }
     const hs = await F.getDoc(F.doc(F.db, "tables", k)); if (hs.exists() && has(hs.data().by)) await push(F.doc(F.db, "tables", k), Object.assign({}, hs.data(), { by: "" }));
   }
   for (const k of ["crops", "news", "tiers", "options", "chars", "scripts", "babel", "people", "styles"]) {
