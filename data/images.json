@@ -834,9 +834,11 @@
   "第6章 果てなき螺旋と白い猫": "images/events/thumb/第6章_果てなき螺旋と白い猫.webp"
  },
  "bossfull": {
-  "死神王 アイゼ＝ウォルン": "images/bosses/死神王_アイゼ＝ウォルン.webp"
+  "死神王 アイゼ＝ウォルン": "images/bosses/死神王_アイゼ＝ウォルン.webp",
+  "DJ神々": "images/bosses/DJ神々.webp"
  },
  "bosses": {
-  "死神王 アイゼ＝ウォルン": "images/bosses/thumb/死神王_アイゼ＝ウォルン.webp"
+  "死神王 アイゼ＝ウォルン": "images/bosses/thumb/死神王_アイゼ＝ウォルン.webp",
+  "DJ神々": "images/bosses/thumb/DJ神々.webp"
  }
 }
