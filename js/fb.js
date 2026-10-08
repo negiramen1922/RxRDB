@@ -1,7 +1,7 @@
 // Firebase 初期化（管理画面だけが読み込む。一般の閲覧では読み込まれない）
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, writeBatch, runTransaction, query, orderBy, limit, documentId } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, writeBatch, runTransaction, query, orderBy, limit, documentId, where, serverTimestamp, Timestamp, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const firebaseConfig = {
   apiKey: "AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",
@@ -17,4 +17,4 @@ export const OWNER = "negiramen23@gmail.com";
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, writeBatch, runTransaction, query, orderBy, limit, documentId };
+export { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, doc, collection, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, writeBatch, runTransaction, query, orderBy, limit, documentId, where, serverTimestamp, Timestamp, getCountFromServer };
