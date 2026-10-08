@@ -932,9 +932,11 @@
   "サイエ": "images/bosses/thumb/サイエ.webp"
  },
  "knightfull": {
-  "カノン": "images/knights/カノン.webp"
+  "カノン": "images/knights/カノン.webp",
+  "ソナタ": "images/knights/ソナタ.webp"
  },
  "knights": {
-  "カノン": "images/knights/thumb/カノン.webp"
+  "カノン": "images/knights/thumb/カノン.webp",
+  "ソナタ": "images/knights/thumb/ソナタ.webp"
  }
 }
