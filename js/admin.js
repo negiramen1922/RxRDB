@@ -17,6 +17,7 @@ const SCHEMA = {
     { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["No", "auto"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
     { g: "騎士の設定から（自動）", note: "騎士団・階級・性別は「騎士」の設定がそのまま使われます。変えるときは騎士のほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
     { g: "強いところ・弱いところ", note: "キャラ詳細の上の方に表示されます。改行もそのまま出ます。", f: [["強いところ", "long"], ["弱いところ", "long"]] },
+    { g: "効果タグ", note: "キャラ一覧の絞り込み（攻撃・防御・HP・その他）に使います。説明文から自動で付いたものに「自動」と出ます。チェックで追加・外すことができ、説明文を直すと自動の分も変わります。", f: [["効果タグ", "tags"]] },
     { g: "おすすめセット", note: "一緒に使うと相性の良いキャラ。何人でも追加でき、キャラごとにシナジーの説明を書けます。相手のキャラ詳細にも「このキャラをおすすめに挙げているキャラ」として出ます。", f: [["おすすめセット", "synergy"]] },
     { g: "ステータス", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["HP最大値", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["攻撃力最大値", "num"], ["物理防御", "num"], ["特殊防御", "num"], ["攻撃速度", "opt:攻撃速度"], ["抵抗値", "num"]] },
     { g: "コスト", f: [["初期コスト", "num"], ["育成後コスト", "num"], ["再出撃コスト", "num"], ["再出撃時間(S)", "num"]] },
@@ -658,6 +659,18 @@ function customList(k) {
   return `<div class="toolbar"><h2><small>STYLES</small>スタイル</h2><input class="search" id="clq" placeholder="検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.styles.rows.size}</span></div>
   <div class="tblwrap"><table class="stbl"><thead><tr><th>スタイル</th><th>略称</th><th>よみ</th><th>キャラ数</th><th>メモ</th></tr></thead><tbody>${list.map(r => { const c = r.c || {}; return `<tr data-adrow="${esc(r.id)}"><td class="first"><b>${esc(c["スタイル"] || "")}</b></td><td>${esc(c["略称"] || "")}</td><td>${esc(c["よみ"] || "")}</td><td>${cnt[c["スタイル"]] || 0}</td><td class="wrap">${esc(c["メモ"] || "")}</td></tr>`; }).join("")}</tbody></table></div>`;
 }
+/* ---- 効果タグ（自動判定＋「+タグ」「-タグ」の手直し） ---- */
+function draftAutoTags() { return R.autoTagsOf(Object.entries(ED.draft).filter(([h]) => /効果|特性開放/.test(h) && h !== "効果タグ").map(([, x]) => x || "").join("\n")); }
+function tagField(v) {
+  const auto = draftAutoTags(); const eff = R.applyTagEdits(auto, v);
+  return `<div class="tagcats">${R.tagCats().map(([c, ts]) => `<div class="tagcat"><b>${esc(c)}</b><div class="tagopts">${ts.map(([t]) => { const a = auto.includes(t), on = eff.includes(t);
+    return `<label class="tagopt${on ? " on" : ""}${a !== on ? " edited" : ""}"><input type="checkbox" data-tagck="${esc(t)}" ${on ? "checked" : ""}> ${esc(t)}${a ? '<small>自動</small>' : ""}</label>`; }).join("")}</div></div>`).join("")}</div>`;
+}
+function tagInput() {
+  const auto = draftAutoTags(); const ed = [];
+  document.querySelectorAll("#edBody [data-tagck]").forEach(el => { const t = el.dataset.tagck, a = auto.includes(t); if (el.checked && !a) ed.push("+" + t); if (!el.checked && a) ed.push("-" + t); });
+  ED.draft["効果タグ"] = ed.join(","); ED.dirty = true; ED.leaveOk = false; const sb = document.getElementById("edsave"); if (sb) sb.disabled = false;
+}
 /* ---- おすすめセット（1行1人「キャラID|シナジーの説明」） ---- */
 function synRows(v) { return String(v || "").split("\n").map(l => { const k = l.indexOf("|"); return k < 0 ? { id: l.trim(), t: "" } : { id: l.slice(0, k).trim(), t: l.slice(k + 1) }; }).filter(x => x.id || x.t); }
 const synStr = rows => rows.filter(x => x.id).map(x => x.id + "|" + String(x.t || "").replace(/[\r\n|]+/g, " ").trim()).join("\n");
@@ -757,6 +770,7 @@ function renderForm() {
     });
   });
   const nc = document.getElementById("ednewcol"); if (nc) nc.addEventListener("input", () => { ED.newCol = nc.value; });
+  body.querySelectorAll("[data-tagck]").forEach(el => el.addEventListener("change", () => { tagInput(); renderForm(); }));
   body.querySelectorAll("[data-syn]").forEach(el => el.addEventListener(el.tagName === "TEXTAREA" ? "input" : "change", () => { synInput(el); if (el.tagName !== "TEXTAREA") renderForm(); }));
   body.querySelectorAll("[data-tm]").forEach(el => el.addEventListener("change", () => { teamInput(el); renderForm(); }));
   body.querySelectorAll("[data-floorsel]").forEach(el => el.addEventListener("change", () => { const [t, f] = el.value.split("|"); ED.draft["バベル種類"] = t || ""; ED.draft["階層"] = f || ""; ED.dirty = true; ED.leaveOk = false; renderForm(); }));
@@ -791,7 +805,7 @@ async function saveOpts(mut, label) {
   } catch (e) { toast(fbErr(e), 5000); }
 }
 function usage(key, v) {
-  if (key === "効果キーワード") { let n = 0; ["chars", "scripts"].forEach(k => T[k] && T[k].rows.forEach(r => { if (Object.entries(r.c || {}).some(([h, x]) => /効果|特性開放/.test(h) && String(x || "").includes(v))) n++; })); return n; }
+  if (key === "効果キーワード") { let n = 0; ["chars", "scripts"].forEach(k => T[k] && T[k].rows.forEach(r => { if (Object.entries(r.c || {}).some(([h, x]) => /効果|特性開放/.test(h) && h !== "効果タグ" && String(x || "").includes(v))) n++; })); return n; }
   const m = { "騎士団": [["people", "騎士団"]], "階級": [["people", "階級"]], "ロール": [["chars", "ロール"], ["scripts", "ロール"]], "属性": [["chars", "属性"], ["babel", "推奨属性"]], "ダメージタイプ": [["chars", "ダメージタイプ"]], "性別": [["people", "性別"]], "攻撃速度": [["chars", "攻撃速度"]], "レアリティ": [["scripts", "レアリティ"]], "バベル種類": [["babel", "バベル種類"]] }[key] || [];
   let n = 0; m.forEach(([k, c]) => { if (T[k]) T[k].rows.forEach(r => { if (String((r.c || {})[c] || "").trim() === v) n++; }); }); return n;
 }
@@ -851,6 +865,8 @@ function fieldHtml(name, type, i, both) {
     const cur = keyOfCells("babel", ED.draft); const fs = floorsList();
     label = "バベルの階層";
     inner = `<select id="${id}" data-floorsel="1"><option value="">（階層を選択）</option>${fs.map(x => `<option value="${esc(x.key)}" ${x.key === cur ? "selected" : ""}>${esc(x.label)}</option>`).join("")}${cur.replace("|", "") && !fs.some(x => x.key === cur) ? `<option value="${esc(cur)}" selected>${esc(cur.replace("|", " "))}F（バベルにない階層）</option>` : ""}</select>`;
+  } else if (type === "tags") {
+    cls += " long"; inner = tagField(v);
   } else if (type === "synergy") {
     cls += " long"; inner = synField(name, v);
   } else if (type === "team") {
@@ -2166,6 +2182,15 @@ function injectStyle() {
 .gdprev{box-shadow:none;border:1px dashed var(--line2);padding:8px 12px;font-size:13.5px}
 .gdprev p,.gdprev li{font-size:13.5px}
 @media (max-width:820px){.gdbody{grid-template-columns:1fr}}
+.tagcats{display:grid;gap:8px}
+.tagcat>b{font-size:12.5px;color:var(--accent-ink)}
+.tagopts{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.tagopt{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line2);background:var(--field);padding:3px 8px;font-size:12.5px;cursor:pointer;border-radius:3px}
+.field .tagopt{display:inline-flex;flex-direction:row;align-items:center;gap:5px;margin:0;font-weight:500;color:var(--ink);letter-spacing:0}
+.field .tagopt input[type=checkbox]{width:auto;height:auto;min-height:0;padding:0;margin:0;border:0;box-shadow:none;flex:none;accent-color:var(--accent)}
+.tagopt.on{border-color:var(--accent);background:var(--soft)}
+.tagopt.edited{outline:2px dashed #e0a400;outline-offset:1px}
+.tagopt small{font-size:10px;color:var(--muted);border:1px solid var(--line2);padding:0 3px;border-radius:2px}
 .synrows{display:grid;gap:6px}
 .synrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);background:var(--field);padding:6px 8px;border-radius:3px}
 .synin{flex:1;display:grid;gap:4px}
