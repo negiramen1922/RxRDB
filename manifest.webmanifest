@@ -1,0 +1,16 @@
+{
+ "name": "RxRwiki｜リバリバ バベル攻略・Tier表",
+ "short_name": "RxRwiki",
+ "description": "リバースブルー×リバースエンド（リバリバ）のバベル攻略wiki",
+ "lang": "ja",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#e6f4ff",
+ "theme_color": "#0d3b8c",
+ "icons": [
+  { "src": "images/app/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+  { "src": "images/app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+  { "src": "images/app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+ ]
+}
