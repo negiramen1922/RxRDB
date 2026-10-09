@@ -1129,12 +1129,16 @@ document.addEventListener("click",e=>{
 function floorIntoView(){const b=main.querySelector('.floorbtn[aria-current="true"]'),fs=b&&b.closest(".floors");if(!fs||fs.scrollWidth<=fs.clientWidth)return;
   const r=b.getBoundingClientRect(),q=fs.getBoundingClientRect();if(r.left<q.left||r.right>q.right)fs.scrollLeft+=r.left-q.left-(q.width-r.width)/2;}
 /* ---------- Tier表の絞り込み（Tier表と未配置の両方にかかる） ---------- */
-function tierShow(c){return cfMatch(c,CFS.tier);}
+/* アナザーバベル・バベルリビルドは使える騎士団が決まっているので、使えないキャラは Tier表・未配置から自動で外す（騎士団が未登録のキャラは残す） */
+const floorGrp=f=>f&&!f.seal?(/アナザー/.test(f.type)?"アナザー":/リビルド/.test(f.type)?"リビルド":""):"";
+function grpOk(c,f){const g=floorGrp(f||curFloor());return !g||!c.order||BABELGRP[g].includes(c.order);}
+function tierShow(c){return grpOk(c)&&cfMatch(c,CFS.tier);}
 function tierFilterBar(){
   const b=cfBar("tier");
   /* 限定キャラ：なし にすると、限定キャラをグレーにする（消さない） */
   const lim=CH.some(c=>c.lim)?`<span class="limsw"><span class="count">限定</span><span class="viewsw"><button data-act="limon" aria-pressed="${!S.limOff}">あり</button><button data-act="limoff" aria-pressed="${!!S.limOff}">なし</button></span></span>`:"";
-  return `<div class="tfilter">${b.btn}${lim}${b.chips}</div>`;
+  const g=floorGrp(curFloor());
+  return `<div class="tfilter">${b.btn}${lim}${b.chips}</div>${g?`<p class="hint grpnote">${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団（${BABELGRP[g].join("・")}）のキャラだけを表示しています。</p>`:""}`;
 }
 const limDim=c=>S.limOff&&c.lim?" limdim":"";
 /* ---------- 効果タグ（ゲーム内フィルターと同じ「攻撃／防御／HP／その他」）----------
@@ -1790,7 +1794,7 @@ document.getElementById("openExport")?.addEventListener("click",()=>{updExport()
 document.querySelectorAll("#expKind .chip").forEach(c=>c.addEventListener("click",()=>{expKind=c.dataset.k;setChips("expKind",expKind);updExport();}));
 function floorText(f){
   const P=place(f.key);let s=f.seal?`【封印戦 ${f.floor}${f.boss?" "+f.boss:""}${f.dtype?"／"+f.dtype:""}】\n`:`【${f.type} ${f.floor}F ${f.boss}${f.attr?"／推奨"+f.attr:""}】\n`;
-  let any=false;TIERS.forEach(t=>{const l=rowSort(f.key,entries(P).filter(e=>e.t===t)).map(e=>e.c.name+(e.star?"★"+e.star:""));if(l.length){any=true;s+=`${t}：${l.join(" / ")}\n`;}});
+  let any=false;TIERS.forEach(t=>{const l=rowSort(f.key,entries(P).filter(e=>e.t===t&&grpOk(e.c,f))).map(e=>e.c.name+(e.star?"★"+e.star:""));if(l.length){any=true;s+=`${t}：${l.join(" / ")}\n`;}});
   if(S.notes[f.key])s+=`メモ：${S.notes[f.key]}\n`;
   return any||S.notes[f.key]?s:"";
 }
@@ -1952,7 +1956,7 @@ async function makeTierImage(f,P,mine){
   try{await document.fonts.ready;}catch(e){}
   const W=1200,PAD=28,LW=118,TS=84,GAP=10,NAMEH=0,CELLW=TS,CELLH=TS+NAMEH;
   const perRow=Math.floor((W-PAD*2-LW-16+GAP)/(CELLW+GAP));
-  const rows=TIERS.map(t=>({t,cs:rowSort(f.key,entries(P).filter(e=>e.t===t)).map(e=>Object.assign(Object.create(e.c),{star:e.star}))})).filter(r=>r.cs.length);
+  const rows=TIERS.map(t=>({t,cs:rowSort(f.key,entries(P).filter(e=>e.t===t&&grpOk(e.c,f))).map(e=>Object.assign(Object.create(e.c),{star:e.star}))})).filter(r=>r.cs.length);
   const rowH=r=>Math.max(1,Math.ceil(r.cs.length/perRow))*(CELLH+GAP)-GAP+20;
   const HEAD=150,FOOT=86;
   const H=HEAD+rows.reduce((a,r)=>a+rowH(r)+6,0)+(rows.length?0:120)+FOOT+PAD;
