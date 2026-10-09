@@ -526,7 +526,9 @@ body.hascmp main{padding-bottom:80px}.cmpbar .btn{white-space:nowrap}
 .cmptable tr.num td{font-family:var(--display);font-size:15px;font-weight:700}.cmpbest{color:var(--accent);font-weight:900}
 .effv{color:var(--accent);font-weight:700}
 .cmpeff{line-height:1.6}.cmpcond{margin-bottom:4px}.cmpfit{display:block;font-weight:700}.cmpfit.ok{color:#13a07a}.cmpfit.ng{color:#d4101d}
-.cmptable td,.cmptable thead th{white-space:normal}.cmptable.onlydiff tr.same{display:none}.lessg i{display:none;font-style:normal;color:var(--accent)}.cmpdiff{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;cursor:pointer}.cmpcol b{display:block;overflow-wrap:anywhere;line-height:1.35}
+.cmptable td,.cmptable thead th{white-space:normal}.cmptable.onlydiff tr.same{display:none}.cmpwith{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}.cmpwith img{width:22px;height:22px;object-fit:cover;vertical-align:middle;margin-right:4px}
+#dlgPickC{width:min(980px,calc(100% - 16px))}#dlgPickC .pkhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#dlgPickC .pkhead h2{margin:0}#dlgPickC .pkhead .search{flex:1;min-width:160px}
+#dlgPickC .pkfil{display:flex;flex-direction:column;gap:6px;margin:8px 0}#dlgPickC .pkgrid{max-height:58vh;overflow:auto}.ccard.pkcur{outline:4px solid #ffd54a;outline-offset:-4px}.lessg i{display:none;font-style:normal;color:var(--accent)}.cmpdiff{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;cursor:pointer}.cmpcol b{display:block;overflow-wrap:anywhere;line-height:1.35}
 @media (max-width:620px){.cmpbar{gap:6px;padding:6px 8px}.cmpth{width:32px;height:32px}.cmptable tbody th{white-space:normal;overflow-wrap:anywhere;word-break:break-all;font-size:11px}.cmptable thead th:first-child{width:58px}.lessg span{display:none}.lessg i{display:inline}.cmptable tbody th{padding:6px 4px;font-size:10.5px;line-height:1.35}.cmptable td{padding:6px 6px}.cmptable{min-width:0;width:calc(58px + var(--n,2) * 150px)}.cmptable thead th{width:150px}.cmpcol img{height:90px}.cmptable thead th{min-width:140px}}
 .metarow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .metarow span.m{border:1px solid var(--line2);background:var(--field);padding:1px 9px;font-size:12.5px;display:inline-flex;align-items:center;gap:4px}
@@ -800,6 +802,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 
 <dialog id="dlgSort"><div class="dlg" id="sortBody"></div></dialog>
 <dialog id="dlgSF" class="wide"><div class="dlg" id="sfBody"></div></dialog>
+<dialog id="dlgPickC" class="wide"><div class="dlg" id="pickCBody"></div></dialog>
 <dialog id="dlgCF" class="wide"><div class="dlg" id="cfBody"></div></dialog>
 <dialog id="dlgA2hs"><div class="dlg"><h2>ホーム画面に追加する</h2><div id="a2hsBody" class="docsec" style="box-shadow:none;padding:0"></div><div class="formfoot" style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" onclick="this.closest('dialog').close()">閉じる</button></div></div></dialog>
 <dialog id="dlgExport"><div class="dlg">
@@ -1220,7 +1223,9 @@ function autoTagsOf(text){const ss=String(text||"").split(/[。\n]/).filter(Bool
 function applyTagEdits(auto,edits){const set=new Set(auto);String(edits||"").split(/[,、，\n]/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(x[0]==="-")set.delete(x.slice(1));else set.add(x[0]==="+"?x.slice(1):x);});return [...set];}
 /* キャラ一覧のフィルター（ゲーム内と同じタブ）。同じ欄の中は「どれか」、欄どうしは「すべて」。効果タグはどれか／すべてを切り替え */
 /* 同じ絞り込みを キャラ一覧(chars)・Tier表(tier)・ランキング(rank) で使う。設定はそれぞれ別に持つ */
-const CFS={chars:{tab:"基本",sel:{},tagAll:false},tier:{tab:"基本",sel:{},tagAll:false},pool:{tab:"基本",sel:{},tagAll:false},rank:{tab:"基本",sel:{},tagAll:false}};
+const CFS={chars:{tab:"基本",sel:{},tagAll:false},tier:{tab:"基本",sel:{},tagAll:false},pool:{tab:"基本",sel:{},tagAll:false},rank:{tab:"基本",sel:{},tagAll:false},pick:{tab:"基本",sel:{},tagAll:false}};
+/* キャラ・スクリプトを選ぶ一覧（比較の相性・管理画面の紐付けなど）の絞り込み。描き直しは開いている一覧が登録する */
+let PICKRR=null;const setPickRerender=fn=>{PICKRR=fn||null;};
 let CFK="chars",CF=CFS.chars;
 function cfCtx(k){CFK=CFS[k]?k:"chars";CF=CFS[CFK];}
 const cfBase=()=>[["ロール","role",ROLES.map(x=>[x,ic(x)])],["攻撃属性","attr",ATTRS.map(x=>[x,ic(x)])],["騎士団","order",ORDERS.map(x=>[x,ic(x,"ord")])],["階級","rank",RANKS.map(x=>[x,ic(x)])],
@@ -1252,7 +1257,7 @@ document.addEventListener("click",e=>{const g=e.target.closest("[data-goctier]")
 document.addEventListener("click",e=>{const b=e.target.closest("[data-qf],[data-qsrole]");if(!b)return;const ds=b.dataset;
   if(ds.qf){const [x,k,...r]=ds.qf.split("|"),v=r.join("|");const a=CFS[x].sel[k]||(CFS[x].sel[k]=[]);const j=a.indexOf(v);if(j>=0)a.splice(j,1);else{if(k==="babel")a.length=0;a.push(v);}cfRerender(x);return;}
   if(ds.qsrole){tstate.scripts.role=tstate.scripts.role===ds.qsrole?null:ds.qsrole;renderScripts();}});
-function cfRerender(k){if(k==="tier"||k==="pool")renderTier();else if(k==="rank")renderRank();else renderChars();}
+function cfRerender(k){if(k==="pick"){if(PICKRR)PICKRR();return;}if(k==="tier"||k==="pool")renderTier();else if(k==="rank")renderRank();else renderChars();}
 function cfToggle(k,v){const a=CF.sel[k]||(CF.sel[k]=[]);const i=a.indexOf(v);if(i>=0)a.splice(i,1);else a.push(v);}
 function cfDialogHtml(){
   const n=CH.filter(c=>cfMatch(c,CF)).length;const tabs=["基本",...tagCats().map(([c])=>c)];
@@ -1336,7 +1341,7 @@ document.addEventListener("click",e=>{
 /* 絞り込み・並び替え：外側（暗いところ）を押したら閉じて、一覧に反映 */
 ["dlgCF","dlgSF","dlgSort"].forEach(id=>{const dl=document.getElementById(id);if(!dl)return;
   dl.addEventListener("click",e=>{if(e.target===dl)dl.close();});
-  dl.addEventListener("close",()=>{if(MODE==="admin")return;if(tab==="chars")renderChars();else if(tab==="scripts")renderScripts();else if(tab==="tier")renderTier();else if(tab==="rank")renderRank();});});
+  dl.addEventListener("close",()=>{if((id==="dlgCF"&&CFK==="pick")||(id==="dlgSF"&&SFK==="pick")){if(PICKRR)PICKRR();return;}if(MODE==="admin")return;if(tab==="chars")renderChars();else if(tab==="scripts")renderScripts();else if(tab==="tier")renderTier();else if(tab==="rank")renderRank();});});
 /* 限定・周年限定のバッジ（images.json の icons に「限定」「周年限定」の画像があれば画像、なければ文字） */
 function limBadge(v,cls){if(!v)return "";return ICON[v]?`<img class="limimg ${cls||""}" src="${ICON[v]}" alt="${esc(v)}" title="${esc(v)}">`:`<span class="limb ${v==="周年限定"?"anv":""} ${cls||""}">${esc(v)}</span>`;}
 /* キャラのカード表示（ゲーム内のキャラ一覧に近い形） */
@@ -1402,7 +1407,7 @@ function openCompare(k){
       +txt("強いところ",c=>esc(v(c,"強いところ")).replace(/\n/g,"<br>"))+txt("弱いところ",c=>esc(v(c,"弱いところ")).replace(/\n/g,"<br>"));
   }else{
     const c=CMPF.char?CHMAP[CMPF.char]:null;
-    h=`<h2>スクリプトをくらべる</h2><div class="cmphead"><label>キャラとの相性も見る：<select id="cmpChar"><option value="">（キャラを選ばない）</option>${CH.filter(x=>!x.unrel).slice().sort((a,b)=>a.name.localeCompare(b.name,"ja")).map(x=>`<option value="${esc(x.id)}" ${x.id===CMPF.char?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label><span class="count">いちばん高い数値は色付き。スマホは横にスクロールできます。</span>${cmpDiffSw()}</div>`;
+    h=`<h2>スクリプトをくらべる</h2><div class="cmphead"><span class="cmpwith">キャラとの相性も見る：<button class="btn small" data-cmpcharpick="1">${c?`${IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:""}${esc(c.name)}`:"キャラを選ぶ"}</button>${c?`<button class="btn small" data-cmpcharclr="1" aria-label="キャラを外す">✕</button>`:""}</span><span class="count">いちばん高い数値は色付き。スマホは横にスクロールできます。</span>${cmpDiffSw()}</div>`;
     h+=`<div class="cmpwrap"><table class="cmptable${S.cmpDiff?" onlydiff":""}" style="--n:${l.length}"><thead><tr><th></th>${l.map(s=>`<th><button class="cmpcol" data-sdetail="${s.i}">${SFULL[s.name]||SIMG[s.name]?`<img src="${SFULL[s.name]||SIMG[s.name]}" alt="">`:""}<b>${esc(s.name)}</b></button><button class="cmpx" data-cmprm="s|${esc(s.name)}">✕ 外す</button></th>`).join("")}</tr></thead><tbody>`;
     if(c){const ms=l.map(s=>scMatch(s,c));h+=row(`${esc(c.name)}との相性`,ms.map((m,i)=>`<span class="cmpfit ${m.roleOk?"ok":"ng"}">${m.roleOk?"○ ロールOK":"× ロールが違う"}</span><span class="cmpfit">条件 ${m.n}/${l[i].conds.length||0} 一致</span>`),"fit");}
     h+=row("レアリティ",l.map(s=>s.rar?`<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>`:""))+row("ロール",l.map(s=>`${ic(s.role)} ${esc(s.role||"")}`));
@@ -1414,9 +1419,28 @@ function openCompare(k){
   }
   h+=`</tbody></table></div><div class="foot"><button class="btn" data-cmpclear="${k}">トレイを空にする</button><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.add("cmpdlg");if(!dl.open)dl.showModal();dl.scrollTop=0;
-  const sel=document.getElementById("cmpChar");if(sel)sel.addEventListener("change",()=>{CMPF.char=sel.value;openCompare("s");});
+
 }
 document.getElementById("dlgDetail").addEventListener("close",()=>document.getElementById("dlgDetail").classList.remove("cmpdlg"));
+/* キャラをカードの一覧から選ぶ（ほかの画面と同じ絞り込み付き）。onPick(id) */
+const CPK={q:"",cur:"",title:"",onPick:null};
+document.getElementById("dlgPickC").addEventListener("click",e=>{if(e.target.id==="dlgPickC")e.target.close();});
+function openCharPicker(o){Object.assign(CPK,{q:"",cur:o.cur||"",title:o.title||"キャラを選ぶ",onPick:o.onPick});CFS.pick.sel={};setPickRerender(renderCharPicker);
+  const dl=document.getElementById("dlgPickC");renderCharPicker();if(!dl.open)dl.showModal();}
+function renderCharPicker(){const dl=document.getElementById("dlgPickC");if(!dl)return;const q=CPK.q.trim().toLowerCase();
+  let l=CH.filter(c=>!c.unrel&&cfMatch(c,CFS.pick));if(q){const hi=data("chars").headers.indexOf("名前 ひらがな");l=l.filter(c=>(c.name+c.id+(hi>=0?c.row[hi]||"":"")).toLowerCase().includes(q));}l=sortList("chars",l);
+  const b=cfBar("pick");const body=document.getElementById("pickCBody");const gr=body.querySelector(".pkgrid"),y=gr?gr.scrollTop:0;
+  body.innerHTML=`<div class="pkhead"><h2>${esc(CPK.title)}</h2><input class="search" id="pickCQ" placeholder="名前で検索" value="${esc(CPK.q)}"><span class="count">${l.length}人</span></div>
+  <div class="pkfil">${b.btn}${b.chips}${qbarChars("pick")}</div>
+  <div class="pkgrid"><div class="ccards">${l.map(c=>{const img=BANNER[c.id]||IMG[c.id];return `<button class="ccard${c.id===CPK.cur?" pkcur":""}" data-pickc="${esc(c.id)}">${img?`<span class="ccimg" style="background-image:url('${encU(img)}')"></span>`:'<span class="ccimg none"></span>'}<span class="cctop">${ic(c.role)}${ic(c.attr)}</span><span class="ccname"><b>${esc(c.base||c.name)}</b>${c.style?`<small>[${esc(c.style)}]</small>`:""}</span></button>`;}).join("")||'<p class="count">該当するキャラがいません</p>'}</div></div>
+  <div class="foot"><span class="count">カードを押すと選ばれます。</span><span style="flex:1"></span><button class="btn" data-pickcclose="1">閉じる</button></div>`;
+  const g2=body.querySelector(".pkgrid");if(g2)g2.scrollTop=y;
+  const qi=document.getElementById("pickCQ");liveInput(qi,()=>{CPK.q=qi.value;const p=qi.selectionStart;renderCharPicker();const n=document.getElementById("pickCQ");n.focus();n.setSelectionRange(p,p);});}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-pickc],[data-pickcclose],[data-cmpcharpick],[data-cmpcharclr]");if(!b)return;const ds=b.dataset;const dl=document.getElementById("dlgPickC");
+  if(ds.cmpcharpick){openCharPicker({cur:CMPF.char,title:"相性を見るキャラを選ぶ",onPick:id=>{CMPF.char=id;openCompare("s");}});return;}
+  if(ds.cmpcharclr){CMPF.char="";openCompare("s");return;}
+  if(ds.pickcclose){dl.close();return;}
+  if(ds.pickc){e.stopPropagation();const f=CPK.onPick;dl.close();if(f)f(ds.pickc);}});
 /* カードの中の「＋」は、カード（詳細を開く）より先に受け取る */
 const cmpSplit=x=>{const i=x.indexOf("|");return [x.slice(0,i),x.slice(i+1)];};
 document.addEventListener("click",e=>{const b=e.target.closest("[data-cmp],[data-cmprm],[data-cmpopen],[data-cmpclear],[data-cmpwith]");if(!b)return;const ds=b.dataset;const dl=document.getElementById("dlgDetail");
@@ -1430,7 +1454,11 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-cmp],[data
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.dataset&&e.target.dataset.cmp!==undefined){e.preventDefault();e.target.click();}});
 /* スクリプトの絞り込み（ダイアログ） */
 const RKSF={q:"",rar:null,role:null,limit:null,cattr:null,cond:"",eff:null,own:false};
-let SFK="scripts";const sfS=()=>SFK==="rank"?RKSF:tstate.scripts;
+const PKSF={q:"",rar:null,role:null,limit:null,cattr:null,cond:"",eff:null,own:false};
+let SFK="scripts";const sfS=()=>SFK==="rank"?RKSF:SFK==="pick"?PKSF:tstate.scripts;
+/* スクリプトの「▼ 絞り込み」ボタンと選んでいる条件のチップ（ctx: pick など） */
+function sfBar(ctx){const st=ctx==="pick"?PKSF:ctx==="rank"?RKSF:tstate.scripts,a=sfActive(st);
+  return `<button class="btn primary small cfbtn" data-sfopen="${ctx}">▼ 絞り込み${a.length?` <b>${a.length}</b>`:""}</button>${a.length?`<span class="chips cfactive">${a.map(([k,v])=>`<button class="chip" data-sfrm="${k}" data-sfctx="${ctx}" aria-pressed="true">${esc(v)} ✕</button>`).join("")}</span>`:""}`;}
 const SC_EFF2=["攻撃力","HP","防御","攻撃速度","クールタイム","BLADE","回復","ダメージ","クリティカル","コスト","シールド","鈍化"];
 function sfDialogHtml(){
   const st=sfS();const roles=[...new Set(SC.map(s=>s.role).filter(Boolean))].sort((a,b)=>(ROLES.indexOf(a)+1||99)-(ROLES.indexOf(b)+1||99));
@@ -1462,8 +1490,8 @@ function scFiltered(st){
 const sfActive=st=>{st=st||tstate.scripts;return [["rar",st.rar],["role",st.role],["limit",st.limit],["cattr",st.cattr&&"条件:"+st.cattr],["cond",st.cond&&"条件:"+(st.cond==="(なし)"?"なし":st.cond)],["eff",st.eff&&"効果:"+st.eff],["own",st.own&&hasOwn()&&"手持ちで条件を満たせる"]].filter(([,v])=>v);};
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-sf],[data-sfact],[data-sfopen],[data-sfrm]");if(!b)return;const ds=b.dataset;
-  if(ds.sfopen!==undefined||ds.sfrm)SFK=(ds.sfopen||ds.sfctx)==="rank"?"rank":"scripts";
-  const st=sfS(),rer=()=>SFK==="rank"?renderRank():renderScripts();
+  if(ds.sfopen!==undefined||ds.sfrm){const x=ds.sfopen||ds.sfctx;SFK=x==="rank"||x==="pick"?x:"scripts";}
+  const st=sfS(),rer=()=>SFK==="rank"?renderRank():SFK==="pick"?(PICKRR&&PICKRR()):renderScripts();
   if(ds.sfopen!==undefined){const dl=document.getElementById("dlgSF");document.getElementById("sfBody").innerHTML=sfDialogHtml();if(!dl.open)dl.showModal();return;}
   if(ds.sfrm){st[ds.sfrm]=ds.sfrm==="own"?false:ds.sfrm==="cond"?"":null;rer();return;}
   if(ds.sfact==="close"){document.getElementById("dlgSF").close();rer();return;}
@@ -2411,7 +2439,7 @@ document.getElementById("fbSend").addEventListener("click",async e=>{
 
 /* ================= bridge for admin module ================= */
 window.RXR={
-  encU,get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
+  encU,get CFS(){return CFS;},cfBar,cfMatch,qbarChars,sfBar,scFiltered,PKSF,setPickRerender,sortList,get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
   KEYWORDS,tagCats,autoTagsOf,applyTagEdits,effCols,get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
   IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,SEAL,SEALF,KN,KNF,BASE,ATTRS,ROLES,RANKS,ORDERS,
   get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,

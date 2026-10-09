@@ -737,7 +737,9 @@ const cpIds = f => String(ED.draft[f] || "").split(/[,、，\s]+/).filter(Boolea
 const scNames = v => String(v || "").split(/\n/).map(x => x.trim()).filter(Boolean);
 const scRoleOk = (id, sc) => { const c = R.CHMAP[id], s = R.SC.find(x => x.name === sc); return !c || !s || !s.role || !c.role || s.role === c.role || s.role === "ワイルド"; };
 let PKDLG = null;
-function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement("dialog"); PKDLG.id = "dlgPick"; PKDLG.className = "wide"; PKDLG.innerHTML = `<div class="dlg" id="pkBody"></div>`; document.body.appendChild(PKDLG);
+// 一覧を開くたびに絞り込みを空にし、絞り込みダイアログを閉じたときにこの一覧を描き直すよう登録
+function pickFilterReset() { R.CFS.pick.sel = {}; Object.assign(R.PKSF, { q: "", rar: null, role: null, limit: null, cattr: null, cond: "", eff: null, own: false }); R.setPickRerender(() => { if (PKDLG && PKDLG.open) { const g = PKDLG.querySelector(".pkgrid"), y = g ? g.scrollTop : 0; pickRender(); const g2 = PKDLG.querySelector(".pkgrid"); if (g2) g2.scrollTop = y; } }); }
+function pickDialog() { pickFilterReset(); if (PKDLG) return PKDLG; PKDLG = document.createElement("dialog"); PKDLG.id = "dlgPick"; PKDLG.className = "wide"; PKDLG.innerHTML = `<div class="dlg" id="pkBody"></div>`; document.body.appendChild(PKDLG);
   PKDLG.addEventListener("click", e => { if (e.target === PKDLG) { PKDLG.close(); return; } const b = e.target.closest("[data-pk],[data-pkrole],[data-pkattr],[data-pkall],[data-pkclose]"); if (!b) return; const ds = b.dataset;
     if (ds.pkclose) { PKDLG.close(); return; }
     if (ds.pk !== undefined) { pickApply(ds.pk); return; }
@@ -757,13 +759,13 @@ function pickList() {
   const slots = PK.cp ? cpIds(PK.cp).map(id => ({ id })) : PK.syn ? synRows(ED.draft["おすすめセット"]) : teamSlots(ED.draft["メンバー"]); const cur = slots[PK.slot] || {}; const q = PK.q.trim().toLowerCase();
   if (PK.kind === "char") {
     const inTeam = new Set(slots.map(x => x.id).filter(Boolean)); if (PK.syn && ED.draft["ID"]) inTeam.add(ED.draft["ID"]);
-    let l = R.CH.slice(); if (PK.role) l = l.filter(c => c.role === PK.role); if (PK.attr) l = l.filter(c => c.attr === PK.attr);
+    let l = R.CH.filter(c => R.cfMatch(c, R.CFS.pick));
     if (q) { const hi = R.data("chars").headers.indexOf("名前 ひらがな"); l = l.filter(c => (c.name + c.id + (hi >= 0 ? c.row[hi] || "" : "")).toLowerCase().includes(q)); }
     return { items: l, inTeam, cur };
   }
   const c = R.CHMAP[cur.id]; let l = R.SC.slice();
   if (c && c.role && !PK.all) l = l.filter(s => !s.role || s.role === c.role || s.role === "ワイルド");
-  if (PK.attr) l = l.filter(s => s.conds.includes(PK.attr));
+  { const ok = new Set(R.scFiltered(R.PKSF)); l = l.filter(s => ok.has(s)); }
   if (q) l = l.filter(s => s.row.some(x => String(x || "").toLowerCase().includes(q)));
   l.sort((a, b) => ({ SSR: 3, SR: 2, R: 1 }[b.rar] || 0) - ({ SSR: 3, SR: 2, R: 1 }[a.rar] || 0));
   return { items: l, c, cur };
@@ -837,10 +839,11 @@ function pickRender() {
       return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.cp ? "選択中" : PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
     : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
       return `<button class="ccard scard2 pkcard${s.name === L.cur.sc ? " pkcur" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span></button>`; }).join("");
-  const head = isC ? `<div class="chips">${R.ROLES.map(r => `<button class="chip" data-pkrole="${esc(r)}" aria-pressed="${PK.role === r}">${R.ic(r)}${esc(r)}</button>`).join("")}</div>`
-    : (L.c && L.c.role ? `<span class="count">${esc(L.c.name)} は <b>${R.ic(L.c.role)}${esc(L.c.role)}</b> なので、${esc(L.c.role)}（とワイルド）のスクリプトだけを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : "");
+  const cb = R.cfBar("pick");
+  const head = isC ? `<div class="pkrow">${cb.btn}${cb.chips}</div>${R.qbarChars("pick")}`
+    : (L.c && L.c.role ? `<span class="count">${esc(L.c.name)} は <b>${R.ic(L.c.role)}${esc(L.c.role)}</b> なので、${esc(L.c.role)}（とワイルド）のスクリプトだけを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : "") + `<div class="pkrow">${R.sfBar("pick")}</div>`;
   body.innerHTML = `<div class="pkhead"><h2>${isC ? "キャラを選ぶ" : "スクリプトを選ぶ"}<small class="count">${PK.cp ? `（${esc(PK.cp)}：${cpIds(PK.cp).length}人）` : PK.syn ? "（おすすめセット）" : `（${PK.slot + 1}人目）`}</small></h2><input class="search" id="pkQ" placeholder="${isC ? "名前・ひらがなで検索" : "名前・効果・条件で検索"}" value="${esc(PK.q)}"><span class="count">${L.items.length}件</span></div>
-    <div class="pkfil">${head}<div class="chips">${R.ATTRS.map(a => `<button class="chip" data-pkattr="${esc(a)}" aria-pressed="${PK.attr === a}">${R.ic(a)}${isC ? "" : "条件："}${esc(a)}</button>`).join("")}</div></div>
+    <div class="pkfil">${head}</div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">該当するものがありません</p>'}</div></div>
     <div class="formfoot"><span class="count">${PK.cp ? "カードを押すと追加、もう一度押すと外れます。" : "カードを押すと選ばれます。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
   const q = document.getElementById("pkQ"); R.liveInput(q, () => { PK.q = q.value; const p = q.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
@@ -850,13 +853,13 @@ function scmPickRender(body) {
   const role = String(ED.draft["ロール"] || "").trim(); const chosen = scNames(ED.draft[PK.field]); const q = PK.q.trim().toLowerCase();
   let l = R.SC.filter(s => s.name);
   if (role && !PK.all) l = l.filter(s => !s.role || s.role === role || s.role === "ワイルド");
-  if (PK.attr) l = l.filter(s => s.conds.includes(PK.attr));
+  { const ok = new Set(R.scFiltered(R.PKSF)); l = l.filter(s => ok.has(s)); }
   if (q) l = l.filter(s => s.row.some(x => String(x || "").toLowerCase().includes(q)));
   l = l.slice().sort((a, b) => (chosen.includes(b.name) ? 1 : 0) - (chosen.includes(a.name) ? 1 : 0) || ({ SSR: 3, SR: 2, R: 1 }[b.rar] || 0) - ({ SSR: 3, SR: 2, R: 1 }[a.rar] || 0) || b.date - a.date);
   const cards = l.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name]; const sel = chosen.includes(s.name);
     return `<button class="ccard scard2 pkcard${sel ? " pkused" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span>${sel ? '<span class="ccbadges"><span class="ccown">選択中</span></span>' : ""}</button>`; }).join("");
   body.innerHTML = `<div class="pkhead"><h2>スクリプトを選ぶ<small class="count">（${esc(PK.field)}：${chosen.length}件）</small></h2><input class="search" id="pkQ" placeholder="名前・効果・条件で検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
-    <div class="pkfil">${role ? `<span class="count">このキャラは <b>${R.ic(role)}${esc(role)}</b> なので、${esc(role)}（とワイルド）のスクリプトを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : '<span class="count">ロールが未入力なので、すべてのスクリプトを出しています。</span>'}<div class="chips">${R.ATTRS.map(a => `<button class="chip" data-pkattr="${esc(a)}" aria-pressed="${PK.attr === a}">${R.ic(a)}条件：${esc(a)}</button>`).join("")}</div></div>
+    <div class="pkfil">${role ? `<span class="count">このキャラは <b>${R.ic(role)}${esc(role)}</b> なので、${esc(role)}（とワイルド）のスクリプトを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : '<span class="count">ロールが未入力なので、すべてのスクリプトを出しています。</span>'}<div class="pkrow">${R.sfBar("pick")}</div></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">該当するスクリプトがありません</p>'}</div></div>
     <div class="formfoot"><span class="count">カードを押すと追加、もう一度押すと外れます。</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
   const qi = document.getElementById("pkQ"); R.liveInput(qi, () => { PK.q = qi.value; const p = qi.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
@@ -2596,6 +2599,7 @@ function injectStyle() {
 .pkgrid .ccards{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
 .pkcard .ccname b{font-size:15px}
 .pkcur{outline:4px solid #ffd54a;outline-offset:-4px}
+.pkrow{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap}.pkfil .qbar{width:100%}
 .pkused{opacity:.55}
 .synrows{display:grid;gap:6px}
 .synrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);background:var(--field);padding:6px 8px;border-radius:3px}
