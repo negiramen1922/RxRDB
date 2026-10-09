@@ -44,7 +44,7 @@ const SCHEMA = {
     { g: "コメント", f: [["コメント", "long"]] },
   ],
   people: [
-    { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["性別", "opt:性別"], ["誕生日", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["CV", "text"], ["立ち絵", "sel:なし"]] },
+    { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["性別", "opt:性別"], ["誕生日", "text"], ["CV", "text"], ["立ち絵", "sel:なし"]] },
     { g: "プロフィール", f: [["プロフィール", "long"]] },
   ],
   seals: [
@@ -56,10 +56,10 @@ const SCHEMA = {
     { g: "基本", f: [["名前", "text"], ["よみ", "text"], ["説明", "long"]] },
   ],
   events: [
-    { g: "基本", f: [["イベント名", "text"], ["開始日", "date"], ["終了日", "date"], ["復刻", "sel:復刻|常設"]] },
+    { g: "基本", f: [["イベント名", "text"], ["復刻", "sel:復刻|常設"], ["開始日", "date"], ["終了日", "date"]] },
+    { g: "説明", f: [["説明", "long"]] },
     { g: "実装キャラ", f: [["実装キャラID", "charpick"]] },
     { g: "登場ボス", f: [["登場ボス", "bosspick"]] },
-    { g: "説明", f: [["説明", "long"]] },
   ],
   styles: [
     { g: "基本", note: "略称は「カノン 聖典」のようにキャラ名を自動で作るとき、よみはひらがなを作るときに使います。", f: [["スタイル", "text"], ["略称", "text"], ["よみ", "text"], ["メモ", "long"]] },
@@ -1184,13 +1184,13 @@ function linkInfo() {
   const tierBox = (fk, what) => { const n = Object.keys(R.OFFICIAL[fk] || {}).length; return box("運営Tier表", `<div class="linkrow"><span>${n ? `${n}体を配置済み` : "まだ配置していません"}</span><button class="btn small primary" data-a="${ED.k === "seals" ? "sealtier" : "babeltier"}">この${what}のTier表を作る・編集する</button></div>`); };
   const teamsBox = (fk, what) => { const ts = seeded("teams") ? [...T.teams.rows.values()].filter(r => keyOfCells("babel", r.c || {}) === fk).sort((a, b) => a.o - b.o) : [];
     return box("編成例", `<div class="pgrid">${ts.map(r => teamCard(r).replace('data-adrow=', 'data-teamedit=')).join("") || '<span class="count">まだありません</span>'}</div><div class="row2"><button class="btn small primary" data-a="teamadd">＋ この${what}の編成例を追加</button></div>`); };
-  if (ED.k === "seals") { const fk = "封印戦|" + String(ED.base["封印戦名"] || "").trim(); return tierBox(fk, "封印戦") + teamsBox(fk, "封印戦"); }
+  if (ED.k === "seals") { const fk = "封印戦|" + String(ED.base["封印戦名"] || "").trim(); return teamsBox(fk, "封印戦") + tierBox(fk, "封印戦"); }
   if (ED.k === "chars") { const ev = eventsOfChar(ED.base["ID"]); return ev.length ? box("実装イベント（自動）", `<div class="linkrow">${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("")}</div>`) : ""; }
   if (ED.k === "teams") { const fk = keyOfCells("babel", ED.base); const sealT = ED.base["バベル種類"] === "封印戦";
     const b = sealT ? (seeded("seals") ? [...T.seals.rows.values()].find(r => String((r.c || {})["封印戦名"] || "").trim() === String(ED.base["階層"] || "").trim()) : null) : [...T.babel.rows.values()].find(r => keyOfCells("babel", r.c || {}) === fk);
     return b ? box(sealT ? "封印戦" : "バベルの階層", `<div class="linkrow"><span>${esc(teamPlace(ED.base["バベル種類"], ED.base["階層"]))}</span><button class="btn small" data-teamfloor="${sealT ? "seals" : "babel"}|${esc(b.id)}">この${sealT ? "封印戦" : "階層"}の編集に戻る</button></div>`) : ""; }
   if (ED.k === "babel") { const fk = keyOfCells("babel", ED.base);
-    const tb = tierBox(fk, "階層") + teamsBox(fk, "階層");
+    const tb = teamsBox(fk, "階層") + tierBox(fk, "階層");
     const b = rowsOf("bosses").find(c => bnorm(c["名前"]) === bnorm(ED.base["ボス"])); return tb + box("ボス（自動）", b ? `<div class="linkrow">${R.BOSS[b["名前"]] ? `<img class="linkimg" src="${esc(R.BOSS[b["名前"]])}" alt="">` : ""}<b>${esc(b["名前"])}</b><span class="count">ボスの画像・説明は「ボス」で編集できます</span></div>` : `<p class="hint fgnote">「ボス」の一覧にこの名前がありません。ボスに追加すると画像などがつながります。</p>`); }
   return "";
 }
