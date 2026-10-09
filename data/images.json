@@ -964,7 +964,8 @@
   "鉉覇": "images/knights/鉉覇.webp",
   "煤墨": "images/knights/煤墨.webp",
   "久理": "images/knights/久理.webp",
-  "レアリザス": "images/knights/レアリザス.webp"
+  "レアリザス": "images/knights/レアリザス.webp",
+  "エリス": "images/knights/エリス.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -981,6 +982,7 @@
   "鉉覇": "images/knights/thumb/鉉覇.webp",
   "煤墨": "images/knights/thumb/煤墨.webp",
   "久理": "images/knights/thumb/久理.webp",
-  "レアリザス": "images/knights/thumb/レアリザス.webp"
+  "レアリザス": "images/knights/thumb/レアリザス.webp",
+  "エリス": "images/knights/thumb/エリス.webp"
  }
 }
