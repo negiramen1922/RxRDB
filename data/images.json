@@ -953,12 +953,14 @@
   "カノン": "images/knights/カノン.webp",
   "ソナタ": "images/knights/ソナタ.webp",
   "叢裂": "images/knights/叢裂.webp",
-  "風雅": "images/knights/風雅.webp"
+  "風雅": "images/knights/風雅.webp",
+  "クオン": "images/knights/クオン.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
   "ソナタ": "images/knights/thumb/ソナタ.webp",
   "叢裂": "images/knights/thumb/叢裂.webp",
-  "風雅": "images/knights/thumb/風雅.webp"
+  "風雅": "images/knights/thumb/風雅.webp",
+  "クオン": "images/knights/thumb/クオン.webp"
  }
 }
