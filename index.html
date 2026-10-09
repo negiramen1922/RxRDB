@@ -526,8 +526,8 @@ body.hascmp main{padding-bottom:80px}.cmpbar .btn{white-space:nowrap}
 .cmptable tr.num td{font-family:var(--display);font-size:15px;font-weight:700}.cmpbest{color:var(--accent);font-weight:900}
 .effv{color:var(--accent);font-weight:700}
 .cmpeff{line-height:1.6}.cmpcond{margin-bottom:4px}.cmpfit{display:block;font-weight:700}.cmpfit.ok{color:#13a07a}.cmpfit.ng{color:#d4101d}
-.cmptable td,.cmptable thead th{white-space:normal}.cmpcol b{display:block;overflow-wrap:anywhere;line-height:1.35}
-@media (max-width:620px){.cmpbar{gap:6px;padding:6px 8px}.cmpth{width:32px;height:32px}.cmptable tbody th{white-space:normal;overflow-wrap:anywhere;word-break:break-all;font-size:11px}.cmptable thead th:first-child{width:76px}.cmptable{min-width:0;width:calc(76px + var(--n,2) * 150px)}.cmptable thead th{width:150px}.cmpcol img{height:90px}.cmptable thead th{min-width:140px}}
+.cmptable td,.cmptable thead th{white-space:normal}.cmptable.onlydiff tr.same{display:none}.lessg i{display:none;font-style:normal;color:var(--accent)}.cmpdiff{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;cursor:pointer}.cmpcol b{display:block;overflow-wrap:anywhere;line-height:1.35}
+@media (max-width:620px){.cmpbar{gap:6px;padding:6px 8px}.cmpth{width:32px;height:32px}.cmptable tbody th{white-space:normal;overflow-wrap:anywhere;word-break:break-all;font-size:11px}.cmptable thead th:first-child{width:58px}.lessg span{display:none}.lessg i{display:inline}.cmptable tbody th{padding:6px 4px;font-size:10.5px;line-height:1.35}.cmptable td{padding:6px 6px}.cmptable{min-width:0;width:calc(58px + var(--n,2) * 150px)}.cmptable thead th{width:150px}.cmpcol img{height:90px}.cmptable thead th{min-width:140px}}
 .metarow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .metarow span.m{border:1px solid var(--line2);background:var(--field);padding:1px 9px;font-size:12.5px;display:inline-flex;align-items:center;gap:4px}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
@@ -1360,7 +1360,8 @@ const CMP=k=>(S[cmpKey(k)]||(S[cmpKey(k)]=[])).filter(id=>cmpFind(k,id));
 const inCmp=(k,id)=>(S[cmpKey(k)]||[]).includes(id);
 function cmpToggle(k,id){const l=S[cmpKey(k)]||(S[cmpKey(k)]=[]);const i=l.indexOf(id);if(i>=0)l.splice(i,1);else{if(CMP(k).length>=CMPMAX){toast(`くらべられるのは${CMPMAX}${k==="c"?"人":"枚"}までです。どれかを外してください`);return false;}l.push(id);}save();return true;}
 const cmpBtn=(k,id)=>`<span class="cmpbtn${inCmp(k,id)?" on":""}" role="button" tabindex="0" data-cmp="${k}|${esc(id)}" title="${inCmp(k,id)?"くらべるから外す":"くらべるに入れる"}">${inCmp(k,id)?"✓":"＋"}</span>`;
-const cmpDBtn=(k,id)=>`<button class="btn small cmpdbtn${inCmp(k,id)?" on":""}" data-cmp="${k}|${esc(id)}">${inCmp(k,id)?"✓ くらべるに入れた":"＋くらべる"}</button>`;
+const cmpDBtn=(k,id)=>{const others=CMP(k).filter(x=>x!==id).length;
+  return `<button class="btn small cmpdbtn${inCmp(k,id)?" on":""}" data-cmp="${k}|${esc(id)}">${inCmp(k,id)?"✓ くらべるに入れた":"＋くらべる"}</button>${others?`<button class="btn small primary" data-cmpwith="${k}|${esc(id)}">⇄ くらべるの${others}${k==="c"?"人":"枚"}と比べる</button>`:""}`;};
 /* いま見ているページで使うトレイ（キャラのページ＝キャラ、スクリプトのページ＝スクリプト） */
 function cmpKind(){if(tab==="scripts"||tab==="sown"||(tab==="rank"&&RK.t==="scripts"))return "s";if(["chars","own","knights","ctier"].includes(tab)||(tab==="rank"&&RK.t==="chars"))return "c";return null;}
 function renderCmpBar(){let bar=document.getElementById("cmpbar");if(!bar){bar=document.createElement("div");bar.id="cmpbar";bar.className="cmpbar";document.body.appendChild(bar);}
@@ -1369,10 +1370,13 @@ function renderCmpBar(){let bar=document.getElementById("cmpbar");if(!bar){bar=d
   const th=id=>{const x=cmpFind(k,id);const im=k==="c"?IMG[id]:SIMG[id];return `<span class="cmpth" title="${esc(k==="c"?x.name:id)}">${im?`<img src="${im}" alt="">`:`<i>${esc(k==="c"?[...x.name][0]:(x.rar||""))}</i>`}<button data-cmprm="${k}|${esc(id)}" aria-label="外す">✕</button></span>`;};
   bar.innerHTML=`<b>くらべる <small>${l.length}/${CMPMAX}</small></b><span class="cmpthumbs">${l.map(th).join("")}</span><button class="btn small primary" data-cmpopen="${k}" ${l.length<2?"disabled title=\"2つ以上で比べられます\"":""}>比較する</button><button class="btn small ghost-dark" data-cmpclear="${k}">クリア</button>`;}
 const CMPF={char:""};let CMPK="s";
+/* 「違うところだけ」：全員同じ値の行を隠す（ブラウザに保存） */
+const cmpDiffSw=()=>`<label class="cmpdiff"><input type="checkbox" id="cmpDiff" ${S.cmpDiff?"checked":""}> 違うところだけ表示</label>`;
+document.addEventListener("change",e=>{if(e.target.id!=="cmpDiff")return;S.cmpDiff=e.target.checked;save();const t=document.querySelector("#dlgDetail .cmptable");if(t)t.classList.toggle("onlydiff",S.cmpDiff);});
 /* 比較表の部品。best: "max"（大きいほど良い）／"min"（小さいほど良い。コストなど） */
-function cmpRows(l,v){const row=(label,cells,cls)=>`<tr class="${cls||""}"><th>${label}</th>${cells.map(x=>`<td>${x}</td>`).join("")}</tr>`;
+function cmpRows(l,v){const row=(label,cells,cls)=>`<tr class="${cls||""}${cells.length>1&&cells.every(x=>x===cells[0])?" same":""}"><th>${label}</th>${cells.map(x=>`<td>${x}</td>`).join("")}</tr>`;
   const numRow=(label,n,best)=>{const vals=l.map(x=>num(v(x,n)));if(vals.every(x=>x==null))return "";const ok=vals.filter(x=>x!=null);const b=best==="min"?Math.min(...ok):Math.max(...ok);
-    return row(label+(best==="min"?' <small>（少ないほど良い）</small>':""),vals.map(x=>x==null?'<span class="dash">—</span>':`<span class="${x===b&&vals.filter(y=>y===b).length<l.length?"cmpbest":""}">${x.toLocaleString()}</span>`),"num");};
+    return row(label+(best==="min"?' <small class="lessg"><span>（少ないほど良い）</span><i>↓良</i></small>':""),vals.map(x=>x==null?'<span class="dash">—</span>':`<span class="${x===b&&vals.filter(y=>y===b).length<l.length?"cmpbest":""}">${x.toLocaleString()}</span>`),"num");};
   const txt=(label,f)=>{const cells=l.map(f);if(cells.every(x=>!x))return "";return row(label,cells.map(x=>x||'<span class="dash">—</span>'),"eff");};
   return {row,numRow,txt};}
 function openCompare(k){
@@ -1382,8 +1386,8 @@ function openCompare(k){
   const {row,numRow,txt}=cmpRows(l,v);
   let h;
   if(k==="c"){
-    h=`<h2>キャラをくらべる</h2><div class="cmphead"><span class="count">いちばん良い数値は色付き（コスト・再出撃時間は少ないほうが良い）。スマホは横にスクロールできます。</span></div>`;
-    h+=`<div class="cmpwrap"><table class="cmptable" style="--n:${l.length}"><thead><tr><th></th>${l.map(c=>`<th><button class="cmpcol" data-detail="${esc(c.id)}">${BANNER[c.id]||IMG[c.id]?`<img src="${BANNER[c.id]||IMG[c.id]}" alt="">`:""}<b>${esc(c.name)}</b></button><button class="cmpx" data-cmprm="c|${esc(c.id)}">✕ 外す</button></th>`).join("")}</tr></thead><tbody>`;
+    h=`<h2>キャラをくらべる</h2><div class="cmphead"><span class="count">いちばん良い数値は色付き（コスト・再出撃時間は少ないほうが良い）。スマホは横にスクロールできます。</span>${cmpDiffSw()}</div>`;
+    h+=`<div class="cmpwrap"><table class="cmptable${S.cmpDiff?" onlydiff":""}" style="--n:${l.length}"><thead><tr><th></th>${l.map(c=>`<th><button class="cmpcol" data-detail="${esc(c.id)}">${BANNER[c.id]||IMG[c.id]?`<img src="${BANNER[c.id]||IMG[c.id]}" alt="">`:""}<b>${esc(c.name)}</b></button><button class="cmpx" data-cmprm="c|${esc(c.id)}">✕ 外す</button></th>`).join("")}</tr></thead><tbody>`;
     const at=entries(place(ALLF.key));if(l.some(c=>at.some(e=>e.id===c.id)))h+=row("全体Tier",l.map(c=>{const t=bestTier(place(ALLF.key),c.id);return t?badge(t):'<span class="dash">—</span>';}));
     h+=row("レアリティ",l.map(c=>c.rar?`<span class="rar ${esc(c.rar)}">${esc(c.rar)}</span>`:""))+row("ロール",l.map(c=>`${ic(c.role)} ${esc(c.role||"")}`))+row("属性",l.map(c=>c.attr?`${ic(c.attr)} <span class="attr ${esc(c.attr)}">${esc(c.attr)}</span>`:""))+row("ダメージタイプ",l.map(c=>esc(c.dtype||"")))
       +row("騎士団",l.map(c=>c.order?`${ic(c.order,"ord")} ${esc(c.order)}`:""))+row("階級",l.map(c=>c.rank?`${ic(c.rank)} ${esc(c.rank)}`:""))+row("スタイル",l.map(c=>esc(c.style||"")));
@@ -1398,8 +1402,8 @@ function openCompare(k){
       +txt("強いところ",c=>esc(v(c,"強いところ")).replace(/\n/g,"<br>"))+txt("弱いところ",c=>esc(v(c,"弱いところ")).replace(/\n/g,"<br>"));
   }else{
     const c=CMPF.char?CHMAP[CMPF.char]:null;
-    h=`<h2>スクリプトをくらべる</h2><div class="cmphead"><label>キャラとの相性も見る：<select id="cmpChar"><option value="">（キャラを選ばない）</option>${CH.filter(x=>!x.unrel).slice().sort((a,b)=>a.name.localeCompare(b.name,"ja")).map(x=>`<option value="${esc(x.id)}" ${x.id===CMPF.char?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label><span class="count">いちばん高い数値は色付き。スマホは横にスクロールできます。</span></div>`;
-    h+=`<div class="cmpwrap"><table class="cmptable" style="--n:${l.length}"><thead><tr><th></th>${l.map(s=>`<th><button class="cmpcol" data-sdetail="${s.i}">${SFULL[s.name]||SIMG[s.name]?`<img src="${SFULL[s.name]||SIMG[s.name]}" alt="">`:""}<b>${esc(s.name)}</b></button><button class="cmpx" data-cmprm="s|${esc(s.name)}">✕ 外す</button></th>`).join("")}</tr></thead><tbody>`;
+    h=`<h2>スクリプトをくらべる</h2><div class="cmphead"><label>キャラとの相性も見る：<select id="cmpChar"><option value="">（キャラを選ばない）</option>${CH.filter(x=>!x.unrel).slice().sort((a,b)=>a.name.localeCompare(b.name,"ja")).map(x=>`<option value="${esc(x.id)}" ${x.id===CMPF.char?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label><span class="count">いちばん高い数値は色付き。スマホは横にスクロールできます。</span>${cmpDiffSw()}</div>`;
+    h+=`<div class="cmpwrap"><table class="cmptable${S.cmpDiff?" onlydiff":""}" style="--n:${l.length}"><thead><tr><th></th>${l.map(s=>`<th><button class="cmpcol" data-sdetail="${s.i}">${SFULL[s.name]||SIMG[s.name]?`<img src="${SFULL[s.name]||SIMG[s.name]}" alt="">`:""}<b>${esc(s.name)}</b></button><button class="cmpx" data-cmprm="s|${esc(s.name)}">✕ 外す</button></th>`).join("")}</tr></thead><tbody>`;
     if(c){const ms=l.map(s=>scMatch(s,c));h+=row(`${esc(c.name)}との相性`,ms.map((m,i)=>`<span class="cmpfit ${m.roleOk?"ok":"ng"}">${m.roleOk?"○ ロールOK":"× ロールが違う"}</span><span class="cmpfit">条件 ${m.n}/${l[i].conds.length||0} 一致</span>`),"fit");}
     h+=row("レアリティ",l.map(s=>s.rar?`<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>`:""))+row("ロール",l.map(s=>`${ic(s.role)} ${esc(s.role||"")}`));
     if(l.some(s=>s.limit))h+=row("限定",l.map(s=>s.limit?limBadge(s.limit):"通常"));
@@ -1415,11 +1419,12 @@ function openCompare(k){
 document.getElementById("dlgDetail").addEventListener("close",()=>document.getElementById("dlgDetail").classList.remove("cmpdlg"));
 /* カードの中の「＋」は、カード（詳細を開く）より先に受け取る */
 const cmpSplit=x=>{const i=x.indexOf("|");return [x.slice(0,i),x.slice(i+1)];};
-document.addEventListener("click",e=>{const b=e.target.closest("[data-cmp],[data-cmprm],[data-cmpopen],[data-cmpclear]");if(!b)return;const ds=b.dataset;const dl=document.getElementById("dlgDetail");
+document.addEventListener("click",e=>{const b=e.target.closest("[data-cmp],[data-cmprm],[data-cmpopen],[data-cmpclear],[data-cmpwith]");if(!b)return;const ds=b.dataset;const dl=document.getElementById("dlgDetail");
   const relist=()=>{if(tab==="scripts"||tab==="chars")render();};
   if(ds.cmp!==undefined){e.stopPropagation();e.preventDefault();const [k,id]=cmpSplit(ds.cmp);if(cmpToggle(k,id)){const on=inCmp(k,id);b.classList.toggle("on",on);if(b.closest(".ccard"))b.textContent=on?"✓":"＋";else b.textContent=on?"✓ くらべるに入れた":"＋くらべる";if(!b.closest("dialog"))render();renderCmpBar();}return;}
   if(ds.cmprm){e.stopPropagation();const [k,id]=cmpSplit(ds.cmprm);const l=S[cmpKey(k)]||[];const i=l.indexOf(id);if(i>=0)l.splice(i,1);save();renderCmpBar();if(dl.classList.contains("cmpdlg")){if(CMP(k).length>=2)openCompare(k);else dl.close();}relist();return;}
   if(ds.cmpopen){openCompare(ds.cmpopen);return;}
+  if(ds.cmpwith){const [k,id]=cmpSplit(ds.cmpwith);if(!inCmp(k,id)){if(!cmpToggle(k,id))return;renderCmpBar();relist();}openCompare(k);return;}
   if(ds.cmpclear){S[cmpKey(ds.cmpclear)]=[];save();renderCmpBar();if(dl.classList.contains("cmpdlg"))dl.close();relist();return;}
 },true);
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.dataset&&e.target.dataset.cmp!==undefined){e.preventDefault();e.target.click();}});
