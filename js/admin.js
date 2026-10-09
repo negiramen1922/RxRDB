@@ -2074,7 +2074,8 @@ function todoItems() {
     { id: "seal", g: "公開まで", t: "各封印戦の画像と特性", note: "テーマイラストとステージ効果", r: () => rowsCheck("seals", ["ステージ効果"], c => R.SEAL[c["封印戦名"]] || R.SEALF[c["封印戦名"]]) },
     { id: "kreg", g: "公開まで", t: "騎士の登録", note: `騎士団ごとに${KN_PER}人（騎士団 ${knOrders().length} × ${KN_PER}人）`, multi: () => knOrders().map(o => { const n = rowsOf("people").filter(c => String(c["騎士団"] || "").trim() === o).length; return { sub: o, done: Math.min(n, KN_PER), total: KN_PER, missing: [] }; }) },
     { id: "kimg", g: "公開まで", t: "騎士の画像（立ち絵）のインポート", note: "「立ち絵」を「なし」にした騎士は数えません", r: () => rowsCheck("people", null, c => c["立ち絵"] === "なし" || R.KN[c["名前"]] || R.KNF[c["名前"]], c => c["名前"]) },
-    { id: "csw", g: "追加", t: "全キャラの強いところ・弱いところ", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
+    { id: "csw", g: "追加", t: "各キャラの強いところ・弱いところの入力", note: "キャラ詳細の上の方に出る説明", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
+    { id: "cmochi", g: "追加", t: "各キャラの持ちスク・おすすめスクリプトの設定", note: "どちらか1つでも入っていれば設定済み", r: () => rowsCheck("chars", null, c => nonEmpty(c["持ちスク"]) || nonEmpty(c["おすすめスクリプト"]), c => c["キャラ名"] || c["ID"]) },
     { id: "misc", g: "追加", t: "もろもろの各データ", note: "進捗は手動で更新してください", manual: true },
   ];
 }
