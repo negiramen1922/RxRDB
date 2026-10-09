@@ -1417,7 +1417,7 @@ function renderTier(){
   const placedIds=new Set(entries(P).map(e=>e.id));
   let list=CH.filter(c=>!placedIds.has(c.id));
   if(pool.q){const q=pool.q.toLowerCase();list=list.filter(c=>(c.name+c.id).toLowerCase().includes(q));}
-  list=list.filter(c=>grpOk(c)&&!(all&&c.unrel)&&cfMatch(c,CFS.pool));   // 全体Tierでは未実装のキャラは未配置に出さないconst pcf=cfBar("pool");
+  /* 全体Tierでは未実装のキャラは未配置に出さない */list=list.filter(c=>grpOk(c)&&!(all&&c.unrel)&&cfMatch(c,CFS.pool));const pcf=cfBar("pool");
   if(pool.sort==="fit")list.sort((a,b)=>fits[b.id]-fits[a.id]||b.date-a.date);
   else if(pool.sort==="new")list.sort((a,b)=>b.date-a.date);
   else list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));
