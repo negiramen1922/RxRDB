@@ -507,6 +507,26 @@ dialog{overflow:auto;overscroll-behavior:contain}
 .qb{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 4px;border:1px solid var(--line2);background:var(--panel);border-radius:4px;cursor:pointer;color:var(--accent-ink);font:inherit;font-weight:900;font-size:12.5px}
 .qb .ic{width:24px;height:24px}.qb.qtxt{padding:0 10px}.qb[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 2px rgba(26,134,255,.25)}
 .qsep{flex:none;width:1px;height:22px;background:var(--line2);margin:0 4px}
+.cmpbtn{position:absolute;right:6px;bottom:6px;z-index:2;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.92);color:var(--accent-ink);font-weight:900;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer}
+.cmpbtn.on{background:var(--accent);color:#fff}.cmpdbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cmpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;gap:8px;align-items:center;padding:8px 12px;background:linear-gradient(100deg,rgba(6,30,86,.96),rgba(14,70,170,.96));color:#fff;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100% - 20px)}
+.cmpbar[hidden]{display:none}.cmpbar b{white-space:nowrap}.cmpbar small{opacity:.8}.cmpthumbs{display:flex;gap:4px}
+.cmpth{position:relative;width:40px;height:40px;background:#16233f;display:flex;align-items:center;justify-content:center;font-size:10px}.cmpth img{width:100%;height:100%;object-fit:cover}
+.cmpth button{position:absolute;right:-6px;top:-6px;width:18px;height:18px;border-radius:50%;border:0;background:#fff;color:#c03;font-size:10px;line-height:18px;padding:0;cursor:pointer}
+body.hascmp main{padding-bottom:80px}.cmpbar .btn{white-space:nowrap}
+#dlgDetail.cmpdlg{width:min(1180px,calc(100% - 16px))}
+.cmphead{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.cmphead select{max-width:220px}
+.cmpwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cmptable{border-collapse:collapse;width:100%;min-width:560px;font-size:13px}
+.cmptable th,.cmptable td{border:1px solid var(--line2);padding:6px 8px;vertical-align:top;text-align:left;background:var(--panel);color:var(--ink)}
+.cmptable tbody th{position:sticky;left:0;z-index:1;background:var(--soft);white-space:nowrap;font-size:12px;width:1%}
+.cmptable thead th{min-width:170px}.cmptable thead th:first-child{min-width:0;position:sticky;left:0;z-index:2;background:var(--soft)}
+.cmpcol{display:block;width:100%;border:0;background:none;padding:0;text-align:left;cursor:pointer;color:inherit;font:inherit}.cmpcol img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;margin-bottom:4px}.cmpcol b{color:var(--accent-ink);text-decoration:underline;text-underline-offset:3px}
+.cmpx{margin-top:4px;border:1px solid var(--line2);background:var(--field);color:var(--muted);font-size:11px;padding:1px 8px;cursor:pointer}
+.cmptable tr.num td{font-family:var(--display);font-size:15px;font-weight:700}.cmpbest{color:#d4101d}
+.cmpeff{line-height:1.6}.cmpcond{margin-bottom:4px}.cmpfit{display:block;font-weight:700}.cmpfit.ok{color:#13a07a}.cmpfit.ng{color:#d4101d}
+.cmptable td{white-space:normal}
+@media (max-width:620px){.cmpbar{gap:6px;padding:6px 8px}.cmpth{width:32px;height:32px}.cmptable tbody th{white-space:normal;overflow-wrap:anywhere;word-break:break-all;width:5.5em;min-width:5.5em;max-width:5.5em;font-size:11px}.cmptable thead th{min-width:140px}}
 .metarow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .metarow span.m{border:1px solid var(--line2);background:var(--field);padding:1px 9px;font-size:12.5px;display:inline-flex;align-items:center;gap:4px}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
@@ -1047,7 +1067,7 @@ function render(){
   else if(tab==="babel")renderBabel();
   else if(tab==="rank")renderRank();
   else renderScripts();
-  renderActionBar();
+  renderActionBar();renderCmpBar();
 }
 function typeSeg(cls){return `<div class="seg ${cls||""}">${TYPES.map(t=>`<button data-type="${esc(t)}" aria-pressed="${t===S.curType}">${esc(t)}</button>`).join("")}</div>`;}
 function emptyBlock(kind){
@@ -1327,7 +1347,51 @@ function charCard(c){const img=BANNER[c.id]||IMG[c.id];const st=RAR[c.rar]||0;
 function scriptCard(s){const img=SFULL[s.name]||SIMG[s.name];
   return `<button class="ccard scard2" data-sdetail="${s.i}">${img?`<span class="ccimg" style="background-image:url('${encU(img)}')"></span>`:'<span class="ccimg none"></span>'}
   <span class="cctop">${s.rar?`<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>`:""}${ic(s.role)}</span>${s.limit||s.unrel?`<span class="ccbadges">${limBadge(s.limit)}${unrelBadge(s)}</span>`:""}
-  <span class="ccname"><b>${esc(s.name)}</b>${s.conds.length?`<small class="sccond">${s.conds.map(x=>`${ic(ALIAS[x]||x,ORDERS.includes(x)?"ord":"")}${esc(x)}`).join(" ／ ")}</small>`:""}</span></button>`;}
+  <span class="ccname"><b>${esc(s.name)}</b>${s.conds.length?`<small class="sccond">${s.conds.map(x=>`${ic(ALIAS[x]||x,ORDERS.includes(x)?"ord":"")}${esc(x)}`).join(" ／ ")}</small>`:""}</span>${MODE==="admin"?"":cmpBtn(s)}</button>`;}
+
+/* ================= スクリプトをくらべる（くらべるトレイ） =================
+   カードの「＋」や詳細の「＋くらべる」で最大4枚までトレイに入れ、画面下のバーから横並びの比較表を開く。トレイはこのブラウザに保存（S.cmp） */
+const CMPMAX=4;
+const CMP=()=>(S.cmp||(S.cmp=[])).filter(n=>SC.some(s=>s.name===n));
+const inCmp=n=>(S.cmp||[]).includes(n);
+function cmpToggle(n){const l=S.cmp||(S.cmp=[]);const i=l.indexOf(n);if(i>=0)l.splice(i,1);else{if(CMP().length>=CMPMAX){toast(`くらべられるのは${CMPMAX}枚までです。どれかを外してください`);return false;}l.push(n);}save();return true;}
+const cmpBtn=s=>`<span class="cmpbtn${inCmp(s.name)?" on":""}" role="button" tabindex="0" data-cmp="${esc(s.name)}" title="${inCmp(s.name)?"くらべるから外す":"くらべるに入れる"}">${inCmp(s.name)?"✓":"＋"}</span>`;
+function renderCmpBar(){let bar=document.getElementById("cmpbar");if(!bar){bar=document.createElement("div");bar.id="cmpbar";bar.className="cmpbar";document.body.appendChild(bar);}
+  const l=CMP();const show=MODE!=="admin"&&SITE_LOADED&&l.length&&(tab==="scripts"||tab==="sown"||(tab==="rank"&&RK.t==="scripts"));
+  bar.hidden=!show;if(!show){bar.innerHTML="";document.body.classList.remove("hascmp");return;}document.body.classList.add("hascmp");
+  bar.innerHTML=`<b>くらべる <small>${l.length}/${CMPMAX}</small></b><span class="cmpthumbs">${l.map(n=>{const s=SC.find(x=>x.name===n);return `<span class="cmpth" title="${esc(n)}">${SIMG[n]?`<img src="${SIMG[n]}" alt="">`:`<i>${esc((s&&s.rar)||"")}</i>`}<button data-cmprm="${esc(n)}" aria-label="外す">✕</button></span>`;}).join("")}</span><button class="btn small primary" data-cmpopen="1" ${l.length<2?"disabled title=\"2枚以上で比べられます\"":""}>比較する</button><button class="btn small ghost-dark" data-cmpclear="1">クリア</button>`;}
+const CMPF={char:""};
+function openCompare(){
+  const l=CMP().map(n=>SC.find(s=>s.name===n)).filter(Boolean);if(l.length<2){toast("2枚以上選ぶと比べられます");return;}
+  const d=data("scripts");const v=(s,n)=>{const i=d.headers.indexOf(n);return i>=0?String(s.row[i]||"").trim():"";};
+  const c=CMPF.char?CHMAP[CMPF.char]:null;
+  const row=(label,cells,cls)=>`<tr class="${cls||""}"><th>${label}</th>${cells.map(x=>`<td>${x}</td>`).join("")}</tr>`;
+  const numRow=(label,n)=>{const vals=l.map(s=>num(v(s,n)));if(vals.every(x=>x==null))return "";const mx=Math.max(...vals.filter(x=>x!=null));
+    return row(label,vals.map(x=>x==null?'<span class="dash">—</span>':`<span class="${x===mx&&vals.filter(y=>y===mx).length<l.length?"cmpbest":""}">${x.toLocaleString()}</span>`),"num");};
+  const txtRow=(label,n,cond)=>{const vals=l.map(s=>v(s,n));if(vals.every(x=>!x)&&(!cond||l.every(s=>!v(s,cond))))return "";
+    return row(label,l.map(s=>`${cond&&v(s,cond)?`<div class="cmpcond">条件：${condChips([v(s,cond)],c)}</div>`:""}${v(s,n)?`<div class="cmpeff">${kwHtml(v(s,n))}</div>`:'<span class="dash">—</span>'}`),"eff");};
+  let h=`<h2>スクリプトをくらべる</h2><div class="cmphead"><label>キャラとの相性も見る：<select id="cmpChar"><option value="">（キャラを選ばない）</option>${CH.filter(x=>!x.unrel).slice().sort((a,b)=>a.name.localeCompare(b.name,"ja")).map(x=>`<option value="${esc(x.id)}" ${x.id===CMPF.char?"selected":""}>${esc(x.name)}</option>`).join("")}</select></label><span class="count">いちばん高い数値は色付き。スマホは横にスクロールできます。</span></div>`;
+  h+=`<div class="cmpwrap"><table class="cmptable"><thead><tr><th></th>${l.map(s=>`<th><button class="cmpcol" data-sdetail="${s.i}">${SFULL[s.name]||SIMG[s.name]?`<img src="${SFULL[s.name]||SIMG[s.name]}" alt="">`:""}<b>${esc(s.name)}</b></button><button class="cmpx" data-cmprm="${esc(s.name)}">✕ 外す</button></th>`).join("")}</tr></thead><tbody>`;
+  if(c){const ms=l.map(s=>scMatch(s,c));h+=row(`${esc(c.name)}との相性`,ms.map((m,i)=>`<span class="cmpfit ${m.roleOk?"ok":"ng"}">${m.roleOk?"○ ロールOK":"× ロールが違う"}</span><span class="cmpfit">条件 ${m.n}/${l[i].conds.length||0} 一致</span>`),"fit");}
+  h+=row("レアリティ",l.map(s=>s.rar?`<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>`:""));
+  h+=row("ロール",l.map(s=>`${ic(s.role)} ${esc(s.role||"")}`));
+  if(l.some(s=>s.limit))h+=row("限定",l.map(s=>s.limit?limBadge(s.limit):"通常"));
+  h+=row("実装日",l.map(s=>esc(v(s,"実装日"))||'<span class="dash">—</span>'));
+  h+=numRow("HP 初期値","HP初期値")+numRow("HP Lv200","Lv200 HP")+numRow("HP 完凸","完凸 HP")+numRow("攻撃力 初期値","攻撃力初期値")+numRow("攻撃力 Lv200","Lv200 攻撃力")+numRow("攻撃力 完凸","完凸 攻撃力")+numRow("物理防御","物理防御")+numRow("特殊防御","特殊防御");
+  h+=txtRow("スキル1","スキル1効果")+txtRow("スキル2","スキル2効果","条件2")+txtRow("スキル3","スキル3効果","条件3");
+  h+=`</tbody></table></div><div class="foot"><button class="btn" data-cmpclear="1">トレイを空にする</button><button class="btn primary" data-close>閉じる</button></div>`;
+  document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.add("cmpdlg");if(!dl.open)dl.showModal();dl.scrollTop=0;
+  const sel=document.getElementById("cmpChar");sel.addEventListener("change",()=>{CMPF.char=sel.value;openCompare();});
+}
+document.getElementById("dlgDetail").addEventListener("close",()=>document.getElementById("dlgDetail").classList.remove("cmpdlg"));
+/* カードの中の「＋」は、カード（詳細を開く）より先に受け取る */
+document.addEventListener("click",e=>{const b=e.target.closest("[data-cmp],[data-cmprm],[data-cmpopen],[data-cmpclear]");if(!b)return;const ds=b.dataset;
+  if(ds.cmp!==undefined){e.stopPropagation();e.preventDefault();if(cmpToggle(ds.cmp)){if(document.getElementById("dlgDetail").open&&!b.closest(".ccard")){b.classList.toggle("on",inCmp(ds.cmp));b.textContent=inCmp(ds.cmp)?"✓ くらべるに入れた":"＋くらべる";}else render();renderCmpBar();}return;}
+  if(ds.cmprm){e.stopPropagation();const l=S.cmp||[];const i=l.indexOf(ds.cmprm);if(i>=0)l.splice(i,1);save();renderCmpBar();if(document.getElementById("dlgDetail").classList.contains("cmpdlg")){if(CMP().length>=2)openCompare();else document.getElementById("dlgDetail").close();}if(tab==="scripts")render();return;}
+  if(ds.cmpopen){openCompare();return;}
+  if(ds.cmpclear){S.cmp=[];save();renderCmpBar();const dl=document.getElementById("dlgDetail");if(dl.classList.contains("cmpdlg"))dl.close();if(tab==="scripts")render();return;}
+},true);
+document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.dataset&&e.target.dataset.cmp!==undefined){e.preventDefault();e.target.click();}});
 /* スクリプトの絞り込み（ダイアログ） */
 const RKSF={q:"",rar:null,role:null,limit:null,cattr:null,cond:"",eff:null,own:false};
 let SFK="scripts";const sfS=()=>SFK==="rank"?RKSF:tstate.scripts;
@@ -1564,11 +1628,11 @@ function renderScripts(){
   const sq=document.getElementById("sq");
   liveInput(sq,()=>{st.q=sq.value;const p=sq.selectionStart;renderScripts();const n=document.getElementById("sq");n.focus();n.setSelectionRange(p,p);});
 }
-function openScript(i){
+function openScript(i){document.getElementById("dlgDetail").classList.remove("cmpdlg");
   const s=SC.find(x=>x.i===i);if(!s)return;const d=data("scripts");
   const v=n=>{const k=d.headers.indexOf(n);return k>=0?(s.row[k]||"").trim():"";};
   let h=SFULL[s.name]?`<img class="sart" src="${SFULL[s.name]}" alt="">`:"";
-  h+=`<h2>${esc(s.name)} ${limBadge(s.limit,"inh")}${unrelBadge(s,"inh")}</h2><div class="metarow"><span class="rar ${esc(s.rar)}">${esc(s.rar)}</span><span class="m">${ic(s.role)} ${esc(s.role)}</span>${v("実装日")?`<span class="m">${esc(v("実装日"))}</span>`:""}</div>`;
+  h+=`<h2>${esc(s.name)} ${limBadge(s.limit,"inh")}${unrelBadge(s,"inh")}</h2><div class="metarow"><span class="rar ${esc(s.rar)}">${esc(s.rar)}</span><span class="m">${ic(s.role)} ${esc(s.role)}</span>${v("実装日")?`<span class="m">${esc(v("実装日"))}</span>`:""}<button class="btn small cmpdbtn${inCmp(s.name)?" on":""}" data-cmp="${esc(s.name)}">${inCmp(s.name)?"✓ くらべるに入れた":"＋くらべる"}</button></div>`;
   const stats=["HP初期値","Lv200 HP","完凸 HP","攻撃力初期値","Lv200 攻撃力","完凸 攻撃力","物理防御","特殊防御"].filter(n=>v(n));
   if(stats.length){const col=n=>{const i=d.headers.indexOf(n);return SC.map(x=>i>=0?num(x.row[i]):null);};
     const ok=x=>x&&x!=="—";
@@ -1679,7 +1743,7 @@ function openKeyword(kw){
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");if(!dl.open)dl.showModal();dl.scrollTop=0;
   track("keyword",{kw});
 }
-function openChar(id){
+function openChar(id){document.getElementById("dlgDetail").classList.remove("cmpdlg");
   const c=CHMAP[id];if(!c)return;const d=data("chars");
   const v=n=>{const i=d.headers.indexOf(n);return i>=0?(c.row[i]||"").trim():"";};
   const used=new Set();const take=n=>{used.add(n);return v(n);};
@@ -2065,7 +2129,7 @@ function renderEvents(){
   main.innerHTML=h;
   const qi=document.getElementById("evQ");liveInput(qi,()=>{EVF.q=qi.value;const p=qi.selectionStart;renderEvents();const n=document.getElementById("evQ");n.focus();n.setSelectionRange(p,p);});
 }
-function openEvent(i){
+function openEvent(i){document.getElementById("dlgDetail").classList.remove("cmpdlg");
   const ev=EVENTS.find(x=>x.i===i);if(!ev)return;const cs=ev.chars.map(id=>CHMAP[id]).filter(Boolean);
   let h=EVTF[ev.name]?`<img class="banner" src="${EVTF[ev.name]}" alt="">`:"";
   h+=`<h2>${esc(ev.name)}</h2><div class="evbs">${evBadges(ev)}</div><p class="evdate">📅 ${evDates(ev)||"日程未登録"}</p>`;
@@ -2117,7 +2181,7 @@ function renderKnights(){
   main.innerHTML=h;
   const qi=document.getElementById("knQ");liveInput(qi,()=>{KNFL.q=qi.value;const p=qi.selectionStart;renderKnights();const n=document.getElementById("knQ");n.focus();n.setSelectionRange(p,p);});
 }
-function openKnight(name){
+function openKnight(name){document.getElementById("dlgDetail").classList.remove("cmpdlg");
   const k=PMAP[name];if(!k)return;const f=knFace(k);const st=knStyles(k);
   const cell=(l,val)=>`<div><small>${esc(l)}</small><span>${val||'<span class="dash">—</span>'}</span></div>`;
   let h=KNF[k.name]?`<img class="knart" src="${KNF[k.name]}" alt="">`:"";
