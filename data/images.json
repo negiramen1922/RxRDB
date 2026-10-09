@@ -962,7 +962,8 @@
   "ロンド": "images/knights/ロンド.webp",
   "紫亜": "images/knights/紫亜.webp",
   "鉉覇": "images/knights/鉉覇.webp",
-  "煤墨": "images/knights/煤墨.webp"
+  "煤墨": "images/knights/煤墨.webp",
+  "久理": "images/knights/久理.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -977,6 +978,7 @@
   "ロンド": "images/knights/thumb/ロンド.webp",
   "紫亜": "images/knights/thumb/紫亜.webp",
   "鉉覇": "images/knights/thumb/鉉覇.webp",
-  "煤墨": "images/knights/thumb/煤墨.webp"
+  "煤墨": "images/knights/thumb/煤墨.webp",
+  "久理": "images/knights/thumb/久理.webp"
  }
 }
