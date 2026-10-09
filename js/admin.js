@@ -1909,7 +1909,7 @@ function applyOfficial(at) {
   TIERPEND.forEach(([fk, id, t, ol]) => { if (ol) { ord[fk] = ol; return; } const P = o[fk] || (o[fk] = {}); if (t) P[id] = t; else delete P[id]; });
   R.setOfficial(o, at, ord);
 }
-function floorLabel(fk) { const [t, f] = String(fk).split("|"); return t === "封印戦" ? `封印戦 ${f}` : `${t} ${f}F`; }
+function floorLabel(fk) { const [t, f] = String(fk).split("|"); return t === "全体" ? "キャラクター全体Tier" : t === "封印戦" ? `封印戦 ${f}` : `${t} ${f}F`; }
 const TIERQ = { busy: false, q: [] };
 // ol があれば並び順の変更（その階層のキーの配列）
 function onTierMove(fk, id, tier, prev, ol) {
@@ -1959,8 +1959,8 @@ function tierInfo() {
   const local = R.LOCAL_TIERS; const nLocal = Object.values(local).reduce((a, p) => a + Object.keys(p || {}).length, 0);
   const n = Object.keys(R.OFFICIAL[fk] || {}).length;
   const ctx = R.TIER_CTX;
-  const what = ctx === "seal" ? "封印戦" : "階層";
-  return `<div class="toolbar"><div class="seg"><button data-tierctx="babel" aria-pressed="${ctx !== "seal"}">バベル</button><button data-tierctx="seal" aria-pressed="${ctx === "seal"}">封印戦</button></div><span style="flex:1"></span>${f ? `<button class="btn small" data-a="tieredit">この${what}のデータを編集</button>` : ""}<button class="btn primary small" data-a="tieradd">＋ ${what}を追加</button></div><div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（数秒で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
+  const what = ctx === "seal" ? "封印戦" : ctx === "all" ? "全体Tier" : "階層";
+  return `<div class="toolbar"><div class="seg"><button data-tierctx="babel" aria-pressed="${ctx === "babel"}">バベル</button><button data-tierctx="seal" aria-pressed="${ctx === "seal"}">封印戦</button><button data-tierctx="all" aria-pressed="${ctx === "all"}">キャラ全体</button></div><span style="flex:1"></span>${ctx === "all" ? "" : `${f ? `<button class="btn small" data-a="tieredit">この${what}のデータを編集</button>` : ""}<button class="btn primary small" data-a="tieradd">＋ ${what}を追加</button>`}</div><div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（数秒で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
   <span class="tieracts">${n ? (TT.confirm === fk ? `<span class="danger-q">${esc(floorLabel(fk))}の配置${n}件をすべて外しますか？</span><button class="btn small danger" data-a="tierclearyes">外す</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierclear">この階層の配置をすべて外す</button>`) : ""}
   ${nLocal ? (TT.confirm === "import" ? `<span class="danger-q">このブラウザの配置${nLocal}件で、同じキャラの公開中の配置を上書きします。</span><button class="btn small primary" data-a="tierimportyes">取り込む</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierimport">このブラウザに保存していた配置（${nLocal}件）を取り込む</button>`) : ""}</span></div>`;
 }
