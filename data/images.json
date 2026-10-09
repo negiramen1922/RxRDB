@@ -959,7 +959,8 @@
   "シオン": "images/knights/シオン.webp",
   "ブルー": "images/knights/ブルー.webp",
   "トロイメライ": "images/knights/トロイメライ.webp",
-  "ロンド": "images/knights/ロンド.webp"
+  "ロンド": "images/knights/ロンド.webp",
+  "紫亜": "images/knights/紫亜.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -971,6 +972,7 @@
   "シオン": "images/knights/thumb/シオン.webp",
   "ブルー": "images/knights/thumb/ブルー.webp",
   "トロイメライ": "images/knights/thumb/トロイメライ.webp",
-  "ロンド": "images/knights/thumb/ロンド.webp"
+  "ロンド": "images/knights/thumb/ロンド.webp",
+  "紫亜": "images/knights/thumb/紫亜.webp"
  }
 }
