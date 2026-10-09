@@ -523,7 +523,8 @@ body.hascmp main{padding-bottom:80px}.cmpbar .btn{white-space:nowrap}
 .cmptable thead th{min-width:170px}.cmptable thead th:first-child{min-width:0;position:sticky;left:0;z-index:2;background:var(--soft)}
 .cmpcol{display:block;width:100%;border:0;background:none;padding:0;text-align:left;cursor:pointer;color:inherit;font:inherit}.cmpcol img{width:100%;height:130px;object-fit:cover;object-position:center 20%;display:block;margin-bottom:4px}.cmpcol b{color:var(--accent-ink);text-decoration:underline;text-underline-offset:3px}
 .cmpx{margin-top:4px;border:1px solid var(--line2);background:var(--field);color:var(--muted);font-size:11px;padding:1px 8px;cursor:pointer}
-.cmptable tr.num td{font-family:var(--display);font-size:15px;font-weight:700}.cmpbest{color:#d4101d}
+.cmptable tr.num td{font-family:var(--display);font-size:15px;font-weight:700}.cmpbest{color:var(--accent);font-weight:900}
+.effv{color:var(--accent);font-weight:700}
 .cmpeff{line-height:1.6}.cmpcond{margin-bottom:4px}.cmpfit{display:block;font-weight:700}.cmpfit.ok{color:#13a07a}.cmpfit.ng{color:#d4101d}
 .cmptable td{white-space:normal}
 @media (max-width:620px){.cmpbar{gap:6px;padding:6px 8px}.cmpth{width:32px;height:32px}.cmptable tbody th{white-space:normal;overflow-wrap:anywhere;word-break:break-all;font-size:11px}.cmptable thead th:first-child{width:76px}.cmptable{min-width:0;width:calc(76px + var(--n,2) * 150px)}.cmptable thead th{width:150px}.cmpcol img{height:90px}.cmptable thead th{min-width:140px}}
@@ -1789,7 +1790,10 @@ function synergyHtml(c){
 const KEYWORDS=["鈍化","気絶","出血","やけど","焦燥","戦慄","鎖バインド","ノックバック","挑発","カウンター","身代わり","暴走","シールド","継続治癒","被回復","回避","移動速度低下","攻撃力上昇","攻撃力低下","被ダメージ","クリティカル","クールタイム","BLADEゲージ","コスト回復"];
 let KWRE=null;
 function kwRe(){if(KWRE)return KWRE;const ks=KEYWORDS.filter(Boolean).slice().sort((a,b)=>b.length-a.length).map(k=>esc(k).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));KWRE=ks.length?new RegExp(ks.join("|"),"g"):null;return KWRE;}
-function kwHtml(t){const e=esc(t);const re=kwRe();return re?e.replace(re,m=>`<button class="kw" data-kw="${m}">${m}</button>`):e;}
+/* 効果文：キーワードをリンクに、33%・1.5倍などの効果値を青に（タグの中は触らない） */
+const EFFNUM=/[+＋\-－]?[0-9０-９]+(?:[.．][0-9０-９]+)?\s?[%％倍]/g;
+function kwHtml(t){const e=esc(t);const re=kwRe();const k=re?e.replace(re,m=>`<button class="kw" data-kw="${m}">${m}</button>`):e;
+  return k.split(/(<[^>]+>)/).map(x=>x[0]==="<"?x:x.replace(EFFNUM,m=>`<span class="effv">${m}</span>`)).join("");}
 const kwCols=d=>d.headers.map((n,i)=>[n,i]).filter(([n])=>/効果|特性開放/.test(n)&&n!=="効果タグ"&&n!=="おすすめセット");
 function openKeyword(kw){
   const d=data("chars"),cols=kwCols(d),sd=data("scripts"),scols=kwCols(sd);
