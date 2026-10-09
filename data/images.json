@@ -955,7 +955,8 @@
   "叢裂": "images/knights/叢裂.webp",
   "風雅": "images/knights/風雅.webp",
   "クオン": "images/knights/クオン.webp",
-  "プロブレム": "images/knights/プロブレム.webp"
+  "プロブレム": "images/knights/プロブレム.webp",
+  "シオン": "images/knights/シオン.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -963,6 +964,7 @@
   "叢裂": "images/knights/thumb/叢裂.webp",
   "風雅": "images/knights/thumb/風雅.webp",
   "クオン": "images/knights/thumb/クオン.webp",
-  "プロブレム": "images/knights/thumb/プロブレム.webp"
+  "プロブレム": "images/knights/thumb/プロブレム.webp",
+  "シオン": "images/knights/thumb/シオン.webp"
  }
 }
