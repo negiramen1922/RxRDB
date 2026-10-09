@@ -501,6 +501,10 @@ dialog{overflow:auto;overscroll-behavior:contain}
 .evbcard img,.evbcard .noimg{width:64px;height:64px;object-fit:cover;display:block;background:var(--soft)}.evbcard small{display:block;color:var(--muted);font-size:12px}.evfl{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
 .evrel{display:flex;gap:6px;flex-wrap:wrap}
 @media (max-width:620px){.evgrid{grid-template-columns:1fr}}
+.qbar{flex-basis:100%;display:flex;gap:4px;align-items:center;overflow-x:auto;scrollbar-width:thin;padding:2px 0 4px}
+.qb{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 4px;border:1px solid var(--line2);background:var(--panel);border-radius:4px;cursor:pointer;color:var(--accent-ink);font:inherit;font-weight:900;font-size:12.5px}
+.qb .ic{width:24px;height:24px}.qb.qtxt{padding:0 10px}.qb[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 2px rgba(26,134,255,.25)}
+.qsep{flex:none;width:1px;height:22px;background:var(--line2);margin:0 4px}
 .metarow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .metarow span.m{border:1px solid var(--line2);background:var(--field);padding:1px 9px;font-size:12.5px;display:inline-flex;align-items:center;gap:4px}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
@@ -1181,14 +1185,15 @@ const CFS={chars:{tab:"基本",sel:{},tagAll:false},tier:{tab:"基本",sel:{},ta
 let CFK="chars",CF=CFS.chars;
 function cfCtx(k){CFK=CFS[k]?k:"chars";CF=CFS[CFK];}
 const cfBase=()=>[["ロール","role",ROLES.map(x=>[x,ic(x)])],["攻撃属性","attr",ATTRS.map(x=>[x,ic(x)])],["騎士団","order",ORDERS.map(x=>[x,ic(x,"ord")])],["階級","rank",RANKS.map(x=>[x,ic(x)])],
-  ["攻撃種","dtype",[["物理",""],["特殊",""],["その他",""]]],["レアリティ","rar",[["SSR",""],["SR",""],["R",""]]],["限定","limit",[["限定",""],["周年限定",""],["通常",""]]],["スタイル","sty",[["アナザー",""],["リビルド",""],["それ以外",""]]],["実装","rel",[["実装済み",""],["未実装",""]]],["所持","own",[["持っている",""],["持っていない",""]]]];
-/* スタイルの「アナザー」「リビルド」（「アナザー2」なども含む）。騎士団と組み合わせて「〇〇騎士団のアナザー」を出せる */
-const styKind=c=>/アナザー/i.test(c.style)?"アナザー":/リビルド/i.test(c.style)?"リビルド":"それ以外";
+  ["攻撃種","dtype",[["物理",""],["特殊",""],["その他",""]]],["レアリティ","rar",[["SSR",""],["SR",""],["R",""]]],["限定","limit",[["限定",""],["周年限定",""],["通常",""]]],["バベル","babel",[["アナザー",""],["リビルド",""]]],["実装","rel",[["実装済み",""],["未実装",""]]],["所持","own",[["持っている",""],["持っていない",""]]]];
+/* アナザーバベル・バベルリビルドで使える騎士団（その騎士団のキャラしか出せない縛り） */
+const BABELGRP={"アナザー":["ブレイドライン","第六起源魔術教会","リンドブルム","千紫"],"リビルド":["ORANGE","アクシオンゲート","オッター貿易","Mazlab"]};
+const babelKind=c=>BABELGRP["アナザー"].includes(c.order)?"アナザー":BABELGRP["リビルド"].includes(c.order)?"リビルド":"";
 const unrelBadge=(c,cls)=>c.unrel?`<span class="limb unrel ${cls||""}">未実装</span>`:"";
 function cfMatch(c,st){st=st||CFS.chars;
   for(const [k,vals] of Object.entries(st.sel)){if(!vals.length)continue;
     if(k==="tags"){const hit=vals.filter(t=>c.tags.includes(t)).length;if(st.tagAll?hit<vals.length:!hit)return false;continue;}
-    const v=k==="limit"?(c.limit||"通常"):k==="dtype"?(c.dtype==="物理"||c.dtype==="特殊"?c.dtype:"その他"):k==="own"?(OWN()[c.id]?"持っている":"持っていない"):k==="sty"?styKind(c):k==="rel"?(c.unrel?"未実装":"実装済み"):c[k];
+    const v=k==="limit"?(c.limit||"通常"):k==="dtype"?(c.dtype==="物理"||c.dtype==="特殊"?c.dtype:"その他"):k==="own"?(OWN()[c.id]?"持っている":"持っていない"):k==="babel"?babelKind(c):k==="rel"?(c.unrel?"未実装":"実装済み"):c[k];
     if(!vals.includes(v))return false;}
   return true;
 }
@@ -1197,6 +1202,15 @@ const cfCount=st=>Object.values((st||CFS.chars).sel).reduce((a,v)=>a+v.length,0)
 function cfBar(k){const st=CFS[k],n=cfCount(st);
   return {btn:`<button class="btn primary small cfbtn" data-cfopen="${k}">▼ 絞り込み${n?` <b>${n}</b>`:""}</button>`,
     chips:n?`<div class="chips cfactive">${Object.entries(st.sel).flatMap(([kk,vs])=>vs.map(v=>`<button class="chip" data-cfrm="${k}|${esc(kk)}|${esc(v)}" aria-pressed="true">${esc(v)} ✕</button>`)).join("")}<button class="chip" data-cfact="resetlist" data-cfctx="${k}">すべて解除</button></div>`:""};}
+/* 一覧の上のワンタップ絞り込み（アイコンだけ1行。スマホは横にスクロール）。押すと絞り込みダイアログと同じ条件が付く */
+function qbarChars(){const s=CFS.chars.sel,on=(k,v)=>(s[k]||[]).includes(v);
+  const b=(k,v,inner,cls)=>`<button class="qb ${cls||""}" data-qf="${esc(k)}|${esc(v)}" aria-pressed="${on(k,v)}" title="${esc(v)}${k==="babel"?"（"+BABELGRP[v].join("・")+"）":""}">${inner}</button>`;
+  return `<div class="qbar">${ROLES.filter(r=>r!=="ワイルド").map(r=>b("role",r,ic(r)||esc(ROLE_SHORT[r]||r))).join("")}<i class="qsep"></i>${ORDERS.map(o=>b("order",o,ic(o,"ord")||esc(o.slice(0,2)))).join("")}<i class="qsep"></i>${["アナザー","リビルド"].map(v=>b("babel",v,esc(v),"qtxt")).join("")}</div>`;}
+function qbarScripts(){const st=tstate.scripts;const rs=[...new Set(ROLES.concat(SC.some(x=>x.role==="ワイルド")?["ワイルド"]:[]))];
+  return `<div class="qbar">${rs.map(r=>`<button class="qb${ic(r)?"":" qtxt"}" data-qsrole="${esc(r)}" aria-pressed="${st.role===r}" title="${esc(r)}">${ic(r)||esc(r)}</button>`).join("")}</div>`;}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-qf],[data-qsrole]");if(!b)return;const ds=b.dataset;
+  if(ds.qf){const i=ds.qf.indexOf("|"),k=ds.qf.slice(0,i),v=ds.qf.slice(i+1);const a=CFS.chars.sel[k]||(CFS.chars.sel[k]=[]);const j=a.indexOf(v);if(j>=0)a.splice(j,1);else{if(k==="babel")a.length=0;a.push(v);}renderChars();return;}
+  if(ds.qsrole){tstate.scripts.role=tstate.scripts.role===ds.qsrole?null:ds.qsrole;renderScripts();}});
 function cfRerender(k){if(k==="tier")renderTier();else if(k==="rank")renderRank();else renderChars();}
 function cfToggle(k,v){const a=CF.sel[k]||(CF.sel[k]=[]);const i=a.indexOf(v);if(i>=0)a.splice(i,1);else a.push(v);}
 function cfDialogHtml(){
@@ -1232,9 +1246,9 @@ document.addEventListener("click",e=>{
 document.addEventListener("change",e=>{if(e.target.id==="cfAll"){CF.tagAll=e.target.checked;setDlg("cfBody",cfDialogHtml());}});
 /* ---------- 並び替え（ゲーム内と同じく ①②の2段階。キャラ・スクリプト共通）---------- */
 const SORTDEF={
-  chars:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["no","No順",1],["role","ロール順",1],["attr","属性順",1],["name","名前順",1]],
+  chars:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["order","騎士団順",1],["no","No順",1],["role","ロール順",1],["attr","属性順",1],["name","名前順",1]],
   scripts:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["role","ロール順",1],["name","名前順",1]]};
-const SORTS={chars:[{k:"no",dir:1},null],scripts:[{k:"rar",dir:-1},null]};
+const SORTS={chars:[{k:"order",dir:1},{k:"name",dir:1}],scripts:[{k:"rar",dir:-1},null]};
 const SORTCOL={chars:{hp:["完凸 HP","Lv200 HP"],atk:["完凸 攻撃力","Lv200 攻撃力"],pdef:["物理防御"],sdef:["特殊防御"],no:["No"]},scripts:{hp:["完凸 HP","Lv200 HP"],atk:["完凸 攻撃力","Lv200 攻撃力"],pdef:["物理防御"],sdef:["特殊防御"]}};
 function sortLabel(kind,k){if(!k)return "—";if(k.startsWith("col:")){const d=data(kind);return d.headers[+k.slice(4)]||"";}const x=SORTDEF[kind].find(([a])=>a===k);return x?x[1]:k;}
 function sortVal(kind,x,k){
@@ -1245,7 +1259,9 @@ function sortVal(kind,x,k){
   if(k==="date")return x.date||null;
   if(k==="role"){const i=ROLES.indexOf(x.role);return i>=0?i:x.role==="ワイルド"?ROLES.length:null;}
   if(k==="attr"){const i=ATTRS.indexOf(x.attr);return i>=0?i:null;}
-  if(k==="name")return x.name||null;
+  if(k==="order"){const i=ORDERS.indexOf(x.order);return i>=0?i:null;}
+  // キャラの名前順は、キャラ本人（騎士のふりがな）→ スタイル の順（「スペース トロイメライ」もトロイメライの所に並ぶ）
+  if(k==="name")return kind==="chars"&&x.base?((PMAP[x.base]&&PMAP[x.base].kana)||x.base)+"\u0001"+(x.style==="DEFAULT"?"":x.style||""):x.name||null;
   return null;
 }
 function sortList(kind,list){
@@ -1462,7 +1478,7 @@ function renderSum(){
 function badge(t){const i=TIERS.indexOf(t);return `<span class="badge" style="background:${TCOL[i]||"var(--line)"}">${esc(t)}</span>`;}
 
 /* ---------- chars table ---------- */
-const CORE=["キャラ名","騎士団","階級","スタイル","属性","ダメージタイプ","ロール","実装日","完凸 HP","完凸 攻撃力","攻撃速度","初期コスト","スキル名","スキルクールタイム","BLADE名","BLADEゲージ","特性名称"];
+const CORE=["キャラ名","騎士団","階級","スタイル","ロール","属性","ダメージタイプ","実装日","完凸 HP","完凸 攻撃力","攻撃速度","初期コスト","スキル名","スキルクールタイム","BLADE名","BLADEゲージ","特性名称"];
 function renderChars(){
   const d=data("chars");if(!d.rows.length){main.innerHTML=emptyBlock("chars");return;}
   const st=tstate.chars;
@@ -1476,6 +1492,7 @@ function renderChars(){
   <span class="tbright">${sortBar("chars")}<button class="btn small" data-sortopen="chars">⇅ 並び替え</button>${cfb.btn}
   <span class="viewsw"><button data-cview="card" aria-pressed="${card}">カード</button><button data-cview="table" aria-pressed="${!card}">表</button></span></span>
   ${cfb.chips}
+  ${qbarChars()}
   ${card?"":`<button class="btn small" data-act="allcols">${st.all?"主要な列だけ表示":"全部の列を表示"}</button>`}</div>`;
   if(card){main.innerHTML=h+(list.length?`<div class="ccards">${list.map(charCard).join("")}</div>`:'<div class="empty"><h2>該当するキャラがいません</h2></div>')+`<p class="hint">カードをタップすると詳細が見られます。「表」に切り替えると、ステータスなどを一覧で比べられます。</p>`;
     const tq=document.getElementById("tq");liveInput(tq,()=>{st.q=tq.value;const p=tq.selectionStart;renderChars();const n=document.getElementById("tq");n.focus();n.setSelectionRange(p,p);});return;}
@@ -1511,7 +1528,8 @@ function renderScripts(){
   let h=`<div class="toolbar"><h2><small>SCRIPTS</small>スクリプト</h2><input class="search" id="sq" placeholder="名前・効果・条件で検索" value="${esc(st.q)}"><span class="count">${list.length} / ${SC.length}</span>
   <span class="tbright">${sortBar("scripts")}<button class="btn small" data-sortopen="scripts">⇅ 並び替え</button><button class="btn primary small cfbtn" data-sfopen>▼ 絞り込み${sfActive().length?` <b>${sfActive().length}</b>`:""}</button>
   <span class="viewsw"><button data-sview="card" aria-pressed="${st.view!=="table"}">カード</button><button data-sview="table" aria-pressed="${st.view==="table"}">表</button></span></span>
-  ${sfActive().length?`<div class="chips cfactive">${sfActive().map(([k,v])=>`<button class="chip" data-sfrm="${k}" aria-pressed="true">${esc(v)} ✕</button>`).join("")}</div>`:""}</div>
+  ${sfActive().length?`<div class="chips cfactive">${sfActive().map(([k,v])=>`<button class="chip" data-sfrm="${k}" aria-pressed="true">${esc(v)} ✕</button>`).join("")}</div>`:""}
+  ${qbarScripts()}</div>
 `;
   if(st.view!=="table"){main.innerHTML=h+(list.length?`<div class="ccards">${list.map(scriptCard).join("")}</div>`:'<div class="empty"><h2>該当するスクリプトがありません</h2></div>')+`<p class="hint">カードをタップすると、詳細と条件に合うキャラが見られます。「表」に切り替えると、ステータスや効果を一覧で比べられます。</p>`;
     const sq=document.getElementById("sq");liveInput(sq,()=>{st.q=sq.value;const p=sq.selectionStart;renderScripts();const n=document.getElementById("sq");n.focus();n.setSelectionRange(p,p);});return;}
@@ -1541,6 +1559,10 @@ function openScript(i){
   const used=new Set(["名前","ロール","レアリティ","実装日","実装","限定","スキル1効果","条件2","スキル2効果","条件3","スキル3効果",...stats]);
   const rest=d.headers.map((n,k)=>[n,k]).filter(([n,k])=>!used.has(n)&&(s.row[k]||"").trim());
   if(rest.length)h+=`<h3>その他</h3><dl class="lv">${rest.map(([n,k])=>`<dt>${esc(n)}</dt><dd>${esc(s.row[k])}</dd>`).join("")}</dl>`;
+  {const d2=data("chars");const ci=(n)=>d2.headers.indexOf(n);const has=(c,n)=>{const i=ci(n);return i>=0&&String(c.row[i]||"").split(/\n/).map(x=>x.trim()).includes(s.name);};
+   const mo=CH.filter(c=>has(c,"持ちスク")),rc=CH.filter(c=>has(c,"おすすめスクリプト")&&!mo.includes(c));
+   const cl=l=>`<div class="mini">${l.map(c=>`<button data-detail="${esc(c.id)}" class="scard">${IMG[c.id]?`<img class="th" src="${IMG[c.id]}" alt="">`:""}<b class="sn">${esc(c.name)}</b></button>`).join("")}</div>`;
+   if(mo.length)h+=`<h3>このスクリプトが持ちスクのキャラ</h3>${cl(mo)}`;if(rc.length)h+=`<h3>このスクリプトをおすすめしているキャラ</h3>${cl(rc)}`;}
   if(s.conds.length){
     const m=CH.map(c=>Object.assign({c},scMatch(s,c))).filter(x=>x.n>0).sort((a,b)=>(b.roleOk-a.roleOk)||b.n-a.n||b.c.date-a.c.date);
     h+=`<h3>条件に合うキャラ（${m.filter(x=>x.roleOk).length}）</h3><p class="hint" style="margin:0 0 6px">薄く表示されているキャラはロールが違います。</p><div class="mini">${m.slice(0,24).map(x=>`<button data-detail="${esc(x.c.id)}" class="scard ${x.roleOk?"":"dim"}">${IMG[x.c.id]?`<img class="th" src="${IMG[x.c.id]}" alt="">`:""}<b class="sn">${esc(x.c.name)}</b><span class="eff">${ic(x.c.role)} ${x.n}条件</span></button>`).join("")||'<span class="count">該当なし</span>'}</div>`;
@@ -1652,6 +1674,10 @@ function openChar(id){
    if(sg||wk)h+=`<div class="sw">${sg?`<div class="sw-s"><b>強いところ</b><p>${esc(sg).replace(/\n/g,"<br>")}</p></div>`:""}${wk?`<div class="sw-w"><b>弱いところ</b><p>${esc(wk).replace(/\n/g,"<br>")}</p></div>`:""}</div>`;}
   take("効果タグ");if(c.tags.length)h+=`<div class="ctags">${c.tags.map(t=>`<button class="chip" data-tagfilter="${esc(t)}" title="この効果を持つキャラを一覧で見る">${esc(t)}</button>`).join("")}</div>`;
   h+=synergyHtml(c,take("おすすめセット"));
+  /* 持ちスク（そのキャラ用に実装されたスクリプト）・おすすめスクリプト（運営が選んだもの） */
+  {const nm=n=>String(v(n)||"").split(/\n/).map(x=>x.trim()).filter(Boolean);const mo=nm("持ちスク"),rc=nm("おすすめスクリプト").filter(x=>!mo.includes(x));take("持ちスク");take("おすすめスクリプト");
+   const list=ns=>`<div class="mini">${ns.map(n=>{const s=SC.find(x=>x.name===n);return s?scard(s,c):`<span class="scard">${esc(n)}</span>`;}).join("")}</div>`;
+   if(mo.length)h+=`<h3>持ちスク（${mo.length}）</h3>${list(mo)}`;if(rc.length)h+=`<h3>おすすめスクリプト（${rc.length}）</h3>${list(rc)}`;}
   ["No","キャラ名","ID","名前 ひらがな","キャラ","属性"].forEach(n=>used.add(n));
   ["完凸 HP","完凸 攻撃力","HP初期値","攻撃力初期値","Lv200 HP","Lv200 攻撃力","物理防御","特殊防御","攻撃速度","抵抗値","初期コスト","育成後コスト","再出撃コスト","再出撃時間(S)"].forEach(n=>used.add(n));
   {const col=n=>{const i=d.headers.indexOf(n);return CH.map(x=>i>=0?num(x.row[i]):null);};
@@ -2192,7 +2218,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=39");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=41");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }

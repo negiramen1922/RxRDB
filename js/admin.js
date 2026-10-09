@@ -14,11 +14,12 @@ const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["s
 // t: text / num / auto（自動で入る・編集不可） / floor（バベルの階層を選ぶ） / hide（フォームに出さない） / team（編成のキャラ6人） / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
 const SCHEMA = {
   chars: [
-    { g: "基本", f: [["キャラ", "people"], ["スタイル", "style"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["No", "auto"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定|周年限定"], ["実装", "sel:未実装"], ["実装日", "date"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["ロール", "opt:ロール"]] },
+    { g: "基本", note: "公開サイトのキャラ詳細と同じ並びです。ID・キャラ名・ひらがな・No は、キャラとスタイルを選ぶと自動で入ります。", f: [["No", "auto"], ["ID", "id"], ["キャラ名", "auto"], ["名前 ひらがな", "auto"], ["キャラ", "people"], ["スタイル", "style"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["属性", "opt:属性"], ["ダメージタイプ", "opt:ダメージタイプ"], ["実装日", "date"], ["実装", "sel:未実装"], ["限定", "sel:限定|周年限定"]] },
     { g: "騎士の設定から（自動）", note: "騎士団・階級・性別は「騎士」の設定がそのまま使われます。変えるときは騎士のほうを編集してください。", f: [["騎士団", "master"], ["階級", "master"], ["性別", "master"]] },
     { g: "強いところ・弱いところ", note: "キャラ詳細の上の方に表示されます。改行もそのまま出ます。", f: [["強いところ", "long"], ["弱いところ", "long"]] },
     { g: "効果タグ", note: "キャラ一覧の絞り込み（攻撃・防御・HP・その他）に使います。説明文から自動で付いたものに「自動」と出ます。チェックで追加・外すことができ、説明文を直すと自動の分も変わります。", f: [["効果タグ", "tags"]] },
     { g: "おすすめセット", note: "一緒に使うと相性の良いキャラ。何人でも追加でき、キャラごとにシナジーの説明を書けます。相手のキャラ詳細にも「このキャラをおすすめに挙げているキャラ」として出ます。", f: [["おすすめセット", "synergy"]] },
+    { g: "持ちスク・おすすめスクリプト", note: "持ちスク＝そのキャラ用に実装されたスクリプト、おすすめスクリプト＝持ちスク以外でも合うもの。スクリプト一覧から選びます（最初はこのキャラのロールとワイルドだけ）。キャラ詳細と、スクリプト詳細にも表示されます。", f: [["持ちスク", "scpick"], ["おすすめスクリプト", "scpick"]] },
     { g: "ステータス", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"], ["攻撃速度", "opt:攻撃速度"], ["抵抗値", "num"]] },
     { g: "コスト", f: [["初期コスト", "num"], ["育成後コスト", "num"], ["再出撃コスト", "num"], ["再出撃時間(S)", "num"]] },
     { g: "スキル", f: [["スキル名", "text"], ["スキルクールタイム", "num"], ["覚醒1 スキル効果", "long"], ["覚醒7 スキル効果", "long"], ["覚醒13 スキル効果", "long"]] },
@@ -26,7 +27,7 @@ const SCHEMA = {
     { g: "特性", f: [["特性名称", "text"], ["Lv1 特性効果", "long"], ["Lv3 特性効果", "long"], ["Lv5 特性効果", "long"], ["特性開放 ★4", "long"], ["特性開放 ★5", "long"]] },
   ],
   scripts: [
-    { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["限定", "sel:限定|周年限定"], ["実装", "sel:未実装"], ["ロール", "opt:ロール"], ["実装日", "date"]] },
+    { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"], ["実装", "sel:未実装"], ["限定", "sel:限定|周年限定"]] },
     { g: "ステータス", note: "スクリプトの Lv200 のステータスは星で変わりません。完凸（限界突破しきった状態）の値は分かるものだけ入れてください。", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
     { g: "スキル1", f: [["スキル1効果", "long"]] },
     { g: "スキル2", f: [["条件2", "cond"], ["スキル2効果", "long"]] },
@@ -732,6 +733,8 @@ function teamField(v) {
    スクリプトは、そのキャラと同じロール（とワイルド）のものだけを出す */
 const PK = { kind: "char", slot: 0, q: "", role: null, attr: null, all: false, syn: false, cp: null };
 const cpIds = f => String(ED.draft[f] || "").split(/[,、，\s]+/).filter(Boolean);
+// 持ちスク・おすすめスクリプト：スクリプト名を1行に1つ（名前に「、」などが入ることがあるので改行区切り）
+const scNames = v => String(v || "").split(/\n/).map(x => x.trim()).filter(Boolean);
 const scRoleOk = (id, sc) => { const c = R.CHMAP[id], s = R.SC.find(x => x.name === sc); return !c || !s || !s.role || !c.role || s.role === c.role || s.role === "ワイルド"; };
 let PKDLG = null;
 function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement("dialog"); PKDLG.id = "dlgPick"; PKDLG.className = "wide"; PKDLG.innerHTML = `<div class="dlg" id="pkBody"></div>`; document.body.appendChild(PKDLG);
@@ -747,6 +750,7 @@ function pickDialog() { if (PKDLG) return PKDLG; PKDLG = document.createElement(
 const knFaceOf = n => !n ? "" : (R.KN && R.KN[n]) || R.IMG[n + "_DEFAULT"] || R.CH.filter(c => c.base === n).map(c => R.IMG[c.id]).find(Boolean) || "";
 function openPick(kind, slot) { if (kind === "kn1") { PK.kind = "knight"; PK.field = slot; PK.syn = false; PK.cp = null; PK.q = ""; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
   if (kind === "boss1" || kind === "bossn") { PK.kind = "boss"; PK.multi = kind === "bossn"; PK.field = slot; PK.syn = false; PK.cp = null; PK.q = ""; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
+  if (kind === "scm") { PK.kind = "scm"; PK.field = slot; PK.syn = false; PK.cp = null; PK.q = ""; PK.all = false; PK.attr = null; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
   if (kind === "bossev") { PK.kind = "event"; PK.syn = false; PK.cp = null; PK.q = ""; PK.busy = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); return; }
   PK.syn = kind === "syn"; PK.cp = kind === "cp" ? slot : null; PK.kind = PK.syn || PK.cp ? "char" : kind; PK.slot = PK.cp ? -1 : slot === "new" ? -1 : +slot; PK.q = ""; PK.role = null; PK.attr = null; PK.all = false; const dl = pickDialog(); pickRender(); if (!dl.open) dl.showModal(); setTimeout(() => { const q = document.getElementById("pkQ"); if (q) q.focus(); }, 30); }
 function pickList() {
@@ -827,7 +831,8 @@ function pickRender() {
   const body = document.getElementById("pkBody"); if (!body) return;
   if (PK.kind === "event") { evPickRender(body); return; }
   if (PK.kind === "boss") { bossPickRender(body); return; }
-  if (PK.kind === "knight") { knPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
+  if (PK.kind === "knight") { knPickRender(body); return; }
+  if (PK.kind === "scm") { scmPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
   const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
       return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.cp ? "選択中" : PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
     : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
@@ -840,7 +845,28 @@ function pickRender() {
     <div class="formfoot"><span class="count">${PK.cp ? "カードを押すと追加、もう一度押すと外れます。" : "カードを押すと選ばれます。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
   const q = document.getElementById("pkQ"); R.liveInput(q, () => { PK.q = q.value; const p = q.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
 }
+/* 持ちスク・おすすめスクリプト：スクリプト一覧から複数選ぶ（最初はこのキャラのロールとワイルドだけ） */
+function scmPickRender(body) {
+  const role = String(ED.draft["ロール"] || "").trim(); const chosen = scNames(ED.draft[PK.field]); const q = PK.q.trim().toLowerCase();
+  let l = R.SC.filter(s => s.name);
+  if (role && !PK.all) l = l.filter(s => !s.role || s.role === role || s.role === "ワイルド");
+  if (PK.attr) l = l.filter(s => s.conds.includes(PK.attr));
+  if (q) l = l.filter(s => s.row.some(x => String(x || "").toLowerCase().includes(q)));
+  l = l.slice().sort((a, b) => (chosen.includes(b.name) ? 1 : 0) - (chosen.includes(a.name) ? 1 : 0) || ({ SSR: 3, SR: 2, R: 1 }[b.rar] || 0) - ({ SSR: 3, SR: 2, R: 1 }[a.rar] || 0) || b.date - a.date);
+  const cards = l.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name]; const sel = chosen.includes(s.name);
+    return `<button class="ccard scard2 pkcard${sel ? " pkused" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span>${sel ? '<span class="ccbadges"><span class="ccown">選択中</span></span>' : ""}</button>`; }).join("");
+  body.innerHTML = `<div class="pkhead"><h2>スクリプトを選ぶ<small class="count">（${esc(PK.field)}：${chosen.length}件）</small></h2><input class="search" id="pkQ" placeholder="名前・効果・条件で検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
+    <div class="pkfil">${role ? `<span class="count">このキャラは <b>${R.ic(role)}${esc(role)}</b> なので、${esc(role)}（とワイルド）のスクリプトを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : '<span class="count">ロールが未入力なので、すべてのスクリプトを出しています。</span>'}<div class="chips">${R.ATTRS.map(a => `<button class="chip" data-pkattr="${esc(a)}" aria-pressed="${PK.attr === a}">${R.ic(a)}条件：${esc(a)}</button>`).join("")}</div></div>
+    <div class="pkgrid"><div class="ccards">${cards || '<p class="count">該当するスクリプトがありません</p>'}</div></div>
+    <div class="formfoot"><span class="count">カードを押すと追加、もう一度押すと外れます。</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
+  const qi = document.getElementById("pkQ"); R.liveInput(qi, () => { PK.q = qi.value; const p = qi.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
+}
 function pickApply(v) {
+  if (PK.kind === "scm") {
+    const l = scNames(ED.draft[PK.field]); const i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v);
+    ED.draft[PK.field] = l.join("\n"); ED.dirty = true; ED.leaveOk = false; renderForm();
+    const g = PKDLG.querySelector(".pkgrid"), y = g ? g.scrollTop : 0; pickRender(); const g2 = PKDLG.querySelector(".pkgrid"); if (g2) g2.scrollTop = y; return;
+  }
   if (PK.kind === "event") { toggleBossEvent(v); return; }
   if (PK.kind === "knight") { ED.draft[PK.field] = v; ED.dirty = true; ED.leaveOk = false; PKDLG.close(); renderForm(); return; }
   if (PK.kind === "boss") {
@@ -1090,6 +1116,10 @@ function fieldHtml(name, type, i, both) {
     inner = `<select id="${id}" data-floorsel="1"><option value="">（階層・封印戦を選択）</option>${fs.map(x => `<option value="${esc(x.key)}" ${x.key === cur ? "selected" : ""}>${esc(x.label)}</option>`).join("")}${cur.replace("|", "") && !fs.some(x => x.key === cur) ? `<option value="${esc(cur)}" selected>${esc(teamPlace(...cur.split("|")))}（見つかりません）</option>` : ""}</select>`;
   } else if (type === "tags") {
     cls += " long"; inner = tagField(v);
+  } else if (type === "scpick") {
+    cls += " long"; const ns = scNames(v);
+    inner = `<div class="cpchips">${ns.map(n => { const s = R.SC.find(x => x.name === n); return `<span class="cpchip">${R.SIMG[n] ? `<img src="${esc(R.SIMG[n])}" alt="">` : ""}${esc(n)}${!s ? ' <small class="err">見つからない</small>' : ""}<button class="cprm" data-scrm="${esc(name)}|${esc(n)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだありません</span>'}</div>
+      <div class="addcol"><button class="btn small" data-pkopen="scm|${esc(name)}">スクリプトを選ぶ</button></div>`;
   } else if (type === "synergy") {
     cls += " long"; inner = synField(name, v);
   } else if (type === "team") {
@@ -2299,7 +2329,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-pkopen],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-pkopen],[data-scrm],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2318,6 +2348,7 @@ function onAdminClick(e) {
     const sealT = ED.k === "seals"; const t = sealT ? "封印戦" : ED.base["バベル種類"], f = sealT ? String(ED.base["封印戦名"] || "").trim() : ED.base["階層"]; ED.k = "teams"; resetEd(); edAction("new"); ED.draft["バベル種類"] = t; ED.draft["階層"] = f; renderForm(); return;
   }
   if (ds.pkopen) { const [k, i] = ds.pkopen.split("|"); openPick(k, i); return; }
+  if (ds.scrm) { const i = ds.scrm.indexOf("|"), f = ds.scrm.slice(0, i), n = ds.scrm.slice(i + 1); ED.draft[f] = scNames(ED.draft[f]).filter(x => x !== n).join("\n"); ED.dirty = true; ED.leaveOk = false; renderForm(); return; }
   if (ds.synadd) { const rows = synRows(ED.draft["おすすめセット"]); rows.push({ id: "?", t: "" }); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); const ins = document.querySelectorAll('#edBody [data-syn$="|id"]'); if (ins.length) { ins[ins.length - 1].value = ""; ins[ins.length - 1].focus(); } return; }
   if (ds.synrm !== undefined) { const rows = synRows(ED.draft["おすすめセット"]); rows.splice(+ds.synrm, 1); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); return; }
   if (ds.tmclear !== undefined) { const sl = teamSlots(ED.draft["メンバー"]); sl[+ds.tmclear] = { id: "", star: "", sc: "" }; ED.draft["メンバー"] = slotsStr(sl); ED.dirty = true; renderForm(); return; }
