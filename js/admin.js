@@ -55,7 +55,7 @@ const SCHEMA = {
     { g: "基本", f: [["名前", "text"], ["よみ", "text"], ["説明", "long"]] },
   ],
   events: [
-    { g: "基本", f: [["イベント名", "text"], ["開始日", "date"], ["終了日", "date"]] },
+    { g: "基本", f: [["イベント名", "text"], ["開始日", "date"], ["終了日", "date"], ["復刻", "sel:復刻|常設"]] },
     { g: "実装キャラ", f: [["実装キャラID", "charpick"]] },
     { g: "登場ボス", f: [["登場ボス", "bosspick"]] },
     { g: "説明", f: [["説明", "long"]] },
@@ -290,7 +290,7 @@ function derive(k) {
 const seeded = k => T[k].hdrExists && T[k].rowsReady;
 const allReady = () => TABLES.every(k => T[k].hdrReady && T[k].rowsReady);
 function tableChanged(k) {
-  if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel" || k === "teams" || k === "seals" || k === "people")) { R.setLive(k, publicData(k)); R.rebuild(); }
+  if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel" || k === "teams" || k === "seals" || k === "people" || k === "events" || k === "bosses")) { R.setLive(k, publicData(k)); R.rebuild(); }
   // 新しく増えた表（編成例など）は、ほかの表が登録済みなら空の表を自動で作る
   if (T[k].hdrReady && T[k].rowsReady && !T[k].hdrExists && seeded("babel") && !AUTOHDR[k]) { AUTOHDR[k] = true; staticJson(`data/${k}.json`).then(d => F.setDoc(F.doc(F.db, "tables", k), { headers: d.headers, t: now(), by: meId() }, { merge: true })).catch(e => { AUTOHDR[k] = false; console.warn(e); }); }
   if (k === "people" && seeded("chars")) { R.setLive("chars", publicData("chars")); R.rebuild(); maybePublish("chars"); }
@@ -376,7 +376,7 @@ async function publish(k, force) {
 }
 /* ---- public/all：公開サイトが読む データ一式（1回の読み取りで済ませ、Firestore の無料枠を節約する） ----
    public/{chars,scripts,babel,teams,seals,crops,options,news,tiers} の json をまとめたもの。どれかが変わるたびに作り直す */
-const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "people", "crops", "options", "news", "tiers", "guide"];
+const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "people", "events", "bosses", "crops", "options", "news", "tiers", "guide"];
 const PUBRAW = {};       // k -> public/{k} の json（文字列）。ドキュメントがなければ null
 let ALLSIG;              // public/all の sig（undefined = まだ読んでいない）
 const BUNDLE = { t: null, pending: false, busy: false, failed: false };
@@ -623,7 +623,7 @@ function customList(k) {
     const list = [...T.people.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
     return `<div class="toolbar"><h2><small>KNIGHTS</small>騎士</h2><input class="search" id="clq" placeholder="名前・騎士団などで検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.people.rows.size}</span></div>
     <p class="hint" style="margin:-6px 0 12px">スタイルに関係なく、そのキャラ自身の情報です。ここの騎士団・階級・性別が、各スタイルのキャラデータに自動で使われます。</p>
-    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = R.KN[c["名前"]] || R.IMG[`${c["名前"]}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean);
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = R.IMG[`${c["名前"]}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean) || R.KN[c["名前"]];
       const who = othersOn("people", r.id);
       return `<button class="pcard" data-adrow="${esc(r.id)}">${face ? `<img src="${esc(face)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b><small>${esc(c["ふりがな"] || "")}</small>
       <span class="ptags">${c["騎士団"] ? `<span>${R.ic(c["騎士団"], "ord")}${esc(c["騎士団"])}</span>` : '<span class="miss">騎士団未設定</span>'}${c["階級"] ? `<span>${R.ic(c["階級"])}${esc(c["階級"])}</span>` : ""}${c["性別"] ? `<span>${esc(c["性別"])}</span>` : ""}${c["誕生日"] ? `<span>🎂${esc(c["誕生日"])}</span>` : ""}</span>
@@ -771,7 +771,7 @@ function evPickRender(body) {
   const l = q ? rows.filter(r => String(r.c["イベント名"] || "").toLowerCase().includes(q)) : rows;
   const on = r => splitList(r.c["登場ボス"]).some(b => bnorm(b) === bnorm(boss));
   const cards = l.map(r => { const n = r.c["イベント名"] || ""; const img = R.EVTF[n] || R.EVT[n]; const sel = on(r);
-    return `<button class="ccard scard2 pkcard${sel ? " pkused" : ""}" data-pk="${esc(r.id)}" ${PK.busy ? "disabled" : ""}>${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n || "(名前なし)")}</b><small>${esc(fmtD(r.c["開始日"]))}${r.c["終了日"] ? " 〜 " + esc(fmtD(r.c["終了日"])) : ""}</small></span>${sel ? '<span class="ccbadges"><span class="ccown">登場</span></span>' : ""}</button>`; }).join("");
+    return `<button class="ccard scard2 pkcard${sel ? " pkused" : ""}" data-pk="${esc(r.id)}" ${PK.busy ? "disabled" : ""}>${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n || "(名前なし)")}</b><small>${esc(fmtD(r.c["開始日"]))}${r.c["終了日"] ? " 〜 " + esc(fmtD(r.c["終了日"])) : ""}</small></span>${sel ? '<span class="ccbadges"><span class="ccown">登場</span></span>' : ""}</button>`; }).join("");
   body.innerHTML = `<div class="pkhead"><h2>登場イベントを選ぶ<small class="count">（${esc(boss)}：${rows.filter(on).length}件）</small></h2><input class="search" id="pkQ" placeholder="イベント名で検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">イベントがありません</p>'}</div></div>
     <div class="formfoot"><span class="count">${PK.busy ? "保存中…" : "カードを押すと、そのイベントの「登場ボス」に追加（もう一度押すと外す）して、すぐ保存します。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
@@ -805,7 +805,7 @@ function bossPickRender(body) {
   const all = rowsOf("bosses").filter(b => b["名前"]);
   const l = q ? all.filter(b => (String(b["名前"]) + String(b["よみ"] || "")).toLowerCase().includes(q)) : all;
   const cards = l.map(b => { const n = b["名前"]; const img = R.BOSSF[n] || R.BOSS[n]; const sel = chosen.includes(bnorm(n));
-    return `<button class="ccard scard2 pkcard${sel ? (PK.multi ? " pkused" : " pkcur") : ""}" data-pk="${esc(n)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n)}</b>${b["よみ"] ? `<small>${esc(b["よみ"])}</small>` : ""}</span>${sel ? `<span class="ccbadges"><span class="ccown">${PK.multi ? "選択中" : "いまのボス"}</span></span>` : ""}</button>`; }).join("");
+    return `<button class="ccard scard2 pkcard${sel ? (PK.multi ? " pkused" : " pkcur") : ""}" data-pk="${esc(n)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n)}</b>${b["よみ"] ? `<small>${esc(b["よみ"])}</small>` : ""}</span>${sel ? `<span class="ccbadges"><span class="ccown">${PK.multi ? "選択中" : "いまのボス"}</span></span>` : ""}</button>`; }).join("");
   body.innerHTML = `<div class="pkhead"><h2>ボスを選ぶ<small class="count">（${esc(PK.field)}）</small></h2><input class="search" id="pkQ" placeholder="名前・よみで検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">ボスが登録されていません（「ボス」で追加できます）</p>'}</div></div>
     <div class="formfoot"><span class="count">${PK.multi ? "カードを押すと追加、もう一度押すと外れます。" : "カードを押すと選ばれます。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
@@ -817,7 +817,7 @@ function knPickRender(body) {
   const all = rowsOf("people").filter(p => p["名前"]);
   const l = q ? all.filter(p => (String(p["名前"]) + String(p["ふりがな"] || "") + String(p["騎士団"] || "")).toLowerCase().includes(q)) : all;
   const cards = l.map(p => { const n = p["名前"]; const img = (R.KNF && R.KNF[n]) || knFaceOf(n); const sel = n === cur;
-    return `<button class="ccard pkcard${sel ? " pkcur" : ""}" data-pk="${esc(n)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${p["騎士団"] ? R.ic(p["騎士団"], "ord") : ""}${p["階級"] ? R.ic(p["階級"]) : ""}</span><span class="ccname"><b>${esc(n)}</b>${p["騎士団"] ? `<small>${esc(p["騎士団"])}</small>` : ""}</span>${sel ? '<span class="ccbadges"><span class="ccown">いまのキャラ</span></span>' : ""}</button>`; }).join("");
+    return `<button class="ccard pkcard${sel ? " pkcur" : ""}" data-pk="${esc(n)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${p["騎士団"] ? R.ic(p["騎士団"], "ord") : ""}${p["階級"] ? R.ic(p["階級"]) : ""}</span><span class="ccname"><b>${esc(n)}</b>${p["騎士団"] ? `<small>${esc(p["騎士団"])}</small>` : ""}</span>${sel ? '<span class="ccbadges"><span class="ccown">いまのキャラ</span></span>' : ""}</button>`; }).join("");
   body.innerHTML = `<div class="pkhead"><h2>キャラを選ぶ<small class="count">（${esc(PK.field)}）</small></h2><input class="search" id="pkQ" placeholder="名前・ふりがな・騎士団で検索" value="${esc(PK.q)}"><span class="count">${l.length}人</span></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">騎士が登録されていません（「騎士」で追加できます）</p>'}</div></div>
     <div class="formfoot"><span class="count">カードを押すと選ばれます。</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
@@ -829,9 +829,9 @@ function pickRender() {
   if (PK.kind === "boss") { bossPickRender(body); return; }
   if (PK.kind === "knight") { knPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
   const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
-      return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.cp ? "選択中" : PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
+      return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.cp ? "選択中" : PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
     : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
-      return `<button class="ccard scard2 pkcard${s.name === L.cur.sc ? " pkcur" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${encodeURI(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span></button>`; }).join("");
+      return `<button class="ccard scard2 pkcard${s.name === L.cur.sc ? " pkcur" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span></button>`; }).join("");
   const head = isC ? `<div class="chips">${R.ROLES.map(r => `<button class="chip" data-pkrole="${esc(r)}" aria-pressed="${PK.role === r}">${R.ic(r)}${esc(r)}</button>`).join("")}</div>`
     : (L.c && L.c.role ? `<span class="count">${esc(L.c.name)} は <b>${R.ic(L.c.role)}${esc(L.c.role)}</b> なので、${esc(L.c.role)}（とワイルド）のスクリプトだけを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : "");
   body.innerHTML = `<div class="pkhead"><h2>${isC ? "キャラを選ぶ" : "スクリプトを選ぶ"}<small class="count">${PK.cp ? `（${esc(PK.cp)}：${cpIds(PK.cp).length}人）` : PK.syn ? "（おすすめセット）" : `（${PK.slot + 1}人目）`}</small></h2><input class="search" id="pkQ" placeholder="${isC ? "名前・ひらがなで検索" : "名前・効果・条件で検索"}" value="${esc(PK.q)}"><span class="count">${L.items.length}件</span></div>
