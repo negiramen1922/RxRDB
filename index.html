@@ -1014,7 +1014,14 @@ function renderNav(){
 document.querySelectorAll("#userTabs [data-top]").forEach(b=>b.addEventListener("click",()=>{const top=b.dataset.top;goSub(top==="home"?"home":LASTSUB[top]||TOPS[top][0][0]);}));
 document.getElementById("subTabs").addEventListener("click",e=>{const b=e.target.closest("[data-sub]");if(b)goSub(b.dataset.sub);});
 function goSub(k){if(k.startsWith("rank:")){const t=k.slice(5);if(RK.t!==t){RK.t=t;RK.stat=RKDEF[t][0][0];RK.dir=RKDEF[t][0][2];RK.focus=null;RK.role=null;RK.rar=null;RK.attr=null;}switchTab("rank");}else switchTab(k);}
-function switchTab(t){track("tab",{tab:t});tab=t;sel=null;HEROKEY=null;if(!HOMETABS.includes(t)){S.lastTab=t==="rank"?"rank:"+RK.t:t;save();}render();window.scrollTo(0,0);}
+let NAVSEQ=0;   // ページを移るたびに +1（ダイアログを閉じたときのスクロール位置の復元を止めるため）
+function switchTab(t){track("tab",{tab:t});NAVSEQ++;tab=t;sel=null;HEROKEY=null;if(!HOMETABS.includes(t)){S.lastTab=t==="rank"?"rank:"+RK.t:t;save();}render();window.scrollTo(0,0);}
+/* 詳細などのダイアログを閉じたら、開く前のスクロール位置に戻す（iPhone の Safari は閉じたときにページの一番上へ飛ぶため）。
+   閉じると同時に別のページへ移るとき（NAVSEQ が変わったとき）は戻さない */
+(function(){const D=window.HTMLDialogElement;if(!D)return;const sm=D.prototype.showModal;
+  D.prototype.showModal=function(){if(!this.open&&!document.querySelector("dialog[open]")){this._sy=window.scrollY;this._sx=window.scrollX;this._nav=NAVSEQ;}return sm.apply(this,arguments);};
+  document.addEventListener("close",e=>{const d=e.target;if(!d||d.tagName!=="DIALOG"||d._sy==null)return;const y=d._sy,x=d._sx,n=d._nav;d._sy=null;
+    const fix=()=>{if(NAVSEQ===n&&Math.abs(window.scrollY-y)>2)window.scrollTo(x,y);};fix();requestAnimationFrame(fix);setTimeout(fix,80);setTimeout(fix,250);},true);})();
 /* 日本語入力（IME）の変換中は再描画しない */
 function liveInput(el,fn){if(!el)return;el.addEventListener("input",e=>{if(e.isComposing||el._comp)return;fn();});el.addEventListener("compositionstart",()=>{el._comp=true;});el.addEventListener("compositionend",()=>{el._comp=false;fn();});}
 let main=document.getElementById("main");
@@ -1240,7 +1247,7 @@ function openCharFilter(){const dl=document.getElementById("dlgCF");document.get
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-cf],[data-cftab],[data-cfact],[data-cfopen],[data-cfrm],[data-tagfilter]");if(!b)return;const ds=b.dataset;
   if(ds.cfopen!==undefined){cfCtx(ds.cfopen||"chars");openCharFilter();return;}
-  if(ds.tagfilter){cfCtx("chars");CF.sel={tags:[ds.tagfilter]};const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();if(tab!=="chars")goSub("chars");else renderChars();return;}
+  if(ds.tagfilter){cfCtx("chars");CF.sel={tags:[ds.tagfilter]};const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();NAVSEQ++;if(tab!=="chars")switchTab("chars");else{renderChars();window.scrollTo(0,0);}return;}
   if(ds.cfrm){const [x,k,...v]=ds.cfrm.split("|");cfCtx(x);cfToggle(k,v.join("|"));cfRerender(x);return;}
   if(ds.cfact==="resetlist"){const x=ds.cfctx||"chars";CFS[x].sel={};cfRerender(x);return;}
   if(ds.cftab){CF.tab=ds.cftab;}
