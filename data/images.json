@@ -956,7 +956,8 @@
   "風雅": "images/knights/風雅.webp",
   "クオン": "images/knights/クオン.webp",
   "プロブレム": "images/knights/プロブレム.webp",
-  "シオン": "images/knights/シオン.webp"
+  "シオン": "images/knights/シオン.webp",
+  "ブルー": "images/knights/ブルー.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -965,6 +966,7 @@
   "風雅": "images/knights/thumb/風雅.webp",
   "クオン": "images/knights/thumb/クオン.webp",
   "プロブレム": "images/knights/thumb/プロブレム.webp",
-  "シオン": "images/knights/thumb/シオン.webp"
+  "シオン": "images/knights/thumb/シオン.webp",
+  "ブルー": "images/knights/thumb/ブルー.webp"
  }
 }
