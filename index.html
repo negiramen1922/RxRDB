@@ -1467,11 +1467,42 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{if(e.target.id==="sfcond"){sfS().cond=e.target.value;setDlg("sfBody",sfDialogHtml());}});
 /* ---------- tier view ---------- */
+/* Tier表の描き直し：中身が同じなら何もしない。変わったところだけ差し替え、キャラのアイコン（data-id）は同じ要素を使い回す。
+   全部を innerHTML で作り直すと、保存や他の人の操作のたびに画像が読み直されてチカチカするため */
+function morphNode(a,b){
+  if(a.nodeType!==b.nodeType||a.nodeName!==b.nodeName){a.replaceWith(b);return b;}
+  if(a.nodeType!==1){if(a.nodeValue!==b.nodeValue)a.nodeValue=b.nodeValue;return a;}
+  if(a.isEqualNode(b))return a;
+  [...a.attributes].forEach(x=>{if(!b.hasAttribute(x.name))a.removeAttribute(x.name);});
+  [...b.attributes].forEach(x=>{if(a.getAttribute(x.name)!==x.value)a.setAttribute(x.name,x.value);});
+  morphKids(a,b);return a;
+}
+function morphKids(a,b){
+  const key=n=>n.nodeType===1&&n.hasAttribute("data-id")?n.getAttribute("data-id"):null;
+  const old=[...a.childNodes],keyed=new Map(),used=new Set();old.forEach(n=>{const k=key(n);if(k!=null&&!keyed.has(k))keyed.set(k,n);});
+  const nb=[...b.childNodes];
+  nb.forEach((nn,i)=>{const k=key(nn);let c=null;
+    if(k!=null){const o=keyed.get(k);if(o&&!used.has(o))c=o;}else{const o=old[i];if(o&&key(o)==null&&!used.has(o))c=o;}
+    let node=nn;if(c){used.add(c);node=morphNode(c,nn);}
+    const ref=a.childNodes[i];if(ref!==node)a.insertBefore(node,ref||null);});
+  [...a.childNodes].slice(nb.length).forEach(n=>n.remove());
+}
+// 使い回した要素にイベントを重ねて付けないよう、付けた要素には _b の印を付ける
+function bindMemo(f){const m=document.getElementById("memo");if(!m)return;
+  if(m._fk!==f.key||document.activeElement!==m){const v=S.notes[f.key]||"";if(m.value!==v)m.value=v;}m._fk=f.key;
+  if(!m._b){m._b=1;m.addEventListener("input",()=>{const k=curFloor().key;S.notes[k]=m.value;save();});}}
+function patchMain(h){
+  // ほかの画面が innerHTML で書き換えていたら（先頭の要素が違う）、前回の内容は使わない
+  const mine=main._h!=null&&main._hf&&main._hf===main.firstElementChild&&main._hf.isConnected;
+  if(mine&&main._h===h)return false;
+  if(!mine){main.innerHTML=h;}else{const t=document.createElement(main.tagName);t.innerHTML=h;morphKids(main,t);}
+  main._h=h;main._hf=main.firstElementChild;return true;
+}
 function renderTier(){
   const seal=SEALCTX();
-  if(seal&&!SEALS.length){main.innerHTML=`<div class="empty"><h2>封印戦のデータがまだありません</h2><p>${MODE==="admin"?"上の「＋ 封印戦を追加」から登録できます。":"運営がデータを登録すると、ここに表示されます。"}</p></div>`;return;}
+  if(seal&&!SEALS.length){patchMain(`<div class="empty"><h2>封印戦のデータがまだありません</h2><p>${MODE==="admin"?"上の「＋ 封印戦を追加」から登録できます。":"運営がデータを登録すると、ここに表示されます。"}</p></div>`);return;}
   const all=ALLCTX();
-  if(!all&&!seal&&!FLOORS.some(x=>!x.seal)){main.innerHTML=emptyBlock("babel");return;}
+  if(!all&&!seal&&!FLOORS.some(x=>!x.seal)){patchMain(emptyBlock("babel"));return;}
   const f=curFloor();const P=place(f.key);
   let h=viewSeg();
   if(all){
@@ -1495,7 +1526,7 @@ function renderTier(){
   if(f.point)h+=`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`;
   if(f.comment)h+=`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`;
   h+=`<p class="note-h">自分用メモ</p><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など">${esc(S.notes[f.key]||"")}</textarea></div></div>${teamsHtml(f)}</div>`;
-  if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;main.innerHTML=h;return;}
+  if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;patchMain(h);return;}
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
   h+=`<details class="tcrit"${S.critOpen?" open":""}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(tdesc(t))}</dd></div>`).join("")}</dl></details>`;
   const placed=Object.keys(P).length;
@@ -1507,7 +1538,7 @@ function renderTier(){
     h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(tdesc(t))}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(e=>tile(e.c,f,fits,e)).join(""):`<span class="zhint">${esc(tdesc(t))}</span>`}</div></div>`;
   });
   h+=`</div>`;
-  if(!CANEDIT()){h+=`</section></div>`;main.innerHTML=h;const m=document.getElementById("memo");m.addEventListener("input",()=>{S.notes[f.key]=m.value;save();});return;}
+  if(!CANEDIT()){h+=`</section></div>`;patchMain(h);bindMemo(f);return;}
   const placedIds=new Set(entries(P).map(e=>e.id));
   let list=CH.filter(c=>!placedIds.has(c.id));
   if(pool.q){const q=pool.q.toLowerCase();list=list.filter(c=>(c.name+c.id).toLowerCase().includes(q));}
@@ -1522,11 +1553,10 @@ function renderTier(){
   </div><div class="zone${sel?" armed":""}" data-zone="" style="min-height:70px">${list.map(c=>ptile(c)).join("")||'<span class="count">ここに表示するキャラはいません</span>'}</div></div>
   <p class="hint">未配置のキャラは、解析データと推奨属性から出した「環境適性」の高い順に並んでいます（▲▼の数字は配置後のタイルに表示）。タップで選んで下のバーからTierを選択、PCはドラッグでも動かせます。Tierの中の左右の並びは、バーの◀▶か、タイルの間にドラッグして変えられます。ダブルクリックで詳細。</p>
   </section></div>`;
-  main.innerHTML=h;
-  const memo=document.getElementById("memo");
-  memo.addEventListener("input",()=>{S.notes[f.key]=memo.value;save();});
+  patchMain(h);
+  bindMemo(f);
   const pq=document.getElementById("poolQ");
-  liveInput(pq,()=>{pool.q=pq.value;const p=pq.selectionStart;renderTier();const nq=document.getElementById("poolQ");nq.focus();nq.setSelectionRange(p,p);});
+  if(pq&&!pq._b)pq._b=1,liveInput(pq,()=>{pool.q=pq.value;const p=pq.selectionStart;renderTier();const nq=document.getElementById("poolQ");nq.focus();nq.setSelectionRange(p,p);});
   bindDrag();
 }
 function fmtDay(t){const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;}
@@ -1555,11 +1585,11 @@ function moveTo(id,tier){
   if(TIER_HOOK)TIER_HOOK(fk,id,tier||"",prev);
 }
 function bindDrag(){
-  main.querySelectorAll(".tile").forEach(t=>{
+  main.querySelectorAll(".tile").forEach(t=>{if(t._b)return;t._b=1;
     t.addEventListener("dragstart",e=>{e.dataTransfer.setData("text/plain",t.dataset.id);t.classList.add("dragging");});
     t.addEventListener("dragend",()=>t.classList.remove("dragging"));
   });
-  main.querySelectorAll(".zone").forEach(z=>{
+  main.querySelectorAll(".zone").forEach(z=>{if(z._b)return;z._b=1;
     z.addEventListener("dragover",e=>{e.preventDefault();z.classList.add("over");});
     z.addEventListener("dragleave",()=>z.classList.remove("over"));
     z.addEventListener("drop",e=>{e.preventDefault();const id=e.dataTransfer.getData("text/plain");if(!id)return;const tier=z.dataset.zone;moveTo(id,tier);

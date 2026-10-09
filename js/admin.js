@@ -1943,15 +1943,17 @@ async function flushTier() {
   if (TIERQ.q.length) flushTier(); else { applyOfficial(); if (S.tab === "tier") softRender(); }
 }
 const TT = { confirm: null };
+// Tier表タブ上部の情報：内容が変わったときだけ書き換える（描き直しのチラつき防止）
+function setTierInfo() { const ti = document.getElementById("tierinfo"); if (!ti) return; const h = tierInfo(); if (ti._h !== h) { ti.innerHTML = h; ti._h = h; } }
 function renderTierTab(soft) {
   if (soft && document.getElementById("admtier")) {
     if (document.querySelector("#admtier .dragging") || (document.activeElement && document.activeElement.id === "poolQ")) return;
-    R.renderTier(); const ti = document.getElementById("tierinfo"); if (ti) ti.innerHTML = tierInfo(); return;
+    R.renderTier(); setTierInfo(); return;
   }
   document.getElementById("main").innerHTML = "";
   AM.innerHTML = userBar() + `<div id="tierinfo">${tierInfo()}</div><div id="admtier"></div>`;
   R.setTierEdit(true, onTierMove);
-  R.setMain(document.getElementById("admtier"), () => { if (S.tab === "tier") { R.renderTier(); const ti = document.getElementById("tierinfo"); if (ti) ti.innerHTML = tierInfo(); } });
+  R.setMain(document.getElementById("admtier"), () => { if (S.tab === "tier") { R.renderTier(); setTierInfo(); } });
   R.renderTier();
 }
 function tierInfo() {
