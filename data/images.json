@@ -274,7 +274,9 @@
   "JOKER": "images/icons/d87e694304.png",
   "衝撃": "images/icons/a837b13258.png",
   "爆発": "images/icons/4bb552e59f.png",
-  "破壊": "images/icons/b7c5c09578.png"
+  "破壊": "images/icons/b7c5c09578.png",
+  "限定": "images/icons/限定.png",
+  "周年限定": "images/icons/周年限定.png"
  },
  "sthumbs": {
   "鼓動天換": "images/scripts/thumb/鼓動天換.webp",
