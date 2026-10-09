@@ -489,18 +489,19 @@ dialog{overflow:auto;overscroll-behavior:contain}
 .knhead{display:flex;gap:14px;align-items:center;margin:0 0 10px}.knhead img{width:96px;height:96px;object-fit:cover}.knhead h2{margin:0}
 .knprof{white-space:pre-wrap;line-height:1.8}
 .knart{display:block;max-width:100%;max-height:70vh;margin:0 auto 10px;object-fit:contain}
-.evgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
-.evcard{display:flex;flex-direction:column;text-align:left;background:var(--panel);border:1px solid var(--line2);box-shadow:var(--shadow);padding:0;cursor:pointer;color:inherit;font:inherit;overflow:hidden}
-.evcard:hover{border-color:var(--accent)}.evimg{display:block;aspect-ratio:16/7;background:var(--soft) center/cover no-repeat}.evimg.none{background:linear-gradient(120deg,#0a1d42,#1b6fe0)}
+.evlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.evc{display:flex;flex-direction:column;text-align:left;background:var(--panel);border:1px solid var(--line2);box-shadow:var(--shadow);padding:0;cursor:pointer;color:inherit;font:inherit;overflow:hidden}
+.evc:hover{border-color:var(--accent)}/* 管理画面の .evimg/.evcard などと名前がぶつからないよう、公開サイトのイベント一覧は .evlist/.evc/.evart/.evcs */
+.evart{display:block;aspect-ratio:16/7;background:var(--soft) center/cover no-repeat}.evart.none{background:linear-gradient(120deg,#0a1d42,#1b6fe0)}
 .evtxt{display:flex;flex-direction:column;gap:3px;padding:8px 10px 10px}.evtxt b{font-size:15px;line-height:1.35}.evtxt small{color:var(--muted);font-size:12px}
-.evchars{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}.evchars img{width:30px;height:30px;object-fit:cover}
+.evcs{display:flex;gap:3px;flex-wrap:wrap;margin-top:3px}.evcs img{width:30px;height:30px;object-fit:cover}
 .evbs{display:flex;gap:4px;flex-wrap:wrap;min-height:0}.evb{display:inline-block;font-size:11px;font-weight:900;padding:1px 7px;border-radius:2px;color:#fff;letter-spacing:.05em}
 .evnow{background:linear-gradient(100deg,#e8414f,#ff8a3c)}.evsoon{background:#1a7bff}.evre{background:linear-gradient(100deg,#7b5cff,#c08bff)}.evperm{background:#13a07a}
 .evdate{margin:6px 0 10px;font-weight:700}.evboss{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px}
 .evbcard{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line2);padding:6px}
 .evbcard img,.evbcard .noimg{width:64px;height:64px;object-fit:cover;display:block;background:var(--soft)}.evbcard small{display:block;color:var(--muted);font-size:12px}.evfl{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
 .evrel{display:flex;gap:6px;flex-wrap:wrap}
-@media (max-width:620px){.evgrid{grid-template-columns:1fr}}
+@media (max-width:620px){.evlist{grid-template-columns:1fr}}
 .qbar{flex-basis:100%;display:flex;gap:4px;align-items:center;overflow-x:auto;scrollbar-width:thin;padding:2px 0 4px}
 .qb{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 4px;border:1px solid var(--line2);background:var(--panel);border-radius:4px;cursor:pointer;color:var(--accent-ink);font:inherit;font-weight:900;font-size:12.5px}
 .qb .ic{width:24px;height:24px}.qb.qtxt{padding:0 10px}.qb[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 2px rgba(26,134,255,.25)}
@@ -2031,8 +2032,8 @@ function evBadges(ev){const st=EVST[evStatus(ev)];return `${st[0]?`<span class="
 const evd=v=>{const n=parseDate(v);return n?`${Math.floor(n/1e4)}/${Math.floor(n/100)%100}/${n%100}`:esc(v||"");};
 const evDates=ev=>`${evd(ev.start)}${ev.start||ev.end?" 〜 ":""}${ev.end?evd(ev.end):""}`;
 function evCard(ev){const img=EVT[ev.name]||EVTF[ev.name];const cs=ev.chars.map(id=>CHMAP[id]).filter(Boolean);
-  return `<button class="evcard" data-event="${ev.i}">${EVTF[ev.name]?`<span class="evimg" style="background-image:url('${encU(EVTF[ev.name])}')"></span>`:img?`<span class="evimg" style="background-image:url('${encU(img)}')"></span>`:'<span class="evimg none"></span>'}
-  <span class="evtxt"><span class="evbs">${evBadges(ev)}</span><b>${esc(ev.name)}</b><small>${evDates(ev)}</small>${cs.length?`<span class="evchars">${cs.map(c=>IMG[c.id]?`<img src="${IMG[c.id]}" alt="${esc(c.name)}" title="${esc(c.name)}" loading="lazy">`:"").join("")}</span>`:""}</span></button>`;}
+  return `<button class="evc" data-event="${ev.i}">${EVTF[ev.name]?`<span class="evart" style="background-image:url('${encU(EVTF[ev.name])}')"></span>`:img?`<span class="evart" style="background-image:url('${encU(img)}')"></span>`:'<span class="evart none"></span>'}
+  <span class="evtxt"><span class="evbs">${evBadges(ev)}</span><b>${esc(ev.name)}</b><small>${evDates(ev)}</small>${cs.length?`<span class="evcs">${cs.map(c=>IMG[c.id]?`<img src="${IMG[c.id]}" alt="${esc(c.name)}" title="${esc(c.name)}" loading="lazy">`:"").join("")}</span>`:""}</span></button>`;}
 function renderEvents(){
   if(!EVENTS.length){main.innerHTML=`<div class="empty"><h2>イベントのデータがまだありません</h2><p>運営がデータを登録すると、ここに表示されます。</p></div>`;return;}
   const q=EVF.q.toLowerCase();
@@ -2041,7 +2042,7 @@ function renderEvents(){
     .sort((a,b)=>b.s-a.s||b.i-a.i);
   const seg=[["all","すべて"],["now","開催中・予定"],["new","新規"],["re","復刻"],["perm","常設"]];
   let h=`<div class="toolbar"><h2><small>EVENTS</small>イベント</h2><div class="seg">${seg.map(([k,l])=>`<button data-evshow="${k}" aria-pressed="${EVF.show===k}">${l}</button>`).join("")}</div><input class="search" id="evQ" placeholder="イベント名・キャラ・ボスで検索" value="${esc(EVF.q)}"><span class="count">${list.length} / ${EVENTS.length}</span></div>`;
-  h+=list.length?`<div class="evgrid">${list.map(evCard).join("")}</div>`:`<div class="empty"><h2>該当するイベントがありません</h2></div>`;
+  h+=list.length?`<div class="evlist">${list.map(evCard).join("")}</div>`:`<div class="empty"><h2>該当するイベントがありません</h2></div>`;
   main.innerHTML=h;
   const qi=document.getElementById("evQ");liveInput(qi,()=>{EVF.q=qi.value;const p=qi.selectionStart;renderEvents();const n=document.getElementById("evQ");n.focus();n.setSelectionRange(p,p);});
 }
