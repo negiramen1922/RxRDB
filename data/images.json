@@ -969,7 +969,8 @@
   "オラス": "images/knights/オラス.webp",
   "オーバーフロー": "images/knights/オーバーフロー.webp",
   "アンサー": "images/knights/アンサー.webp",
-  "モノ": "images/knights/モノ.webp"
+  "モノ": "images/knights/モノ.webp",
+  "エラー": "images/knights/エラー.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -991,6 +992,7 @@
   "オラス": "images/knights/thumb/オラス.webp",
   "オーバーフロー": "images/knights/thumb/オーバーフロー.webp",
   "アンサー": "images/knights/thumb/アンサー.webp",
-  "モノ": "images/knights/thumb/モノ.webp"
+  "モノ": "images/knights/thumb/モノ.webp",
+  "エラー": "images/knights/thumb/エラー.webp"
  }
 }
