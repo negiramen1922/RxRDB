@@ -972,7 +972,8 @@
   "モノ": "images/knights/モノ.webp",
   "エラー": "images/knights/エラー.webp",
   "ゼロ": "images/knights/ゼロ.webp",
-  "スリー": "images/knights/スリー.webp"
+  "スリー": "images/knights/スリー.webp",
+  "闇虹": "images/knights/闇虹.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -997,6 +998,7 @@
   "モノ": "images/knights/thumb/モノ.webp",
   "エラー": "images/knights/thumb/エラー.webp",
   "ゼロ": "images/knights/thumb/ゼロ.webp",
-  "スリー": "images/knights/thumb/スリー.webp"
+  "スリー": "images/knights/thumb/スリー.webp",
+  "闇虹": "images/knights/thumb/闇虹.webp"
  }
 }
