@@ -1045,7 +1045,7 @@ document.querySelectorAll("#userTabs [data-top]").forEach(b=>b.addEventListener(
 document.getElementById("subTabs").addEventListener("click",e=>{const b=e.target.closest("[data-sub]");if(b)goSub(b.dataset.sub);});
 function goSub(k){if(k.startsWith("rank:")){const t=k.slice(5);if(RK.t!==t){RK.t=t;RK.stat=RKDEF[t][0][0];RK.dir=RKDEF[t][0][2];RK.focus=null;RK.role=null;RK.rar=null;RK.attr=null;}switchTab("rank");}else switchTab(k);}
 let NAVSEQ=0;   // ページを移るたびに +1（ダイアログを閉じたときのスクロール位置の復元を止めるため）
-function switchTab(t){track("tab",{tab:t});NAVSEQ++;tab=t;sel=null;HEROKEY=null;if(!HOMETABS.includes(t)){S.lastTab=t==="rank"?"rank:"+RK.t:t;save();}render();window.scrollTo(0,0);}
+function switchTab(t){track("tab",{tab:t});NAVSEQ++;tab=t;sel=null;HEROKEY=null;PICKS={};if(!HOMETABS.includes(t)){S.lastTab=t==="rank"?"rank:"+RK.t:t;save();}render();window.scrollTo(0,0);}
 /* 詳細などのダイアログを閉じたら、開く前のスクロール位置に戻す（iPhone の Safari は閉じたときにページの一番上へ飛ぶため）。
    閉じると同時に別のページへ移るとき（NAVSEQ が変わったとき）は戻さない */
 (function(){const D=window.HTMLDialogElement;if(!D)return;const sm=D.prototype.showModal;
@@ -1084,8 +1084,11 @@ const TABNAME={chars:"キャラ一覧",ctier:"キャラクター全体Tier",knig
 function lastLabel(){const k=S.lastTab;if(!k||!TABNAME[k])return "";let t=TABNAME[k];
   if(k==="tier"){const f=FLOORS.find(x=>x.key===S.curFloor);if(f)t+=`（${f.type} ${f.floor}F）`;}
   if(k==="seal"){const f=FLOORS.find(x=>x.key===S.curSeal);if(f)t+=`（${f.floor}）`;}return t;}
+/* ランダムに選ぶ画像は、ページを切り替えるまで同じものを使う（描き直しのたびに変わらないように） */
+let PICKS={};
+function pickOnce(key,a){if(!a.length)return "";const p=PICKS[key];if(p!=null&&a.includes(p))return p;return PICKS[key]=a[Math.floor(Math.random()*a.length)];}
 function renderHome(){
-  const rnd=a=>a.length?a[Math.floor(Math.random()*a.length)]:"";
+  let rn=0;const rnd=a=>pickOnce("home"+(rn++),a);
   const cimg=rnd(CH.map(c=>BANNER[c.id]||IMG[c.id]).filter(Boolean)),simg=rnd(SC.map(s=>SFULL[s.name]||SIMG[s.name]).filter(Boolean));
   const sealImg=SEALS.map(f=>SEALF[f.floor]||SEAL[f.floor]).find(Boolean)||"";
   const tops=TYPES.map(t=>{const fs=FLOORS.filter(f=>f.type===t&&!f.seal);const top=fs.reduce((a,f)=>(parseFloat(f.floor)||0)>(parseFloat(a&&a.floor)||-1)?f:a,null);return top;}).filter(Boolean);
@@ -2035,10 +2038,10 @@ addEventListener("resize",()=>{clearTimeout(heroFocus.t);heroFocus.t=setTimeout(
 let HEROKEY=null;
 function tabHero(){
   if(MODE==="admin")return;
-  const top=topOf(tab);const rnd=o=>{const ks=Object.keys(o).filter(k=>o[k]);return ks.length?ks[Math.floor(Math.random()*ks.length)]:"";};
+  const top=topOf(tab);let rn=0;const rnd=o=>pickOnce("hero"+(rn++),Object.keys(o).filter(k=>o[k]));
   if(top==="chara"||top==="script"){if(HEROKEY===top)return;HEROKEY=top;const m=top==="chara"?BANNER:SFULL,k=rnd(m);if(k)showHero(m[k],top==="chara"?"char":"script",k);else showHero(HERO);return;}
   if(top==="home"){if(HEROKEY==="home")return;HEROKEY="home";const pool=Object.keys(BANNER).filter(k=>BANNER[k]).map(k=>["char",k,BANNER[k]]).concat(Object.keys(SFULL).filter(k=>SFULL[k]).map(k=>["script",k,SFULL[k]]));
-    if(pool.length){const [kind,k,u]=pool[Math.floor(Math.random()*pool.length)];showHero(u,kind,k);}else showHero(HERO);return;}
+    if(pool.length){const u0=pickOnce("herohome",pool.map(x=>x[2]));const [kind,k,u]=pool.find(x=>x[2]===u0);showHero(u,kind,k);}else showHero(HERO);return;}
   if(top==="event"){if(HEROKEY==="event")return;HEROKEY="event";const k=rnd(EVTF);if(k)showHero(EVTF[k],"event",k);else showHero(HERO);return;}
   if(top==="seal"){const f=curFloor();const k="seal|"+(f?f.key:"");if(HEROKEY===k)return;HEROKEY=k;if(f&&SEALF[f.floor])showHero(SEALF[f.floor],"seal",f.floor);else showHero(f&&SEAL[f.floor]||HERO);return;}
   if(HEROKEY==="base")return;HEROKEY="base";showHero(HERO);
