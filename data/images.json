@@ -980,7 +980,8 @@
   "マイナス": "images/knights/マイナス.webp",
   "レゾン": "images/knights/レゾン.webp",
   "トゥエルヴ": "images/knights/トゥエルヴ.webp",
-  "フィフティ": "images/knights/フィフティ.webp"
+  "フィフティ": "images/knights/フィフティ.webp",
+  "クロ": "images/knights/クロ.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -1013,6 +1014,7 @@
   "マイナス": "images/knights/thumb/マイナス.webp",
   "レゾン": "images/knights/thumb/レゾン.webp",
   "トゥエルヴ": "images/knights/thumb/トゥエルヴ.webp",
-  "フィフティ": "images/knights/thumb/フィフティ.webp"
+  "フィフティ": "images/knights/thumb/フィフティ.webp",
+  "クロ": "images/knights/thumb/クロ.webp"
  }
 }
