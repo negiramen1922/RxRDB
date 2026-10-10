@@ -966,7 +966,8 @@
   "久理": "images/knights/久理.webp",
   "レアリザス": "images/knights/レアリザス.webp",
   "エリス": "images/knights/エリス.webp",
-  "オラス": "images/knights/オラス.webp"
+  "オラス": "images/knights/オラス.webp",
+  "オーバーフロー": "images/knights/オーバーフロー.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -985,6 +986,7 @@
   "久理": "images/knights/thumb/久理.webp",
   "レアリザス": "images/knights/thumb/レアリザス.webp",
   "エリス": "images/knights/thumb/エリス.webp",
-  "オラス": "images/knights/thumb/オラス.webp"
+  "オラス": "images/knights/thumb/オラス.webp",
+  "オーバーフロー": "images/knights/thumb/オーバーフロー.webp"
  }
 }
