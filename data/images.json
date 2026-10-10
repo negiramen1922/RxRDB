@@ -975,7 +975,8 @@
   "スリー": "images/knights/スリー.webp",
   "闇虹": "images/knights/闇虹.webp",
   "楓": "images/knights/楓.webp",
-  "ハル": "images/knights/ハル.webp"
+  "ハル": "images/knights/ハル.webp",
+  "アズライト": "images/knights/アズライト.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -1003,6 +1004,7 @@
   "スリー": "images/knights/thumb/スリー.webp",
   "闇虹": "images/knights/thumb/闇虹.webp",
   "楓": "images/knights/thumb/楓.webp",
-  "ハル": "images/knights/thumb/ハル.webp"
+  "ハル": "images/knights/thumb/ハル.webp",
+  "アズライト": "images/knights/thumb/アズライト.webp"
  }
 }
