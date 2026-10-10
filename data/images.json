@@ -983,7 +983,8 @@
   "フィフティ": "images/knights/フィフティ.webp",
   "クロ": "images/knights/クロ.webp",
   "春夏秋冬": "images/knights/春夏秋冬.webp",
-  "斬": "images/knights/斬.webp"
+  "斬": "images/knights/斬.webp",
+  "玄鉄": "images/knights/玄鉄.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -1019,6 +1020,7 @@
   "フィフティ": "images/knights/thumb/フィフティ.webp",
   "クロ": "images/knights/thumb/クロ.webp",
   "春夏秋冬": "images/knights/thumb/春夏秋冬.webp",
-  "斬": "images/knights/thumb/斬.webp"
+  "斬": "images/knights/thumb/斬.webp",
+  "玄鉄": "images/knights/thumb/玄鉄.webp"
  }
 }
