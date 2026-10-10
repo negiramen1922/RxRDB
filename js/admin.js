@@ -1633,7 +1633,9 @@ async function processImage(kind, key, file) {
     const dir = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals", knight: "images/knights" }[kind]; const [dw, dh] = fit({ char: 1200, script: 720, boss: 900, event: 1400, seal: 900, knight: 900 }[kind]);
     const full = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82);
     let side, sx, sy;
-    if (W > H * 1.2) { side = H * 0.46; sx = W / 2 - side / 2; sy = H * 0.08; } else { side = Math.min(W, H) * 0.9; sx = (W - side) / 2; sy = Math.min(H - side, H * 0.04); }
+    const cr = R.CROPS["c_" + kind + "_" + R.hashId(key)];   // 切り抜き位置が調整済みなら、それでサムネイルを作る
+    if (cr) { side = cr.cs * H; sx = cr.cx * W; sy = cr.cy * H; }
+    else if (W > H * 1.2) { side = H * 0.46; sx = W / 2 - side / 2; sy = H * 0.08; } else { side = Math.min(W, H) * 0.9; sx = (W - side) / 2; sy = Math.min(H - side, H * 0.04); }
     const thumb = await R.canvasBlob(im, sx, sy, side, side, 176, 176, "image/webp", .85);
     files.push({ path: `${dir}/${nm}.webp`, blob: full }, { path: `${dir}/thumb/${nm}.webp`, blob: thumb });
     const SEC = IMG_SECS[kind];
@@ -1808,7 +1810,7 @@ async function saveGhToken() {
 }
 async function delGhToken() { try { await F.deleteDoc(F.doc(F.db, "secrets", "github")); toast("GitHub 連携を解除しました"); } catch (e) { toast(fbErr(e)); } }
 function ghPanel() {
-  if (GH) return `<div class="astatus ok">GitHub 連携：<b>${esc(GH.repo)}</b> に直接アップロードできます。アップロードした画像は公開サイトに1〜2分で反映されます。${S.role === "owner" ? ` <button class="btn small" data-a="ghedit">トークンを変更</button>${IM.ghconfirm ? `<span class="danger-q">解除しますか？</span><button class="btn small danger" data-a="ghdelyes">解除</button><button class="btn small" data-a="ghdelno">やめる</button>` : `<button class="btn small" data-a="ghdel">連携を解除</button>`}` : ""}</div>${S.role === "owner" && IM.ghedit ? ghForm() : ""}`;
+  if (GH) return (cropUnbaked().length ? `<div class="astatus warn">切り抜き位置を調整したサムネイルのうち <b>${cropUnbaked().length}件</b> が、まだサムネイル画像に反映されていません（公開サイトを開いたときに、少しの間ずれて見えます）。<button class="btn small primary" data-a="cropbake">まとめて反映する</button></div>` : "") + `<div class="astatus ok">GitHub 連携：<b>${esc(GH.repo)}</b> に直接アップロードできます。アップロードした画像は公開サイトに1〜2分で反映されます。${S.role === "owner" ? ` <button class="btn small" data-a="ghedit">トークンを変更</button>${IM.ghconfirm ? `<span class="danger-q">解除しますか？</span><button class="btn small danger" data-a="ghdelyes">解除</button><button class="btn small" data-a="ghdelno">やめる</button>` : `<button class="btn small" data-a="ghdel">連携を解除</button>`}` : ""}</div>${S.role === "owner" && IM.ghedit ? ghForm() : ""}`;
   if (S.role !== "owner") return `<div class="astatus warn">オーナーが GitHub 連携を設定すると、ここから画像を直接アップロードできます。今は「ZIP にまとめる」で書き出して GitHub に上げてください。</div>`;
   return `<section class="apanel seed"><h3 class="ph">GitHub 連携（画像の直接アップロード）</h3>${ghForm()}</section>`;
 }
@@ -1833,6 +1835,32 @@ async function saveCrop(id, val) {
     tx.set(ref, { json: JSON.stringify(m), at: now(), count: Object.keys(m).length });
     tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "crop", k: CR.kind === "char" ? "chars" : "scripts", label: `サムネイル位置：${CR.label}${val ? "" : "（自動に戻す）"}` }));
   });
+}
+/* 切り抜き位置を GitHub のサムネイル画像に焼き込む（公開サイトが元画像から切り出さなくて済むように）。
+   焼き込んだ位置は public/crops の各項目の b（"cx|cy|cs"）に記録。c が null なら自動の位置で作り直す */
+const cropDirs = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals", knight: "images/knights" };
+async function cropThumbItem(kind, key, c) {
+  const src = R.cropSrc(kind, key); if (!src || !cropDirs[kind]) return null;
+  const im = await new Promise((res, rej) => { const x = new Image(); x.crossOrigin = "anonymous"; x.onload = () => res(x); x.onerror = rej; x.src = src; });
+  const W = im.naturalWidth, H = im.naturalHeight; const a = c || autoCrop(W, H);
+  const blob = await R.canvasBlob(im, a.cx * W, a.cy * H, a.cs * H, a.cs * H, 176, 176, "image/webp", .85);
+  const sec = IMG_SECS[kind][1], path = `${cropDirs[kind]}/thumb/${safeName(key)}.webp`;
+  return { kind, key, files: [{ path, blob }], set: { [sec]: path }, local: { [sec]: blob } };
+}
+const cropUnbaked = () => Object.entries(R.CROPS || {}).filter(([, c]) => c && c.key && c.b !== R.cropPos(c) && R.cropSrc(c.kind, c.key));
+async function bakeCrops(list, btn) {
+  if (!GH) return;
+  const items = [], ids = [];
+  for (const [id, c] of list) { try { const it = await cropThumbItem(c.kind, c.key, c); if (it) { items.push(it); ids.push([id, R.cropPos(c)]); } } catch (e) { } if (btn) btn.textContent = `画像を作っています… ${items.length}/${list.length}`; }
+  if (!items.length) return 0;
+  await uploadItems(items, btn, "GitHub に保存中");
+  await F.runTransaction(F.db, async tx => {
+    const ref = F.doc(F.db, "public", "crops"); const s = await tx.get(ref);
+    let m = {}; try { m = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
+    ids.forEach(([id, pos]) => { if (m[id] && R.cropPos(m[id]) === pos) m[id].b = pos; });   // 途中で位置が変わったものは印を付けない
+    tx.set(ref, { json: JSON.stringify(m), at: now(), count: Object.keys(m).length });
+  });
+  return items.length;
 }
 function openCrop(kind, key) {
   const src = R.cropSrc(kind, key); if (!src) { toast("元の画像がないため調整できません"); return; }
@@ -1860,9 +1888,12 @@ function openCrop(kind, key) {
   wrap.addEventListener("pointerup", () => { CR.drag = null; }); wrap.addEventListener("pointercancel", () => { CR.drag = null; });
   sz.addEventListener("input", () => { const c = CR.c; if (!c) return; const midx = c.cx * CR.W + c.cs * CR.H / 2, midy = c.cy * CR.H + c.cs * CR.H / 2; c.cs = sz.value / 100 * Math.min(1, CR.W / CR.H); c.cx = (midx - c.cs * CR.H / 2) / CR.W; c.cy = (midy - c.cs * CR.H / 2) / CR.H; clamp(); draw(); });
   document.getElementById("cropSave").addEventListener("click", async e => { if (!CR.c) return; e.target.disabled = true;
-    try { await saveCrop(CR.id, { kind: CR.kind, key: CR.key, cx: +CR.c.cx.toFixed(4), cy: +CR.c.cy.toFixed(4), cs: +CR.c.cs.toFixed(4) }); dl.close(); toast("サムネイルの位置を保存しました"); }
+    try { const v = { kind: CR.kind, key: CR.key, cx: +CR.c.cx.toFixed(4), cy: +CR.c.cy.toFixed(4), cs: +CR.c.cs.toFixed(4) }; await saveCrop(CR.id, v); dl.close(); toast(GH ? "サムネイルの位置を保存しました。サムネイル画像も作り直しています…" : "サムネイルの位置を保存しました", 4000);
+      if (GH) bakeCrops([[CR.id, v]]).then(n => { if (n) toast("サムネイル画像を GitHub に保存しました（公開サイトには1〜2分で反映）", 4000); }).catch(e => toast(e && e.status ? ghErr(e) : "サムネイル画像を保存できませんでした", 6000)); }
     catch (er) { e.target.disabled = false; toast(fbErr(er)); } });
-  const rs = document.getElementById("cropReset"); if (rs) rs.addEventListener("click", async () => { try { await saveCrop(CR.id, null); dl.close(); toast("自動の位置に戻しました"); } catch (er) { toast(fbErr(er)); } });
+  const rs = document.getElementById("cropReset"); if (rs) rs.addEventListener("click", async () => { try { const { kind, key } = CR; await saveCrop(CR.id, null); dl.close(); toast("自動の位置に戻しました");
+    // 焼き込んだサムネイルを自動の位置で作り直す
+    if (GH) { const it = await cropThumbItem(kind, key, null).catch(() => null); if (it) uploadItems([it]).catch(e => toast(e && e.status ? ghErr(e) : "サムネイル画像を保存できませんでした", 6000)); } } catch (er) { toast(fbErr(er)); } });
 }
 
 /* ================= change log ================= */
@@ -2385,6 +2416,7 @@ function onAdminClick(e) {
   if (ds.mbname) { MB.nameEdit = MB.nameEdit === ds.mbname ? null : ds.mbname; renderMembers(); return; }
   if (ds.mbnamesave) { setRoleName(ds.mbnamesave); return; }
   if (ds.a === "ghsave") { saveGhToken().then(() => { IM.ghedit = false; renderImg(); }); return; }
+  if (ds.a === "cropbake") { const l = cropUnbaked(); t.disabled = true; bakeCrops(l, t).then(n => { toast(`${n}件のサムネイル画像を GitHub に保存しました（公開サイトには1〜2分で反映）`, 5000); renderImg(); }).catch(e => { toast(e && e.status ? ghErr(e) : "保存できませんでした：" + (e && e.message || ""), 6000); t.disabled = false; }); return; }
   if (ds.a === "ghedit") { IM.ghedit = !IM.ghedit; renderImg(); return; }
   if (ds.a === "ghdel") { IM.ghconfirm = true; renderImg(); return; }
   if (ds.a === "ghdelno") { IM.ghconfirm = false; renderImg(); return; }

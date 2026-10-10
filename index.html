@@ -2063,13 +2063,24 @@ function loadImgSrc(src){return new Promise((res,rej)=>{const im=new Image();im.
 async function cropBlob(src,c,size){const im=await loadImgSrc(src);const W=im.naturalWidth,H=im.naturalHeight;const side=c.cs*H;return canvasBlob(im,c.cx*W,c.cy*H,side,side,size,size,"image/webp",.85);}
 let cropRun=0;
 function cropSig(src,c){return [src,c.cx,c.cy,c.cs].join("|");}
+/* 切り抜き位置の反映。管理画面が GitHub のサムネイル画像に焼き込んだもの（c.b が位置と一致）はそのまま使う。
+   まだのものは元画像から切り出す。結果はブラウザ（Cache Storage）に残し、次からはすぐ出す。4件ずつ並行 */
+const cropPos=c=>[c.cx,c.cy,c.cs].join("|");
+const CROPCACHE="rxr-crops-v1";
+async function cropCached(sig){try{if(!window.caches)return null;const c=await caches.open(CROPCACHE);const r=await c.match("/crop/"+encodeURIComponent(sig));return r?await r.blob():null;}catch(e){return null;}}
+async function cropStore(sig,blob){try{if(!window.caches)return;const c=await caches.open(CROPCACHE);await c.put("/crop/"+encodeURIComponent(sig),new Response(blob,{headers:{"Content-Type":"image/webp"}}));}catch(e){}}
 async function applyCrops(){
   const run=++cropRun;const todo=[];
-  Object.values(CROPS).forEach(c=>{if(!c||!c.key)return;const src=cropSrc(c.kind,c.key);if(!src)return;const k=c.kind+"|"+c.key;
+  Object.values(CROPS).forEach(c=>{if(!c||!c.key)return;if(c.b&&c.b===cropPos(c))return;const src=cropSrc(c.kind,c.key);if(!src)return;const k=c.kind+"|"+c.key;
     if(CROPURL[k]&&CROPURL[k].sig===cropSig(src,c))thumbMap(c.kind)[c.key]=CROPURL[k].url;else todo.push([c,src,k]);});
-  let changed=false;
-  for(const [c,src,k] of todo){try{const b=await cropBlob(src,c,176);if(run!==cropRun)return;if(CROPURL[k])URL.revokeObjectURL(CROPURL[k].url);CROPURL[k]={sig:cropSig(src,c),url:URL.createObjectURL(b)};thumbMap(c.kind)[c.key]=CROPURL[k].url;changed=true;}catch(e){}}
-  if(changed)rerender();
+  if(!todo.length)return;
+  let changed=false,t=null;const flush=()=>{if(run===cropRun&&changed){changed=false;rerender();}};
+  const put=(c,src,k,b)=>{if(run!==cropRun)return;if(CROPURL[k])URL.revokeObjectURL(CROPURL[k].url);CROPURL[k]={sig:cropSig(src,c),url:URL.createObjectURL(b)};thumbMap(c.kind)[c.key]=CROPURL[k].url;changed=true;clearTimeout(t);t=setTimeout(flush,120);};
+  // まず保存済みのものを一気に出す
+  const miss=[];await Promise.all(todo.map(async x=>{const b=await cropCached(cropSig(x[1],x[0]));if(b)put(x[0],x[1],x[2],b);else miss.push(x);}));
+  if(run!==cropRun)return;flush();
+  let i=0;const worker=async()=>{while(i<miss.length&&run===cropRun){const [c,src,k]=miss[i++];try{const b=await cropBlob(src,c,176);cropStore(cropSig(src,c),b);put(c,src,k,b);}catch(e){}}};
+  await Promise.all([worker(),worker(),worker(),worker()]);flush();
 }
 
 /* ================= public data (Firestore REST → static fallback) ================= */
@@ -2498,7 +2509,7 @@ window.RXR={
   encU,get CFS(){return CFS;},cfBar,cfMatch,qbarChars,sfBar,scFiltered,PKSF,setPickRerender,sortList,get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
   KEYWORDS,tagCats,autoTagsOf,applyTagEdits,effCols,get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
   IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,SEAL,SEALF,KN,KNF,BASE,ATTRS,ROLES,RANKS,ORDERS,
-  get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,
+  get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,cropBlob,cropPos,
   rebuild(){buildModels();},renderUser(){render();},
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},
   setMain(el,fn){main=el||document.getElementById("main");ADMIN_LIST=fn||null;},
