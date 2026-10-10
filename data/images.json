@@ -978,7 +978,8 @@
   "ハル": "images/knights/ハル.webp",
   "アズライト": "images/knights/アズライト.webp",
   "マイナス": "images/knights/マイナス.webp",
-  "レゾン": "images/knights/レゾン.webp"
+  "レゾン": "images/knights/レゾン.webp",
+  "トゥエルヴ": "images/knights/トゥエルヴ.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -1009,6 +1010,7 @@
   "ハル": "images/knights/thumb/ハル.webp",
   "アズライト": "images/knights/thumb/アズライト.webp",
   "マイナス": "images/knights/thumb/マイナス.webp",
-  "レゾン": "images/knights/thumb/レゾン.webp"
+  "レゾン": "images/knights/thumb/レゾン.webp",
+  "トゥエルヴ": "images/knights/thumb/トゥエルヴ.webp"
  }
 }
