@@ -968,7 +968,8 @@
   "エリス": "images/knights/エリス.webp",
   "オラス": "images/knights/オラス.webp",
   "オーバーフロー": "images/knights/オーバーフロー.webp",
-  "アンサー": "images/knights/アンサー.webp"
+  "アンサー": "images/knights/アンサー.webp",
+  "モノ": "images/knights/モノ.webp"
  },
  "knights": {
   "カノン": "images/knights/thumb/カノン.webp",
@@ -989,6 +990,7 @@
   "エリス": "images/knights/thumb/エリス.webp",
   "オラス": "images/knights/thumb/オラス.webp",
   "オーバーフロー": "images/knights/thumb/オーバーフロー.webp",
-  "アンサー": "images/knights/thumb/アンサー.webp"
+  "アンサー": "images/knights/thumb/アンサー.webp",
+  "モノ": "images/knights/thumb/モノ.webp"
  }
 }
