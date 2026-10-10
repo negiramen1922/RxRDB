@@ -508,7 +508,7 @@ dialog{overflow:auto;overscroll-behavior:contain}
 .qb .ic{width:24px;height:24px}.qb.qtxt{padding:0 10px}.qb[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 2px rgba(26,134,255,.25)}
 .qsep{flex:none;width:1px;height:22px;background:var(--line2);margin:0 4px}
 .cmpbtn{position:absolute;right:6px;bottom:6px;z-index:2;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.92);color:var(--accent-ink);font-weight:900;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer}
-.cmpbtn.on{background:var(--accent);color:#fff}.cdlinks{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.cdlinks .knlink{margin:0}.cmpdbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cmpbtn.on{background:var(--accent);color:#fff}.linkbtn2{white-space:nowrap}.cdlinks{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.cdlinks .knlink{margin:0}.cmpdbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .cmpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;gap:8px;align-items:center;padding:8px 12px;background:linear-gradient(100deg,rgba(6,30,86,.96),rgba(14,70,170,.96));color:#fff;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100% - 20px)}
 .cmpbar[hidden]{display:none}.cmpbar b{white-space:nowrap}.cmpbar small{opacity:.8}.cmpthumbs{display:flex;gap:4px}
 .cmpth{position:relative;width:40px;height:40px;background:#16233f;display:flex;align-items:center;justify-content:center;font-size:10px}.cmpth img{width:100%;height:100%;object-fit:cover}
@@ -1027,7 +1027,7 @@ function reorder(key,tier,before){const f=curFloor();if(!f)return;const P=place(
   const i=before?row.indexOf(before):-1;row.splice(i<0?row.length:i,0,key);
   const all=[];TIERS.forEach(t=>{if(t===tier)all.push(...row);else all.push(...rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k));});setOrder(f.key,all);}
 function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(!t)return;const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);const row=rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k);const i=row.indexOf(key),j=i+d;if(i<0||j<0||j>=row.length)return;reorder(key,t,d<0?row[j]:row[j+1]);}
-function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
+function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${MINE()?"":pageLinkBtn()}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
 const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
@@ -1726,7 +1726,7 @@ function openScript(i){document.getElementById("dlgDetail").classList.remove("cm
   const s=SC.find(x=>x.i===i);if(!s)return;const d=data("scripts");
   const v=n=>{const k=d.headers.indexOf(n);return k>=0?(s.row[k]||"").trim():"";};
   let h=SFULL[s.name]?`<img class="sart" src="${SFULL[s.name]}" alt="">`:"";
-  h+=`<h2>${esc(s.name)} ${limBadge(s.limit,"inh")}${unrelBadge(s,"inh")}</h2><div class="metarow"><span class="rar ${esc(s.rar)}">${esc(s.rar)}</span><span class="m">${ic(s.role)} ${esc(s.role)}</span>${v("実装日")?`<span class="m">${esc(v("実装日"))}</span>`:""}${cmpDBtn("s",s.name)}</div>`;
+  h+=`<h2>${esc(s.name)} ${limBadge(s.limit,"inh")}${unrelBadge(s,"inh")}</h2><div class="metarow"><span class="rar ${esc(s.rar)}">${esc(s.rar)}</span><span class="m">${ic(s.role)} ${esc(s.role)}</span>${v("実装日")?`<span class="m">${esc(v("実装日"))}</span>`:""}${cmpDBtn("s",s.name)}${MODE==="admin"?"":shareBtn("script",s.name)}</div>`;
   const stats=["HP初期値","Lv200 HP","完凸 HP","攻撃力初期値","Lv200 攻撃力","完凸 攻撃力","物理防御","特殊防御"].filter(n=>v(n));
   if(stats.length){const col=n=>{const i=d.headers.indexOf(n);return SC.map(x=>i>=0?num(x.row[i]):null);};
     const ok=x=>x&&x!=="—";
@@ -1854,7 +1854,7 @@ function openChar(id){document.getElementById("dlgDetail").classList.remove("cmp
    ${cell("属性",take("属性")?`${ic(c.attr)} <span class="attr ${esc(c.attr)}">${esc(c.attr)}</span>`:"")}${cell("ダメージタイプ",t("ダメージタイプ"))}${cell("実装日",t("実装日"))}${cell("実装",c.unrel?'<span class="limb unrel">未実装</span>':"実装済み")}
    ${cell("限定",c.limit?limBadge(c.limit):"通常")}</div>
    <div class="prof prof2">${cell("騎士団",take("騎士団")?`${ic(c.order,"ord")} ${esc(c.order)}`:"")}${cell("階級",take("階級")?`${ic(c.rank)} ${esc(c.rank)}`:"")}${cell("性別",t("性別"))}</div>
-   <div class="cdlinks">${kn?`<button class="linkbtn knlink" data-knight="${esc(kn.name)}">騎士情報を見る（${esc(kn.name)}）›</button>`:""}${MODE==="admin"?"":cmpDBtn("c",c.id)}</div>`;
+   <div class="cdlinks">${kn?`<button class="linkbtn knlink" data-knight="${esc(kn.name)}">騎士情報を見る（${esc(kn.name)}）›</button>`:""}${MODE==="admin"?"":cmpDBtn("c",c.id)+shareBtn("char",c.id)}</div>`;
    const evs=EVENTS.filter(ev=>ev.chars.includes(c.id));if(evs.length)h+=`<div class="evrel" style="margin:0 0 10px"><small class="count">実装イベント</small>${evs.map(ev=>`<button class="chip" data-event="${ev.i}">${esc(ev.name)}（${evd(ev.start)}）</button>`).join("")}</div>`;}
   {const sg=take("強いところ"),wk=take("弱いところ");
    if(sg||wk)h+=`<div class="sw">${sg?`<div class="sw-s"><b>強いところ</b><p>${esc(sg).replace(/\n/g,"<br>")}</p></div>`:""}${wk?`<div class="sw-w"><b>弱いところ</b><p>${esc(wk).replace(/\n/g,"<br>")}</p></div>`:""}</div>`;}
@@ -2122,7 +2122,7 @@ async function loadSite(){
   renderNewsBadge();
   const im=await imP;
   if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});Object.assign(BASE.SEAL,im.seals||{});Object.assign(BASE.SEALF,im.sealfull||{});Object.assign(BASE.KN,im.knights||{});Object.assign(BASE.KNF,im.knightfull||{});if(im.hero)BASE.HERO=im.hero;}
-  SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();
+  SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();runOpenLink();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
   countVisit().catch(()=>{});
   if(location.hash==="#admin")openAdminModule();
@@ -2229,7 +2229,7 @@ function renderEvents(){
 function openEvent(i){document.getElementById("dlgDetail").classList.remove("cmpdlg");
   const ev=EVENTS.find(x=>x.i===i);if(!ev)return;const cs=ev.chars.map(id=>CHMAP[id]).filter(Boolean);
   let h=EVTF[ev.name]?`<img class="banner" src="${EVTF[ev.name]}" alt="">`:"";
-  h+=`<h2>${esc(ev.name)}</h2><div class="evbs">${evBadges(ev)}</div><p class="evdate">📅 ${evDates(ev)||"日程未登録"}</p>`;
+  h+=`<h2>${esc(ev.name)}</h2><div class="evbs">${evBadges(ev)}</div><p class="evdate">📅 ${evDates(ev)||"日程未登録"}</p><div class="cdlinks">${shareBtn("event",ev.name)}</div>`;
   if(ev.desc)h+=`<p class="knprof">${esc(ev.desc)}</p>`;
   if(cs.length)h+=`<h3>実装キャラ（${cs.length}）</h3><div class="ccards">${cs.map(charCard).join("")}</div>`;
   if(ev.bosses.length){h+=`<h3>登場ボス</h3><div class="evboss">${ev.bosses.map(b=>{const bm=BOSSES.find(x=>bnormI(x.name)===bnormI(b));const nm=bm?bm.name:b;const im=BOSS[nm];const fl=FLOORS.filter(f=>!f.seal&&bnormI(f.boss)===bnormI(b));
@@ -2282,7 +2282,7 @@ function openKnight(name){document.getElementById("dlgDetail").classList.remove(
   const k=PMAP[name];if(!k)return;const f=knFace(k);const st=knStyles(k);
   const cell=(l,val)=>`<div><small>${esc(l)}</small><span>${val||'<span class="dash">—</span>'}</span></div>`;
   let h=KNF[k.name]?`<img class="knart" src="${KNF[k.name]}" alt="">`:"";
-  h+=`<div class="knhead">${f?`<img src="${f}" alt="">`:""}<div><div class="type">KNIGHT</div><h2>${esc(k.name)}</h2><small class="count">${esc(k.kana)}</small></div></div>
+  h+=`<div class="knhead">${f?`<img src="${f}" alt="">`:""}<div><div class="type">KNIGHT</div><h2>${esc(k.name)}</h2><small class="count">${esc(k.kana)}</small><div class="cdlinks" style="margin-top:6px">${shareBtn("knight",k.name)}</div></div></div>
   <div class="prof">${cell("騎士団",k.order?`${ic(k.order,"ord")} ${esc(k.order)}`:"")}${cell("階級",k.rank?`${ic(k.rank)} ${esc(k.rank)}`:"")}${cell("性別",esc(k.gender))}${cell("誕生日",k.bday?esc(k.bday)+(k.bm&&daysUntil(k)===0?" 🎂":""):"")}${cell("CV",esc(k.cv))}</div>`;
   if(k.profile)h+=`<h3>プロフィール</h3><p class="knprof">${esc(k.profile)}</p>`;
   if(st.length)h+=`<h3>スタイル（${st.length}）</h3><div class="ccards">${st.map(charCard).join("")}</div>`;
@@ -2377,7 +2377,26 @@ document.getElementById("dlgShare").addEventListener("click",async e=>{
   if(k==="copytext"){navigator.clipboard.writeText(SHARE.text+"\n"+SHARE.link).then(()=>toast("コピーしました"),()=>toast("コピーできませんでした"));return;}
 });
 /* 共有リンク（?floor=種類|階層）で開いたときはその階層を表示 */
-function applyFloorParam(){try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&["home","guide","faq","own","sown","ctier","knights","events","chars","scripts","tier","sum","babel","seal"].includes(tp)){tab=tp;history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+/* ---------- リンクで共有：?char=キャラID ／ ?script=スクリプト名 ／ ?event=イベント名 ／ ?knight=騎士名 ／ ?floor=バベル種類|階層（封印戦は 封印戦|名前）／ ?tab=ctier ---------- */
+const LINKP={char:"char",script:"script",event:"event",knight:"knight",floor:"floor",tab:"tab"};
+const shareBtn=(k,v)=>`<button class="btn small linkbtn2" data-sharelink="${k}|${esc(v)}">🔗 リンクを共有</button>`;
+function pageLinkBtn(){if(MODE==="admin")return "";if(ALLCTX())return shareBtn("tab","ctier");const f=curFloor();return f?shareBtn("floor",f.key):"";}
+function linkTitle(k,v){if(k==="char")return (CHMAP[v]?CHMAP[v].name:v);if(k==="floor"){const f=FLOORS.find(x=>x.key===v);return f?(f.seal?`封印戦 ${f.floor}`:`${f.type} ${f.floor}F`):v;}if(k==="tab")return "キャラクター全体Tier";return v;}
+document.addEventListener("click",async e=>{const b=e.target.closest("[data-sharelink]");if(!b)return;e.preventDefault();e.stopPropagation();
+  const i=b.dataset.sharelink.indexOf("|"),k=b.dataset.sharelink.slice(0,i),v=b.dataset.sharelink.slice(i+1);
+  const url=location.origin+location.pathname+"?"+LINKP[k]+"="+encodeURIComponent(v);const title=linkTitle(k,v)+" | RxRwiki";
+  if(navigator.share&&matchMedia("(pointer:coarse)").matches){try{await navigator.share({title,url});return;}catch(er){if(er&&er.name==="AbortError")return;}}
+  try{await navigator.clipboard.writeText(url);toast("リンクをコピーしました");}catch(er){prompt("このリンクをコピーしてください",url);}},true);
+/* 開いたときに URL の指定どおりのページ・詳細を開く（URL からは消す） */
+let OPENLINK=null;
+function applyLinkParam(){try{const q=new URLSearchParams(location.search);let hit=false;
+  const c=q.get("char");if(c&&CHMAP[c]){tab="chars";OPENLINK=()=>openChar(c);hit=true;}
+  const sn=q.get("script");if(sn){const x=SC.find(y=>y.name===sn);if(x){tab="scripts";OPENLINK=()=>openScript(x.i);hit=true;}}
+  const en=q.get("event");if(en){const x=(typeof EVENTS!=="undefined"?EVENTS:[]).find(y=>y.name===en);if(x){tab="events";OPENLINK=()=>openEvent(x.i);hit=true;}}
+  const kn=q.get("knight");if(kn&&PMAP[kn]){tab="knights";OPENLINK=()=>openKnight(kn);hit=true;}
+  if(hit)history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+function runOpenLink(){if(OPENLINK){const f=OPENLINK;OPENLINK=null;try{f();}catch(e){}}}
+function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&["home","guide","faq","own","sown","ctier","knights","events","chars","scripts","tier","sum","babel","seal"].includes(tp)){tab=tp;history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 
 /* ================= お知らせ ================= */
 let NEWS=[];
