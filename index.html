@@ -131,7 +131,8 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tower .base{width:100%;height:6px;background:linear-gradient(90deg,transparent,var(--accent),transparent);margin-top:4px}
 
 .floorcard{padding:18px 20px;margin-bottom:16px}
-.floorcard .head{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.floorcard .head{display:flex;align-items:flex-end;gap:14px;flex-wrap:nowrap}
+.floorcard:not(.sealcard) .head>div{flex:1;min-width:0}
 .bossimg{width:64px;height:64px;object-fit:cover;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .floorcard .num{font-family:var(--display);font-weight:700;font-size:58px;line-height:.85;transform:skewX(-10deg);background:linear-gradient(180deg,var(--accent2),var(--accent) 60%,#0d3b8c);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-flex;flex-direction:column}
 .floorcard .num small{font-size:12px;letter-spacing:.35em;font-weight:600;-webkit-text-fill-color:var(--muted)}
@@ -582,6 +583,8 @@ body.hascmp main{padding-bottom:80px}.cmpbar .btn{white-space:nowrap}
   .tlabel{font-size:22px}
   .brand .acts{margin-left:0}
   .floorcard .num{font-size:46px}
+  /* スマホはボス名の欄をいつも次の行に（名前の長さで並びが変わらないように） */
+  .floorcard:not(.sealcard) .head{flex-wrap:wrap}.floorcard:not(.sealcard) .head>div{flex:0 0 100%}
 }
 @media (prefers-reduced-motion:no-preference){
   .petals path{animation:drift 14s linear infinite}
