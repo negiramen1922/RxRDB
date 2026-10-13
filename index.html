@@ -249,7 +249,18 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tmtg::after{content:"▼";font-size:11px;color:var(--muted);display:inline-block;transition:transform .15s}
 .team[open] .tmtg::after{transform:rotate(180deg)}
 .tmo{position:absolute;left:-3px;top:-3px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:var(--accent,#1a86ff);color:#fff;font-style:normal;font-size:10.5px;font-weight:900;line-height:16px;text-align:center;box-shadow:0 0 0 1.5px var(--field);z-index:1}
-.tmordn{margin:0 0 6px;font-size:11.5px;color:var(--muted)}
+.tmbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 8px}
+.tmvseg{display:inline-flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.tmvseg button{border:0;background:var(--panel);color:var(--ink);padding:5px 14px;font-size:13px;font-weight:700;cursor:pointer}
+.tmvseg button+button{border-left:1px solid var(--line)}
+.tmvseg button[aria-pressed=true]{background:var(--accent);color:#fff}
+.tmordn{font-size:11.5px;color:var(--muted)}
+.tv-c .tmcs,.tv-s .tmcc,.tv-s .tms{display:none}
+.tmbn{position:absolute;inset:0;background-size:auto 100%;background-repeat:no-repeat}
+.tmsc{position:absolute;left:3px;top:3px;z-index:2}.tmsc img,.tmsc .noth{width:30px;height:30px;border-radius:4px;border:1.5px solid #fff;object-fit:cover;display:grid;place-items:center;font-size:12px;box-shadow:0 0 3px rgba(0,0,0,.6)}
+.tmsr{font-size:10px;font-weight:900;color:#ffd84a;text-shadow:0 0 2px #000}
+.tmcs .tmn{font-size:11.5px}
+.tmempty small{display:grid;place-items:center;height:100%;font-size:11px;color:var(--muted)}
 .tmrow{display:grid;grid-template-columns:repeat(6,minmax(84px,1fr));gap:6px;overflow-x:auto;padding:4px 2px 6px;scrollbar-width:thin}
 .tm{display:flex;flex-direction:column;gap:5px;min-width:0}
 .tmc{position:relative;display:block;width:100%;aspect-ratio:3/4.6;padding:0;border:2px solid #9fd2ff;border-radius:3px;overflow:hidden;background:#1b2433;cursor:pointer;color:#fff;text-align:left;box-shadow:0 0 0 1px rgba(26,134,255,.35),0 2px 6px rgba(0,0,0,.25)}
@@ -268,9 +279,9 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tmc .tmo{padding:3px 4px 0 0;box-sizing:border-box;text-shadow:0 0 2px rgba(0,0,0,.4)}
 .tms{border:0;background:var(--panel);padding:4px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--ink);text-align:center;min-width:0;border-radius:3px}
 .tms:hover{background:var(--soft)}
-@media (max-width:560px){.tmrow{grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.tms span:last-child{font-size:10px}}
-.tms img,.tms .rowth{width:40px;height:40px;border-radius:5px;object-fit:cover;display:grid;place-items:center;font-size:10px}
-.tms span:last-child{font-size:10.5px;line-height:1.25;color:var(--muted);word-break:break-all}
+@media (max-width:560px){.tmrow{grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.tms span:last-child{font-size:10.5px}}
+.tms img,.tms .rowth{width:56px;height:56px;border-radius:5px;object-fit:cover;display:grid;place-items:center;font-size:10px}
+.tms span:last-child{font-size:11.5px;line-height:1.3;color:var(--ink);font-weight:700;word-break:break-all}
 .recs button{border:1px solid rgba(255,190,40,.6);background:linear-gradient(100deg,rgba(255,214,90,.25),rgba(255,255,255,.4));padding:2px 12px;font-size:13px;font-weight:700;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
 textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);background:var(--field);border-radius:2px;padding:8px 10px;resize:vertical}
 
@@ -1817,15 +1828,25 @@ function openScript(i){document.getElementById("dlgDetail").classList.remove("cm
 /* ---------- ranking ---------- */
 /* 階層の編成例。キャラ・スクリプトはタップで詳細 */
 /* 編成例：ゲームの編成画面に合わせ、枠の並び（左から1〜6枠）のまま表示し、出撃順（メンバーの4項目め）はカード右上の数字。
-   最初は閉じて「編成名＋キャラのアイコン」だけ。開くとゲーム風の縦長カード（騎士団・属性・星・名前・スタイル）とスクリプト */
+   最初は閉じて「編成名＋キャラのアイコン」だけ。開くとゲーム風の縦長カード。「キャラ／スクリプト」でカードの絵を切り替える（ブラウザに保存＝rxr-tmview） */
+let TMV="c";try{TMV=localStorage.getItem("rxr-tmview")==="s"?"s":"c";}catch(_){}
+// 覚醒イラスト（横長）から、縦長カードに顔のあたりが入る横位置（%）。サムネイルの切り抜き位置（無ければ真ん中）を使う
+function tmArtPos(id){const r=2.2,v=(3/4.6)/r;const c=Object.values(CROPS).find(x=>x&&x.kind==="char"&&x.key===id);const fx=c?c.cx+c.cs/r/2:.5;return Math.round(Math.max(0,Math.min(1,(fx-v/2)/(1-v)))*100);}
 function teamsHtml(f){
   const ts=TEAMS[f.key];if(!ts||!ts.length)return "";
+  const tog=`<span class="tmvseg">${[["c","キャラ"],["s","スクリプト"]].map(([k,l])=>`<button data-tmv="${k}" aria-pressed="${TMV===k}">${l}</button>`).join("")}</span>`;
   return `<div class="teams"><p class="note-h">編成例 <small class="count">（押すと開きます）</small></p>${ts.map(t=>{const ms=t.members;const hasOrd=ms.some(m=>m.ord);
-    return `<details class="team"><summary><span class="tmhd"><b>${esc(t.name)}</b><span class="tmfx">${ms.filter(m=>m.id).map(m=>{const c=CHMAP[m.id];return `<span class="tmf" title="${esc(c?c.name:m.id)}">${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}</span>`;}).join("")}</span></span><span class="tmtg" aria-hidden="true"></span></summary>
-    ${hasOrd?`<p class="tmordn">右上の青い数字は出撃順（ゲームの「出撃AUTOカスタマイズ」の順番）</p>`:""}<div class="tmrow">${ms.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;
-    const card=m.id?`<button class="tmc" ${c?`data-detail="${esc(m.id)}"`:""} title="${esc(c?c.name:m.id)}"><span class="tmart">${c&&IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth">${esc([...(c?c.name:m.id)][0]||"")}</span>`}</span>${c?`<span class="tmorg">${ic(c.order)}</span>`:""}${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}<span class="tminfo">${c?`<span class="tmat">${ic(c.attr)}</span>`:""}${m.star?`<span class="tmst">${"★".repeat(Math.min(+m.star||0,6))}</span>`:""}<span class="tmn">${esc(c?(c.base||c.name):m.id)}</span>${c&&c.style?`<span class="tmsy">${esc(c.style)}</span>`:""}</span>${c&&c.role?`<span class="tmrl">${ic(c.role)}</span>`:""}</button>`:`<span class="tmc tmempty"></span>`;
-    return `<div class="tm">${card}${m.sc?`<button class="tms" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:""}</div>`;}).join("")}</div>${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</details>`;}).join("")}</div>`;
+    return `<details class="team tv-${TMV}"><summary><span class="tmhd"><b>${esc(t.name)}</b><span class="tmfx">${ms.filter(m=>m.id).map(m=>{const c=CHMAP[m.id];return `<span class="tmf" title="${esc(c?c.name:m.id)}">${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}</span>`;}).join("")}</span></span><span class="tmtg" aria-hidden="true"></span></summary>
+    <div class="tmbar">${tog}${hasOrd?`<span class="tmordn">右上の青い数字＝出撃順（出撃AUTOカスタマイズ）</span>`:""}</div><div class="tmrow">${ms.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;const o=m.ord?`<i class="tmo">${esc(m.ord)}</i>`:"";
+    const bn=c&&BANNER[c.id];
+    const card=m.id?`<button class="tmc tmcc" ${c?`data-detail="${esc(m.id)}"`:""} title="${esc(c?c.name:m.id)}"><span class="tmart">${bn?`<span class="tmbn" style="background-image:url('${encU(bn)}');background-position:${tmArtPos(c.id)}% 0"></span>`:c&&IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth">${esc([...(c?c.name:m.id)][0]||"")}</span>`}</span>${c?`<span class="tmorg">${ic(c.order)}</span>`:""}${o}<span class="tminfo">${c?`<span class="tmat">${ic(c.attr)}</span>`:""}${m.star?`<span class="tmst">${"★".repeat(Math.min(+m.star||0,6))}</span>`:""}<span class="tmn">${esc(c?(c.base||c.name):m.id)}</span>${c&&c.style?`<span class="tmsy">${esc(c.style)}</span>`:""}</span>${c&&c.role?`<span class="tmrl">${ic(c.role)}</span>`:""}</button>`:`<span class="tmc tmempty"></span>`;
+    const sf=s&&(SFULL[s.name]||SIMG[s.name]);
+    const scard=m.sc?`<button class="tmc tmcs" ${s?`data-sdetail="${s.i}"`:""} title="${esc(m.sc)}"><span class="tmart">${sf?`<img src="${encU(sf)}" alt="" loading="lazy">`:`<span class="noth">${esc([...m.sc][0]||"")}</span>`}</span>${c&&IMG[c.id]?`<span class="tmsc">${cth(c)}</span>`:""}${o}<span class="tminfo">${s&&s.rar?`<span class="tmsr">${esc(s.rar)}</span>`:""}<span class="tmn">${esc(m.sc)}</span></span></button>`:m.id?`<span class="tmc tmempty tmcs"><small>スクリプトなし</small></span>`:`<span class="tmc tmempty tmcs"></span>`;
+    const sline=m.sc?`<button class="tms" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:"";
+    return `<div class="tm">${card}${scard}${sline}</div>`;}).join("")}</div>${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</details>`;}).join("")}</div>`;
 }
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tmv]");if(!b)return;TMV=b.dataset.tmv==="s"?"s":"c";try{localStorage.setItem("rxr-tmview",TMV);}catch(_){}
+  document.querySelectorAll("details.team").forEach(d=>{d.classList.toggle("tv-c",TMV==="c");d.classList.toggle("tv-s",TMV==="s");d.querySelectorAll("[data-tmv]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.tmv===TMV));});});
 function cth(c){return IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth" title="画像未登録">${esc([...(c.name||"")][0]||"")}</span>`;}
 function sth(s){return SIMG[s.name]?`<img src="${SIMG[s.name]}" alt="" class="rowth">`:`<span class="rowth sph ${esc(s.rar)}" title="画像未登録">${esc((s.rar||"").slice(0,3))}</span>`;}
 const RKDEF={chars:[["完凸 HP","HP（完凸）","desc"],["完凸 攻撃力","攻撃力（完凸）","desc"],["Lv200 HP","HP（Lv200）","desc"],["Lv200 攻撃力","攻撃力（Lv200）","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"],["攻撃速度","攻撃速度","desc"],["抵抗値","抵抗値","desc"],["初期コスト","出撃コスト","asc"],["育成後コスト","育成後コスト","asc"],["再出撃時間(S)","再出撃時間","asc"],["スキルクールタイム","スキルCT","asc"],["BLADEゲージ","BLADEゲージ","asc"],["HP初期値","HP初期値","desc"],["攻撃力初期値","攻撃力初期値","desc"]],
