@@ -8,6 +8,7 @@
 - `js/admin.js` … 管理画面（`#admin` / フッターの「管理者ログイン」で読み込む ES module）。Google ログイン、データ編集、読み込み・書き出し、画像、変更履歴、ご意見、アクセス、メンバー。
 - 管理画面「やること」タブ：公開までの進捗（「騎士の登録」は騎士団ごとに6人が目標＝admin.js の `KN_PER`。「実装」が「未実装」のキャラ・スクリプトは数えない。画像タブの「画像あり」の数も同じ）。各項目の進み具合はデータから自動で数え（admin.js の `todoItems`）、担当・メモ・手動の進捗・追加の項目は `tables/todo`（1ドキュメント、タブを開いたときだけ読む）。未入力の一覧から編集画面を開ける。
 - 限定バッジ：キャラ・スクリプトの列 `限定`（限定／周年限定）。images.json の icons に「限定」「周年限定」の画像があれば画像、なければ文字のバッジ（index.html の `limBadge`）。
+- `js/user.js` … 一般ユーザーのログイン（Google／メールアドレス＋パスワード／X は `window.SITE.authX` を true にしたときだけ）と記録の同期。ヘッダーの「ログイン」（`data-account`）を押したときか、前にログインした端末（localStorage `rxr-login`）だけ読み込む。記録は `users/{uid}`（`d`＝S の own・sown・ownName・tiers・tord・tnote・notes・cmp・ccmp を JSON にした文字列、`t`＝サーバー時刻。本人だけ読み書き・2秒に1回まで）。開いたときに1回読み（アカウント優先。保存しそこねた変更 `rxr-sync-dirty` がアカウントより新しければ端末側）、index.html の save() のたびに3秒まとめて書く（変わっていなければ書かない）。その端末で初めてログインして両方に記録があれば「合わせる／アカウント／この端末」を選ぶ。ログアウトしても端末の記録は残る。
 - `js/fb.js` … Firebase 初期化（gstatic 10.12.2）とオーナーのメールアドレス。
 - `firestore.rules` … Firestore のセキュリティルール。変えたら Firebase コンソールのルールにも貼る。
 - `data/chars.json` / `data/scripts.json` / `data/babel.json` … `{headers:[...], rows:[[...]]}` 形式の表データ。列名で参照しているので列の追加・並べ替えは自由。

@@ -70,6 +70,16 @@ service cloud.firestore {
       allow read, update, delete: if isEditor();
     }
 
+    // 一般ユーザーの記録（所持キャラ・自分用Tier表など。本人だけが読み書きできる。d は記録の JSON 文字列）
+    match /users/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["d", "t", "v"])
+        && request.resource.data.d is string && request.resource.data.d.size() <= 800000
+        && request.resource.data.t == request.time
+        && (resource == null || request.time > resource.data.t + duration.value(2, "s"));
+    }
+
     // アクセス数（日別）: 訪問ごとに +1 だけできる
     match /stats/{day} {
       allow read: if isEditor();
