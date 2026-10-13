@@ -232,6 +232,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tfilter{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;background:var(--panel);box-shadow:var(--shadow);padding:8px 10px;margin-bottom:8px}
 .limsw{display:inline-flex;align-items:center;gap:6px}
 .tile.limdim{filter:grayscale(1);opacity:.35}
+.tile.owndim{filter:grayscale(1);opacity:.45}.tile.owndim:hover,.tile.owndim[aria-pressed="true"]{opacity:.8}
 .tile.limdim:hover,.tile.limdim[aria-pressed="true"]{opacity:.7}
 .tfilter .tfl{font-size:11.5px;font-weight:700;color:var(--accent-ink);letter-spacing:.1em}
 .teams{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
@@ -1238,10 +1239,12 @@ function tierFilterBar(){
   const lim=CH.some(c=>c.lim)?`<span class="limsw"><span class="count">限定</span><span class="viewsw"><button data-act="limon" aria-pressed="${!S.limOff}">あり</button><button data-act="limoff" aria-pressed="${!!S.limOff}">なし</button></span></span>`:"";
   const g=floorGrp(curFloor());
   const ownOn=(CFS.tier.sel.own||[]).includes("持っている");
-  const own=MODE!=="admin"&&hasOwn()?`<span class="limsw"><span class="count">所持</span><span class="viewsw"><button data-act="tierownoff" aria-pressed="${!ownOn}">すべて</button><button data-act="tierownon" aria-pressed="${ownOn}">所持だけ</button></span></span>`:"";
+  const own=MODE!=="admin"&&hasOwn()?`<span class="limsw"><span class="count">所持</span><span class="viewsw"><button data-act="tierownoff" aria-pressed="${!ownOn}">すべて</button><button data-act="tierownon" aria-pressed="${ownOn}">所持だけ</button></span>${ownOn?"":`<span class="count">グレー＝未所持</span>`}</span>`:"";
   return `<div class="tfilter">${b.btn}${own}${lim}${b.chips}</div>${g?`<p class="hint grpnote">${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団（${BABELGRP[g].join("・")}）のキャラだけを表示しています。</p>`:""}`;
 }
-const limDim=c=>S.limOff&&c.lim?" limdim":"";
+const limDim=c=>(S.limOff&&c.lim?" limdim":"")+ownDim(c);
+// 所持率チェッカーに記録があれば、Tier表で持っていないキャラをグレーにする（公開サイトだけ）
+const ownDim=c=>MODE!=="admin"&&hasOwn()&&!OWN()[c.id]?" owndim":"";
 /* ---------- 効果タグ（ゲーム内フィルターと同じ「攻撃／防御／HP／その他」）----------
    スキル・BLADE・特性の説明文から自動で付ける（1文の中にすべての条件が出てくれば該当。{not:…} はその言葉があれば対象外）。
    キャラの列「効果タグ」で直せる：「+タグ」で追加、「-タグ」で外す（カンマ区切り。管理画面のチェックで編集） */
