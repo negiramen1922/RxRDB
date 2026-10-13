@@ -40,7 +40,7 @@ const SCHEMA = {
   ],
   teams: [
     { g: "基本", f: [["バベル種類", "floor"], ["階層", "hide"], ["編成名", "text"]] },
-    { g: "編成", note: "最大6人。星の数はキャラのレアリティ（R=★1・SR=★2・SSR=★3 から）に合わせて選べます。スクリプトはキャラごとに1枚です。", f: [["メンバー", "team"]] },
+    { g: "編成", note: "最大6人。星の数はキャラのレアリティ（R=★1・SR=★2・SSR=★3 から）に合わせて選べます。スクリプトはキャラごとに1枚です。「出撃順」で何番目に出すかを記録できます（同じ番号を選ぶと入れ替わります）。", f: [["メンバー", "team"]] },
     { g: "コメント", f: [["コメント", "long"]] },
   ],
   people: [
@@ -702,16 +702,18 @@ function synInput(el) {
 }
 /* ---- 編成例 ---- */
 const TEAM_N = 6;
-// メンバー列は1行1人「キャラID|星|スクリプト名」
-function parseTeam(v) { return String(v || "").split(/\n/).map(l => { const [id, star, sc] = l.split("|"); return { id: (id || "").trim(), star: (star || "").trim(), sc: (sc || "").trim() }; }).filter(m => m.id || m.sc); }
+// メンバー列は1行1人「キャラID|星|スクリプト名|出撃順」（出撃順は 1〜6。空でもよい。古い3項目の行もそのまま読める）
+function parseTeam(v) { return String(v || "").split(/\n/).map(l => { const [id, star, sc, ord] = l.split("|"); return { id: (id || "").trim(), star: (star || "").trim(), sc: (sc || "").trim(), ord: (ord || "").trim() }; }).filter(m => m.id || m.sc); }
 // 編集用：空の枠も位置を保ったまま6枠にする
-function teamSlots(v) { const ls = String(v || "").split("\n"); const o = []; for (let n = 0; n < TEAM_N; n++) { const [id, star, sc] = (ls[n] || "").split("|"); o.push({ id: (id || "").trim(), star: (star || "").trim(), sc: (sc || "").trim() }); } return o; }
-const slotsStr = slots => slots.map(s => s.id || s.sc ? [s.id, s.star, s.sc].join("|") : "").join("\n").replace(/\n+$/, "");
+function teamSlots(v) { const ls = String(v || "").split("\n"); const o = []; for (let n = 0; n < TEAM_N; n++) { const [id, star, sc, ord] = (ls[n] || "").split("|"); o.push({ id: (id || "").trim(), star: (star || "").trim(), sc: (sc || "").trim(), ord: (ord || "").trim() }); } return o; }
+const slotsStr = slots => slots.map(s => s.id || s.sc ? [s.id, s.star, s.sc].concat(s.ord ? [s.ord] : []).join("|") : "").join("\n").replace(/\n+$/, "");
 const RARSTAR = { R: 1, SR: 2, SSR: 3 };
+// 出撃順のあるメンバーを順番どおり前に（出撃順が無いメンバーは元の並びで後ろ）
+const ordSort = ms => ms.map((m, i) => ({ m, i })).sort((a, b) => (+a.m.ord || 99) - (+b.m.ord || 99) || a.i - b.i).map(x => x.m);
 function charRow(id) { for (const r of T.chars.rows.values()) if ((r.c || {})["ID"] === id) return r.c; return null; }
 function teamCard(r) {
   const c = r.c || {}; const ms = parseTeam(c["メンバー"]);
-  return `<button class="pcard teamcard" data-adrow="${esc(r.id)}"><span class="pinfo"><b>${esc(c["編成名"] || "(名前なし)")}</b><span class="tmfaces">${ms.map(m => R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="" title="${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}">` : `<span class="tag">${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}</span>`).join("")}</span>${c["コメント"] ? `<small class="count">${esc(String(c["コメント"]).slice(0, 60))}</small>` : ""}</span></button>`;
+  return `<button class="pcard teamcard" data-adrow="${esc(r.id)}"><span class="pinfo"><b>${esc(c["編成名"] || "(名前なし)")}</b><span class="tmfaces">${ordSort(ms).map(m => R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="" title="${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}">` : `<span class="tag">${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}</span>`).join("")}</span>${c["コメント"] ? `<small class="count">${esc(String(c["コメント"]).slice(0, 60))}</small>` : ""}</span></button>`;
 }
 function floorsList() { return rowsOf("babel").map(b => ({ key: keyOfCells("babel", b), label: `${b["バベル種類"] || ""} ${b["階層"] || ""}F${b["ボス"] ? " " + b["ボス"] : ""}` })).filter(x => x.key.replace("|", "")).concat(seeded("seals") ? rowsOf("seals").filter(x => String(x["封印戦名"] || "").trim()).map(x => ({ key: "封印戦|" + String(x["封印戦名"]).trim(), label: `封印戦 ${x["封印戦名"]}` })) : []); }
 // 編成例の「バベル種類|階層」の表示（封印戦は「封印戦 名前」）
@@ -723,6 +725,7 @@ function teamField(v) {
     return `<div class="tmslot"><span class="tmno">${i + 1}</span>
       <span class="tmimg">${m.id && R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="">` : '<span class="noimg"></span>'}</span>
       <button class="btn small tmpick" data-pkopen="char|${i}">${name ? esc(name) : "キャラを選ぶ"}</button>
+      <select data-tm="${i}|ord" title="出撃順（何番目に出すか）" ${m.id ? "" : "disabled"}><option value="">出撃順</option>${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${String(n) === m.ord ? "selected" : ""}>${n}番目に出撃</option>`).join("")}</select>
       <select data-tm="${i}|star"><option value="">★</option>${[1, 2, 3, 4, 5].filter(n => n >= min || String(n) === m.star).map(n => `<option value="${n}" ${String(n) === m.star ? "selected" : ""}>★${n}</option>`).join("")}</select>
       <span class="tmimg">${m.sc && R.SIMG[m.sc] ? `<img src="${esc(R.SIMG[m.sc])}" alt="">` : '<span class="noimg"></span>'}</span>
       <button class="btn small tmpick" data-pkopen="script|${i}" ${m.id ? "" : "disabled title=\"先にキャラを選んでください\""}>${m.sc ? esc(m.sc) : "スクリプトを選ぶ"}</button>
@@ -906,7 +909,9 @@ function teamInput(el) {
   const [i, f] = el.dataset.tm.split("|"); const slots = teamSlots(ED.draft["メンバー"]);
   const m = slots[+i]; let v = el.value.trim();
   if (f === "id") { const hit = charOptions().find(o => o.label === v || o.id === v); m.id = hit ? hit.id : v; if (hit) { const cr = charRow(hit.id); const min = cr ? (RARSTAR[cr["レアリティ"]] || 1) : 1; if (!m.star || +m.star < min) m.star = String(min); } }
-  else if (f === "star") m.star = v; else m.sc = v;
+  else if (f === "star") m.star = v;
+  else if (f === "ord") { const dup = v && slots.find((x, j) => j !== +i && x.ord === v); if (dup) dup.ord = m.ord; m.ord = v; }   // 同じ番号がほかにあれば入れ替える
+  else m.sc = v;
   ED.draft["メンバー"] = slotsStr(slots);
   ED.dirty = true; ED.leaveOk = false;
 }
@@ -2392,7 +2397,7 @@ function onAdminClick(e) {
   if (ds.scrm) { const i = ds.scrm.indexOf("|"), f = ds.scrm.slice(0, i), n = ds.scrm.slice(i + 1); ED.draft[f] = scNames(ED.draft[f]).filter(x => x !== n).join("\n"); ED.dirty = true; ED.leaveOk = false; renderForm(); return; }
   if (ds.synadd) { const rows = synRows(ED.draft["おすすめセット"]); rows.push({ id: "?", t: "" }); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); const ins = document.querySelectorAll('#edBody [data-syn$="|id"]'); if (ins.length) { ins[ins.length - 1].value = ""; ins[ins.length - 1].focus(); } return; }
   if (ds.synrm !== undefined) { const rows = synRows(ED.draft["おすすめセット"]); rows.splice(+ds.synrm, 1); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); return; }
-  if (ds.tmclear !== undefined) { const sl = teamSlots(ED.draft["メンバー"]); sl[+ds.tmclear] = { id: "", star: "", sc: "" }; ED.draft["メンバー"] = slotsStr(sl); ED.dirty = true; renderForm(); return; }
+  if (ds.tmclear !== undefined) { const sl = teamSlots(ED.draft["メンバー"]); sl[+ds.tmclear] = { id: "", star: "", sc: "", ord: "" }; ED.draft["メンバー"] = slotsStr(sl); ED.dirty = true; renderForm(); return; }
   if (ds.cpadd) { pickAdd(ds.cpadd); return; }
   if (ds.dladd) { const inp = document.querySelector(`#edBody .dlin[data-dlfield="${CSS.escape(ds.dladd)}"]`); const v = inp && fromDate(inp.value); if (!v) { toast("日付を選んでください"); return; } const cur = splitList(ED.draft[ds.dladd]); if (!cur.includes(v)) cur.push(v); cur.sort((a, b) => toDate(a).localeCompare(toDate(b))); ED.draft[ds.dladd] = cur.join("、"); ED.dirty = true; renderForm(); return; }
   if (ds.dlrm) { const [f, x] = ds.dlrm.split("|"); ED.draft[f] = splitList(ED.draft[f]).filter(y => y !== x).join("、"); ED.dirty = true; renderForm(); return; }

@@ -237,6 +237,19 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .teams{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .team{border:1px solid var(--line);background:var(--field);padding:10px 12px;margin-top:8px;border-radius:3px}
 .team h3{margin:0 0 8px;font-size:15px;font-weight:900}
+.team>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;margin:-10px -12px;padding:10px 12px}
+.team>summary::-webkit-details-marker{display:none}
+.team[open]>summary{margin-bottom:8px;border-bottom:1px dashed var(--line)}
+.tmhd{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.tmhd b{font-size:15px;font-weight:900}
+.tmfx{display:flex;flex-wrap:wrap;gap:4px}
+.tmf{position:relative;display:block}
+.tmf img,.tmf .noth{width:34px;height:34px;border-radius:5px;object-fit:cover;display:grid;place-items:center}
+.tmtg::after{content:"▼";font-size:11px;color:var(--muted);display:inline-block;transition:transform .15s}
+.team[open] .tmtg::after{transform:rotate(180deg)}
+.tmo{position:absolute;left:-3px;top:-3px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:var(--accent,#1a86ff);color:#fff;font-style:normal;font-size:10.5px;font-weight:900;line-height:16px;text-align:center;box-shadow:0 0 0 1.5px var(--field);z-index:1}
+.tmc{position:relative}.tmc .tmo{left:2px;top:2px}
+.tmordn{margin:0 0 6px;font-size:11.5px;color:var(--muted)}
 .tmrow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
 .tm{display:flex;flex-direction:column;gap:4px;min-width:0}
 .tm button{border:0;background:var(--panel);padding:5px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--ink);text-align:center;min-width:0;border-radius:3px}
@@ -948,7 +961,7 @@ function buildModels(){
   /* 編成例（teams）：階層キー → [{name, members:[{id,star,sc}], comment}] */
   TEAMS={};const td=data("teams");const ti=n=>colOf(td,[n]);
   td.rows.forEach(r=>{const v=n=>{const i=ti(n);return i>=0?String(r[i]||"").trim():"";};const key=v("バベル種類")+"|"+v("階層");const name=v("編成名");if(!name)return;
-    const members=v("メンバー").split("\n").map(l=>{const [id,star,sc]=l.split("|");return{id:(id||"").trim(),star:(star||"").trim(),sc:(sc||"").trim()};}).filter(m=>m.id||m.sc);
+    const members=v("メンバー").split("\n").map(l=>{const [id,star,sc,ord]=l.split("|");return{id:(id||"").trim(),star:(star||"").trim(),sc:(sc||"").trim(),ord:(ord||"").trim()};}).filter(m=>m.id||m.sc);
     (TEAMS[key]=TEAMS[key]||[]).push({name,members,comment:v("コメント")});});
   const sd2=data("seals");const qi=n=>colOf(sd2,[n]);
   SEALS=[];
@@ -1792,10 +1805,15 @@ function openScript(i){document.getElementById("dlgDetail").classList.remove("cm
 
 /* ---------- ranking ---------- */
 /* 階層の編成例。キャラ・スクリプトはタップで詳細 */
+/* 編成例：最初は閉じて「編成名＋キャラのアイコン」だけ。開くと星・スクリプト・コメント。
+   出撃順（メンバーの4項目め）があれば、その順に並べて番号を付ける */
+function teamOrd(ms){return ms.map((m,i)=>({m,i})).sort((a,b)=>(+a.m.ord||99)-(+b.m.ord||99)||a.i-b.i).map(x=>x.m);}
 function teamsHtml(f){
   const ts=TEAMS[f.key];if(!ts||!ts.length)return "";
-  return `<div class="teams"><p class="note-h">編成例</p>${ts.map(t=>`<div class="team"><h3>${esc(t.name)}</h3><div class="tmrow">${t.members.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;
-    return `<div class="tm">${m.id?`<button class="tmc" ${c?`data-detail="${esc(m.id)}"`:""}>${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}<span class="tmn">${esc(c?c.name:m.id)}</span>${m.star?`<span class="tmst">★${esc(m.star)}</span>`:""}</button>`:""}${m.sc?`<button class="tms" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:""}</div>`;}).join("")}</div>${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</div>`).join("")}</div>`;
+  return `<div class="teams"><p class="note-h">編成例 <small class="count">（押すと開きます）</small></p>${ts.map(t=>{const ms=teamOrd(t.members);const hasOrd=ms.some(m=>m.ord);
+    return `<details class="team"><summary><span class="tmhd"><b>${esc(t.name)}</b><span class="tmfx">${ms.filter(m=>m.id).map(m=>{const c=CHMAP[m.id];return `<span class="tmf" title="${esc(c?c.name:m.id)}">${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}</span>`;}).join("")}</span></span><span class="tmtg" aria-hidden="true"></span></summary>
+    ${hasOrd?`<p class="tmordn">数字は出撃順（左から順に出撃）</p>`:""}<div class="tmrow">${ms.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;
+    return `<div class="tm">${m.id?`<button class="tmc" ${c?`data-detail="${esc(m.id)}"`:""}>${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}<span class="tmn">${esc(c?c.name:m.id)}</span>${m.star?`<span class="tmst">★${esc(m.star)}</span>`:""}</button>`:""}${m.sc?`<button class="tms" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:""}</div>`;}).join("")}</div>${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</details>`;}).join("")}</div>`;
 }
 function cth(c){return IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth" title="画像未登録">${esc([...(c.name||"")][0]||"")}</span>`;}
 function sth(s){return SIMG[s.name]?`<img src="${SIMG[s.name]}" alt="" class="rowth">`:`<span class="rowth sph ${esc(s.rar)}" title="画像未登録">${esc((s.rar||"").slice(0,3))}</span>`;}
@@ -2507,7 +2525,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=45");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=46");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
