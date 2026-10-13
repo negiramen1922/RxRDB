@@ -531,6 +531,13 @@ body.hascmp main{padding-bottom:80px}.cmpbar .btn{white-space:nowrap}
 #dlgPickC{width:min(980px,calc(100% - 16px))}#dlgPickC .pkhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#dlgPickC .pkhead h2{margin:0}#dlgPickC .pkhead .search{flex:1;min-width:160px}
 #dlgPickC .pkfil{display:flex;flex-direction:column;gap:6px;margin:8px 0}#dlgPickC .pkgrid{max-height:58vh;overflow:auto}.ccard.pkcur{outline:4px solid #ffd54a;outline-offset:-4px}.lessg i{display:none;font-style:normal;color:var(--accent)}.cmpdiff{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;cursor:pointer}.cmpcol b{display:block;overflow-wrap:anywhere;line-height:1.35}
 @media (max-width:620px){.cmpbar{gap:6px;padding:6px 8px}.cmpth{width:32px;height:32px}.cmptable tbody th{white-space:normal;overflow-wrap:anywhere;word-break:break-all;font-size:11px}.cmptable thead th:first-child{width:58px}.lessg span{display:none}.lessg i{display:inline}.cmptable tbody th{padding:6px 4px;font-size:10.5px;line-height:1.35}.cmptable td{padding:6px 6px}.cmptable{min-width:0;width:calc(58px + var(--n,2) * 150px)}.cmptable thead th{width:150px}.cmpcol img{height:90px}.cmptable thead th{min-width:140px}}
+.tile .tnb{position:absolute;left:-4px;top:-6px;font-size:13px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+.tnotes{margin:12px 0;background:var(--panel);box-shadow:var(--shadow);padding:10px 14px}.tnotes h3{margin:0 0 8px}
+.tnrow{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}
+.tnch{display:flex;gap:8px;align-items:center;border:0;background:none;padding:0;cursor:pointer;text-align:left;font:inherit;color:inherit}.tnch img{width:40px;height:40px;object-fit:cover;border-radius:6px}.tnch b{color:var(--accent-ink);text-decoration:underline;text-underline-offset:3px}
+.tnrow p{margin:0;line-height:1.7;white-space:normal}
+@media (max-width:620px){.tnrow{grid-template-columns:1fr}}
+.tnedit textarea{width:100%;min-height:140px;box-sizing:border-box;font:inherit;padding:8px}
 .metarow{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
 .metarow span.m{border:1px solid var(--line2);background:var(--field);padding:1px 9px;font-size:12.5px;display:inline-flex;align-items:center;gap:4px}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
@@ -1014,7 +1021,7 @@ const TDESC_ALL={SSS:"どのコンテンツでも最優先で使える。迷っ�
 const tdesc=t=>(ALLCTX()?TDESC_ALL:TDESC)[t];
 const curFloor=()=>ALLCTX()?ALLF:SEALCTX()?(FLOORS.find(f=>f.key===S.curSeal)||null):(FLOORS.find(f=>f.key===S.curFloor)||null);
 /* 運営Tier（運営が管理画面で作成し public/tiers で公開） */
-let OFFICIAL={},OFFICIAL_ORD={},OFFICIAL_AT=0,TIER_EDIT=false,TIER_HOOK=null;
+let OFFICIAL={},OFFICIAL_ORD={},OFFICIAL_NOTES={},OFFICIAL_AT=0,TIER_EDIT=false,TIER_HOOK=null;
 const EMPTY_P=Object.freeze({});
 /* 自分のTier表（このブラウザだけに保存）: S.view==="mine" のとき */
 const MINE=()=>MODE!=="admin"&&S.view==="mine";
@@ -1022,6 +1029,12 @@ const CANEDIT=()=>TIER_EDIT||MINE();
 const place=fk=>MINE()?((S.tiers||{})[fk]||EMPTY_P):(OFFICIAL[fk]||EMPTY_P);
 /* Tier行の中の並び順（左→右）。階層ごとにキーの配列。並べていないキャラは後ろに環境適性の順 */
 const tord=fk=>(MINE()?(S.tord||{})[fk]:OFFICIAL_ORD[fk])||[];
+/* Tier表のキャラごとの運用メモ（階層ごと・キーごと＝星違いの枠も別々）。運営＝public/tiers の notes、自分用＝S.tnote */
+const tnotes=fk=>(MINE()?(S.tnote||{})[fk]:OFFICIAL_NOTES[fk])||{};
+const tnote=(fk,k)=>tnotes(fk)[k]||"";
+function setTNote(fk,k,text){text=String(text||"").trim();
+  if(MINE()){S.tnote=S.tnote||{};const m=S.tnote[fk]||(S.tnote[fk]={});if(text)m[k]=text;else delete m[k];if(!Object.keys(m).length)delete S.tnote[fk];save();return;}
+  if(!TIER_EDIT)return;const m=OFFICIAL_NOTES[fk]||(OFFICIAL_NOTES[fk]={});if(text)m[k]=text;else delete m[k];if(TIER_HOOK)TIER_HOOK(fk,k,"","",null,text);}
 function rowSort(fk,list,fits){const o=tord(fk),ix={};o.forEach((k,i)=>ix[k]=i);const at=k=>k in ix?ix[k]:1e9;return list.sort((a,b)=>at(a.k)-at(b.k)||(fits?(fits[b.id]||0)-(fits[a.id]||0):0)||a.id.localeCompare(b.id)||(+a.star||0)-(+b.star||0));}
 function setOrder(fk,arr){if(MINE()){S.tord=S.tord||{};if(arr.length)S.tord[fk]=arr;else delete S.tord[fk];save();return;}if(!TIER_EDIT)return;OFFICIAL_ORD[fk]=arr;if(TIER_HOOK)TIER_HOOK(fk,"","","",arr);}
 /* 行 tier の中で key を before の前（before が無ければ末尾）に入れ直す */
@@ -1363,6 +1376,18 @@ function scriptCard(s){const img=SFULL[s.name]||SIMG[s.name];
   <span class="cctop">${s.rar?`<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>`:""}${ic(s.role)}</span>${s.limit||s.unrel?`<span class="ccbadges">${limBadge(s.limit)}${unrelBadge(s)}</span>`:""}
   <span class="ccname"><b>${esc(s.name)}</b>${s.conds.length?`<small class="sccond">${s.conds.map(x=>`${ic(ALIAS[x]||x,ORDERS.includes(x)?"ord":"")}${esc(x)}`).join(" ／ ")}</small>`:""}</span>${MODE==="admin"?"":cmpBtn("s",s.name)}</button>`;}
 
+
+/* 運用メモの入力（Tier表の編集ができるとき＝自分用Tier表・管理画面の運営Tier表） */
+function openTNote(k){const f=curFloor();if(!f)return;const e=eparse(k);const c=CHMAP[e.id];if(!c)return;
+  document.getElementById("detailBody").innerHTML=`<div class="tnedit"><h2>💬 運用メモ</h2><p><b>${esc(c.name)}</b>${e.star?" ★"+esc(e.star):""}（${esc(f.all?"キャラクター全体Tier":f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F")}）</p>
+  <textarea id="tnText" placeholder="このキャラのこの階層での使い方・運用方法（置き場所、スキルを使うタイミング、相性の良い編成など）">${esc(tnote(f.key,k))}</textarea>
+  <p class="hint">${MINE()?"自分用のメモです。このブラウザにだけ保存されます。":"運営Tier表のメモです。保存すると公開サイトにそのまま出ます。"}空にして保存すると消えます。</p>
+  <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" data-tnsave="${esc(k)}">保存</button></div></div>`;
+  const dl=document.getElementById("dlgDetail");if(!dl.open)dl.showModal();setTimeout(()=>{const t=document.getElementById("tnText");if(t)t.focus();},30);}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tnedit],[data-tnsave]");if(!b)return;const ds=b.dataset;
+  if(ds.tnedit){e.stopPropagation();openTNote(ds.tnedit);return;}
+  if(ds.tnsave){const f=curFloor();const t=document.getElementById("tnText");setTNote(f.key,ds.tnsave,t?t.value:"");document.getElementById("dlgDetail").close();render();toast("運用メモを保存しました");}
+},true);
 /* ================= くらべるトレイ（スクリプト＝"s"／キャラ＝"c"） =================
    カードの「＋」や詳細の「＋くらべる」で最大4つまでトレイに入れ、画面下のバーから横並びの比較表を開く。
    トレイはこのブラウザに保存（スクリプト＝S.cmp・スクリプト名、キャラ＝S.ccmp・キャラID） */
@@ -1580,6 +1605,9 @@ function renderTier(){
     h+=`<div class="trow"><button class="tlabel" style="background:${TCOL[i]}" data-zone="${t}" aria-label="${t}に移動" title="${esc(tdesc(t))}">${t}</button><div class="zone${sel?" armed":""}" data-zone="${t}">${inT.length?inT.map(e=>tile(e.c,f,fits,e)).join(""):`<span class="zhint">${esc(tdesc(t))}</span>`}</div></div>`;
   });
   h+=`</div>`;
+  {const ns=TIERS.flatMap(t=>rowSort(f.key,entries(P).filter(e=>e.t===t&&tierShow(e.c)&&tnote(f.key,e.k)),fits));
+   if(ns.length)h+=`<section class="tnotes"><h3>キャラごとの運用メモ <span class="count">${ns.length}</span></h3>${ns.map(e=>`<div class="tnrow"><button class="tnch" data-detail="${esc(e.id)}">${IMG[e.id]?`<img src="${IMG[e.id]}" alt="">`:""}<span><b>${esc(e.c.name)}</b>${e.star?` <small>★${esc(e.star)}</small>`:""}</span>${badge(e.t)}</button><p>${esc(tnote(f.key,e.k)).replace(/\n/g,"<br>")}</p>${CANEDIT()?`<button class="btn small" data-tnedit="${esc(e.k)}">編集</button>`:""}</div>`).join("")}</section>`;
+   else if(CANEDIT())h+=`<p class="hint">キャラを選んで下のバーの「💬 運用メモ」から、そのキャラの使い方・運用方法を書けます。</p>`;}
   if(!CANEDIT()){h+=`</section></div>`;patchMain(h);bindMemo(f);return;}
   const placedIds=new Set(entries(P).map(e=>e.id));
   let list=CH.filter(c=>!placedIds.has(c.id));
@@ -1613,7 +1641,7 @@ const starLabel=st=>st?"★"+st:"";
 function tile(c,f,fits,e){
   const img=IMG[c.id];
   const k=e?e.k:c.id,st=e?e.star:"";
-  return `<button class="tile ticon${limDim(c)}" draggable="${CANEDIT()}" data-id="${esc(k)}" aria-pressed="${sel===k}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}${st?" "+starLabel(st):""}（${esc(c.attr)}・${esc(c.role)}）" aria-label="${esc(c.name)}${st?" "+starLabel(st):""}">${img?`<img src="${img}" alt="" loading="lazy">`:`<span class="nm">${esc(c.name)}</span>`}${st?`<span class="tstar">★${esc(st)}</span>`:""}</button>`;
+  return `<button class="tile ticon${limDim(c)}" draggable="${CANEDIT()}" data-id="${esc(k)}" aria-pressed="${sel===k}" style="--gc:${attrColor(c.attr)}" title="${esc(c.name)}${st?" "+starLabel(st):""}（${esc(c.attr)}・${esc(c.role)}）" aria-label="${esc(c.name)}${st?" "+starLabel(st):""}">${img?`<img src="${img}" alt="" loading="lazy">`:`<span class="nm">${esc(c.name)}</span>`}${st?`<span class="tstar">★${esc(st)}</span>`:""}${f&&tnote(f.key,k)?'<span class="tnb" title="運用メモあり">💬</span>':""}</button>`;
 }
 function ptile(c){
   const img=IMG[c.id];
@@ -1649,7 +1677,7 @@ function renderActionBar(){
   const stars=cur?`<span class="abstars"><small>星</small>${["",1,2,3,4,5].map(n=>`<button class="btn small ghost-dark" data-star="${n}" aria-pressed="${String(n)===se.star}">${n?"★"+n:"なし"}</button>`).join("")}<button class="btn small ghost-dark" data-act="addstar" title="同じキャラを星違いでもう1枠置く">＋星違い</button></span>`:"";
   const lr=cur?`<span class="abstars"><small>並び</small><button class="btn small ghost-dark" data-act="tleft" aria-label="左へ">◀</button><button class="btn small ghost-dark" data-act="tright" aria-label="右へ">▶</button></span>`:"";
   bar.innerHTML=`<b>${esc(CHMAP[se.id].name)}${se.star?" ★"+esc(se.star):""}</b>`+TIERS.map((t,i)=>`<button class="tb" style="background:${TCOL[i]};${cur===t?"outline:2px solid #fff;outline-offset:-3px":""}" data-moveto="${t}">${t}</button>`).join("")+
-  lr+stars+`<button class="btn small ghost-dark" data-moveto="">未配置へ</button><button class="btn small ghost-dark" data-detail="${esc(se.id)}">詳細</button><button class="btn small ghost-dark" data-act="unsel" aria-label="選択解除">✕</button>`;
+  lr+stars+(cur?`<button class="btn small ghost-dark" data-tnedit="${esc(sel)}">💬 運用メモ${tnote(curFloor().key,sel)?" ✓":""}</button>`:"")+`<button class="btn small ghost-dark" data-moveto="">未配置へ</button><button class="btn small ghost-dark" data-detail="${esc(se.id)}">詳細</button><button class="btn small ghost-dark" data-act="unsel" aria-label="選択解除">✕</button>`;
   bar.classList.remove("hidden");
 }
 
@@ -1887,6 +1915,7 @@ function openChar(id){document.getElementById("dlgDetail").classList.remove("cmp
   h+=block("特性","特性名称","",[["Lv1 特性効果","Lv1"],["Lv3 特性効果","Lv3"],["Lv5 特性効果","Lv5"],["特性開放 ★4","★4"],["特性開放 ★5","★5"]]);
   const rest=d.headers.map((n,i)=>[n,i]).filter(([n,i])=>!used.has(n)&&(c.row[i]||"").trim());
   if(rest.length)h+=`<h3>その他</h3><dl class="lv">${rest.map(([n,i])=>`<dt>${esc(n)}</dt><dd>${esc(c.row[i])}</dd>`).join("")}</dl>`;
+  {const f0=(tab==="tier"||tab==="seal"||tab==="ctier"||MODE==="admin")?curFloor():null;if(f0){const es=entries(place(f0.key)).filter(e=>e.id===c.id&&tnote(f0.key,e.k));if(es.length)h=h.replace("<h2>",`<div class="tnotes cdnote"><h3>${esc(f0.all?"全体Tier":f0.seal?"封印戦 "+f0.floor:f0.type+" "+f0.floor+"F")}での運用メモ</h3>${es.map(e=>`<p>${e.star?`<b>★${esc(e.star)}</b> `:""}${badge(e.t)} ${esc(tnote(f0.key,e.k)).replace(/\n/g,"<br>")}</p>`).join("")}</div><h2>`);}}
   {const es=entries(place(ALLF.key)).filter(e=>e.id===c.id).sort((a,b)=>(+a.star||0)-(+b.star||0));if(es.length)h+=`<h3>キャラクター全体Tier</h3><div class="floortiers">${es.map(e=>`<div>総合${e.star?" ★"+esc(e.star):""} ${badge(e.t)}</div>`).join("")}<button class="linkbtn knlink" data-goctier="1">全体Tierを見る ›</button></div>`;}
   TYPES.concat(SEALS.length?["封印戦"]:[]).forEach(t=>{const fs=FLOORS.filter(f=>f.type===t&&entries(place(f.key)).some(e=>e.id===c.id));if(fs.length)h+=`<h3>${esc(t)} の評価</h3><div class="floortiers">${fs.flatMap(f=>entries(place(f.key)).filter(e=>e.id===c.id).sort((a,b)=>(+a.star||0)-(+b.star||0)).map(e=>`<div>${esc(f.floor)}${f.seal?"":"F"}${e.star?" ★"+esc(e.star):""} ${badge(e.t)}</div>`)).join("")}</div>`;});
   const ms=SC.map(s=>Object.assign({s},scMatch(s,c))).filter(x=>x.n>0&&x.roleOk).sort((a,b)=>b.n-a.n||(RAR[b.s.rar]||0)-(RAR[a.s.rar]||0)||b.s.date-a.s.date);
@@ -1908,7 +1937,7 @@ document.addEventListener("click",e=>{
   if(!t)return;const ds=t.dataset;
   if(t.hasAttribute("data-close")){t.closest("dialog").close();return;}
   if(MODE==="admin"){const inA=t.closest("#admin");if(!inA&&!t.closest("#actionbar"))return;if(inA&&(ds.detail!==undefined||ds.sdetail!==undefined||ds.floor!==undefined)&&window.RXR_ADMIN&&window.RXR_ADMIN.pick(ds))return;}
-  if(ds.star!==undefined){if(sel){const P=place(curFloor().key),t0=P[sel];if(t0){const se=eparse(sel),nk=ekey(se.id,ds.star);if(nk!==sel){if(P[nk]){toast("その星はもう置いてあります");return;}const o=tord(curFloor().key).slice(),oi=o.indexOf(sel);moveTo(sel,"");moveTo(nk,t0);if(oi>=0){o[oi]=nk;setOrder(curFloor().key,o);}sel=nk;}render();}}return;}
+  if(ds.star!==undefined){if(sel){const P=place(curFloor().key),t0=P[sel];if(t0){const se=eparse(sel),nk=ekey(se.id,ds.star);if(nk!==sel){if(P[nk]){toast("その星はもう置いてあります");return;}const o=tord(curFloor().key).slice(),oi=o.indexOf(sel);const nt=tnote(curFloor().key,sel);moveTo(sel,"");moveTo(nk,t0);if(oi>=0){o[oi]=nk;setOrder(curFloor().key,o);}if(nt){setTNote(curFloor().key,nk,nt);setTNote(curFloor().key,sel,"");}sel=nk;}render();}}return;}
   if(t.classList.contains("tile")){if(!CANEDIT()){openChar(eparse(ds.id).id);return;}sel=sel===ds.id?null:ds.id;renderTier();renderActionBar();return;}
   if(ds.moveto!==undefined){if(sel){moveTo(sel,ds.moveto);sel=null;render();}return;}
   if(ds.zone!==undefined){if(sel){moveTo(sel,ds.zone);sel=null;render();}return;}
@@ -1944,7 +1973,7 @@ document.addEventListener("click",e=>{
   if(a==="unsel"){sel=null;render();}
   else if(a==="tleft"||a==="tright"){if(sel){nudge(sel,a==="tleft"?-1:1);render();}}
   else if(a==="admin")enterAdmin();
-  else if(a==="mycopy"){const fk=curFloor().key;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の運営Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、運営の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);S.tord=S.tord||{};if(OFFICIAL_ORD[fk])S.tord[fk]=OFFICIAL_ORD[fk].slice();else delete S.tord[fk];save();render();toast("運営の配置をコピーしました。ここから自由に動かせます");}
+  else if(a==="mycopy"){const fk=curFloor().key;const src=OFFICIAL[fk]||{};if(!Object.keys(src).length){toast("この階層の運営Tier表はまだありません");return;}if(Object.keys(place(fk)).length&&!confirm("今の自分の配置を、運営の配置で上書きしますか？"))return;S.tiers=S.tiers||{};S.tiers[fk]=Object.assign({},src);S.tord=S.tord||{};if(OFFICIAL_ORD[fk])S.tord[fk]=OFFICIAL_ORD[fk].slice();else delete S.tord[fk];S.tnote=S.tnote||{};if(OFFICIAL_NOTES[fk])S.tnote[fk]=Object.assign({},OFFICIAL_NOTES[fk]);else delete S.tnote[fk];save();render();toast("運営の配置をコピーしました。ここから自由に動かせます");}
   else if(a==="myclear"){const fk=curFloor().key;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];if(S.tord)delete S.tord[fk];sel=null;save();render();toast("リセットしました");}
   else if(a==="share")openShare();
   else if(a==="ownshare"){const K=OKIND(),W=K==="s"?"スクリプト":"キャラ";const st=ownStats(ownItems(K),K==="s"?SOWN():OWN());if(!st.k){toast(`まず持っている${W}を選んでください`);return;}showShare(makeOwnImage,`リバリバの${W}所持率は ${st.p}%（${st.k}/${st.n}）でした！\n#リバリバ #RxRwiki`,SITE_URL+"?tab="+tab,`rxr-collection${K==="s"?"-script":""}.png`,"所持率を共有");track("share_open",{floor:tab});}
@@ -2136,7 +2165,7 @@ async function loadSite(){
     part("options").then(setOptions).catch(()=>{}),
     part("news").catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
     part("guide").catch(()=>get("data/guide.json")).then(v=>{setDocs(v);}).catch(()=>{}),
-    part("tiers").catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_ORD=v.orders||{};OFFICIAL_AT=v.at||0;}}).catch(()=>{})
+    part("tiers").catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_ORD=v.orders||{};OFFICIAL_NOTES=v.notes||{};OFFICIAL_AT=v.at||0;}}).catch(()=>{})
   ]));
   Object.entries(st).forEach(([k,v])=>{if(v)LIVE[k]={headers:v.headers,rows:v.rows};});
   if(crops)CROPS=crops;
@@ -2478,7 +2507,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=44");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=45");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -2520,7 +2549,7 @@ window.RXR={
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},
   setMain(el,fn){main=el||document.getElementById("main");ADMIN_LIST=fn||null;},
   renderList(k){({chars:renderChars,scripts:renderScripts,babel:renderBabel})[k]();},
-  get OFFICIAL(){return OFFICIAL;},setOfficial(v,at,ord){OFFICIAL=v||{};if(ord)OFFICIAL_ORD=ord;if(at)OFFICIAL_AT=at;},get LOCAL_TIERS(){return S.tiers||{};},
+  get OFFICIAL(){return OFFICIAL;},setOfficial(v,at,ord,notes){OFFICIAL=v||{};if(ord)OFFICIAL_ORD=ord;if(notes)OFFICIAL_NOTES=notes;if(at)OFFICIAL_AT=at;},get LOCAL_TIERS(){return S.tiers||{};},
   setTierCtx(c){TIER_CTX=c==="seal"||c==="all"?c:"babel";sel=null;},get TIER_CTX(){return TIER_CTX;},get SEALS(){return SEALS;},setCurSeal(k){S.curSeal=k;},setCurFloor(k){const f=FLOORS.find(x=>x.key===k&&!x.seal);if(f){S.curType=f.type;S.curFloor=k;}},
   setTierEdit(on,hook){TIER_EDIT=!!on;TIER_HOOK=hook||null;sel=null;renderActionBar();},renderTier(){renderTier();renderActionBar();},
   get curFloor(){return curFloor();},
