@@ -331,7 +331,7 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .onm{font-size:11.5px;font-weight:700;text-align:center;line-height:1.25;min-height:2.5em}
 .ostars{display:flex}
 .ostars button{border:0;background:none;padding:0 1px;font-size:14px;color:var(--line2);cursor:pointer;line-height:1}
-.ostars button.on{color:#f0b400}
+.ostars button.on{color:#f0b400}.ostars button.omin{cursor:default;opacity:.55}
 .ownbtn[aria-pressed="true"]{background:var(--good);color:#fff;border-color:transparent}
 @media (max-width:760px){.ownhead{grid-template-columns:1fr 1fr}.ownbars{grid-column:1/-1}.owngrid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}.oimg,.oimg img,.oimg .noimg{width:70px;height:70px}}
 .tile.ticon{width:60px;height:60px;padding:0;max-width:none;clip-path:none;border:3px solid var(--gc,var(--line2));border-radius:8px;justify-content:center;background:var(--soft);overflow:hidden;position:relative;box-shadow:0 2px 6px rgba(18,78,160,.15)}
@@ -2039,7 +2039,7 @@ document.addEventListener("click",e=>{
   else if(a==="myclear"){const fk=curFloor().key;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];if(S.tord)delete S.tord[fk];sel=null;save();render();toast("リセットしました");}
   else if(a==="share")openShare();
   else if(a==="ownshare"){const K=OKIND(),W=K==="s"?"スクリプト":"キャラ";const st=ownStats(ownItems(K),K==="s"?SOWN():OWN());if(!st.k){toast(`まず持っている${W}を選んでください`);return;}showShare(makeOwnImage,`リバリバの${W}所持率は ${st.p}%（${st.k}/${st.n}）でした！\n#リバリバ #RxRwiki`,SITE_URL+"?tab="+tab,`rxr-collection${K==="s"?"-script":""}.png`,"所持率を共有");track("share_open",{floor:tab});}
-  else if(a==="ownall"){const o=OKIND()==="s"?SOWN():OWN();main.querySelectorAll("[data-owntoggle]").forEach(b=>{const id=b.dataset.owntoggle;if(!o[id])o[id]=1;});save();renderOwn();}
+  else if(a==="ownall"){const o=OKIND()==="s"?SOWN():OWN();main.querySelectorAll("[data-owntoggle]").forEach(b=>{const id=b.dataset.owntoggle;if(!o[id])o[id]=ownMin(OKIND(),id);});save();renderOwn();}
   else if(a==="ownreset"){if(!confirm(`${OKIND()==="s"?"スクリプト":"キャラ"}の所持の記録をすべて消しますか？`))return;if(OKIND()==="s")S.sown={};else S.own={};save();renderOwn();}
   else if(a==="onlyown"){if(!hasOwn()){toast("先に「キャラクター」→「所持率チェッカー」で持っているキャラを登録してください",4000);return;}S.onlyOwn=!S.onlyOwn;save();render();}
   else if(a==="addstar"){if(!sel)return;const P=place(curFloor().key),t0=P[sel];if(!t0)return;const se=eparse(sel);const used=new Set(entries(P).filter(e=>e.id===se.id).map(e=>e.star));
@@ -2412,6 +2412,9 @@ document.addEventListener("click",e=>{
 const OWNF={q:"",attr:null,role:null,show:"all",sort:"date"},SOWNF={q:"",attr:null,role:null,show:"all",sort:"date"};
 const OWN=()=>S.own||(S.own={}),SOWN=()=>S.sown||(S.sown={});
 const hasOwn=()=>Object.keys(S.own||{}).length>0;
+// キャラの初期の星（R=★1・SR=★2・SSR=★3）。所持にしたときはこの星から（スクリプトは★1から）
+const RARSTAR={R:1,SR:2,SSR:3};
+const ownMin=(K,id)=>{if(K==="s")return 1;const c=CHMAP[id];return c&&RARSTAR[c.rar]||1;};
 const OKIND=()=>tab==="sown"?"s":"c";
 const RARCOL={SSR:"#ff8a3c",SR:"#9b6bff",R:"#4c9be8"};
 /* チェッカーで数える一覧（未実装のキャラは数えない）。id＝キャラID／スクリプト名 */
@@ -2422,6 +2425,8 @@ function bar(label,st,icon){return `<div class="obar"><span class="obl">${icon||
 function renderOwn(){
   const K=OKIND(),F=K==="s"?SOWNF:OWNF,o=K==="s"?SOWN():OWN(),items=ownItems(K),W=K==="s"?"スクリプト":"キャラ";
   if(!items.length){main.innerHTML=emptyBlock(K==="s"?"scripts":"chars");return;}
+  // 初期の星より小さく記録されている所持（前の版で★1になったSSRなど）は初期の星に直す
+  let fix=false;items.forEach(c=>{const m=ownMin(K,c.id);if(o[c.id]&&+o[c.id]<m){o[c.id]=m;fix=true;}});if(fix)save();
   const all=ownStats(items,o);
   const stars=[1,2,3,4,5].map(n=>items.filter(c=>o[c.id]===n).length);
   let list=items.slice();const q=F.q.toLowerCase();
@@ -2443,15 +2448,15 @@ function renderOwn(){
    <div class="chips">${attrs.map(a=>`<button class="chip" data-ownattr="${a}" aria-pressed="${F.attr===a}">${K==="s"?"":ic(a)}${a}</button>`).join("")}</div>
    <div class="chips">${roles.map(a=>`<button class="chip" data-ownrole="${a}" aria-pressed="${F.role===a}">${ic(a)}${a}</button>`).join("")}</div>
    <span style="flex:1"></span><button class="btn small" data-act="ownall">表示中をすべて所持に</button><button class="btn small" data-act="ownreset">リセット</button></div>
-  <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${c.col}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${c.img?`<img src="${c.img}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span><span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}" aria-label="★${n}">★</button>`).join("")}</span></div>`;}).join("")||`<p class="count">該当する${W}がありません</p>`}</div>`;
+  <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${c.col}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${c.img?`<img src="${c.img}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span><span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}${n<ownMin(K,c.id)?" omin":""}" aria-label="★${n}">★</button>`).join("")}</span></div>`;}).join("")||`<p class="count">該当する${W}がありません</p>`}</div>`;
   main.innerHTML=h;
   const qi=document.getElementById("ownQ");liveInput(qi,()=>{F.q=qi.value;const p=qi.selectionStart;renderOwn();const n=document.getElementById("ownQ");n.focus();n.setSelectionRange(p,p);});
 }
 main.addEventListener("click",e=>{
   if(tab!=="own"&&tab!=="sown")return;const t=e.target.closest("[data-owntoggle],[data-ownstar],[data-ownshow],[data-ownsort],[data-ownattr],[data-ownrole]");if(!t)return;const ds=t.dataset;const K=OKIND(),o=K==="s"?SOWN():OWN(),F=K==="s"?SOWNF:OWNF;
   // ID に「|」が入ることはないが、スクリプト名は念のため最後の「|」で分ける
-  if(ds.owntoggle){if(o[ds.owntoggle])delete o[ds.owntoggle];else o[ds.owntoggle]=1;save();renderOwn();return;}
-  if(ds.ownstar){const i=ds.ownstar.lastIndexOf("|");o[ds.ownstar.slice(0,i)]=+ds.ownstar.slice(i+1);save();renderOwn();return;}
+  if(ds.owntoggle){if(o[ds.owntoggle])delete o[ds.owntoggle];else o[ds.owntoggle]=ownMin(K,ds.owntoggle);save();renderOwn();return;}
+  if(ds.ownstar){const i=ds.ownstar.lastIndexOf("|"),id=ds.ownstar.slice(0,i);o[id]=Math.max(+ds.ownstar.slice(i+1),ownMin(K,id));save();renderOwn();return;}
   if(ds.ownshow){F.show=ds.ownshow;renderOwn();return;}
   if(ds.ownsort){F.sort=ds.ownsort;renderOwn();return;}
   if(ds.ownattr){F.attr=F.attr===ds.ownattr?null:ds.ownattr;renderOwn();return;}
