@@ -1024,5 +1024,11 @@
   "斬": "images/knights/thumb/斬.webp",
   "玄鉄": "images/knights/thumb/玄鉄.webp",
   "儒羽": "images/knights/thumb/儒羽.webp"
+ },
+ "sealfull": {
+  "「黒き夜のランクランカ」": "images/seals/「黒き夜のランクランカ」.webp"
+ },
+ "seals": {
+  "「黒き夜のランクランカ」": "images/seals/thumb/「黒き夜のランクランカ」.webp"
  }
 }
