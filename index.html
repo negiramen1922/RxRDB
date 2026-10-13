@@ -2197,13 +2197,6 @@ async function fsCommit(writes){
 }
 const fsDoc=p=>`projects/${FBC.projectId}/databases/(default)/documents/${p}`;
 function jstDay(t){return new Date((t||Date.now())+9*3600e3).toISOString().slice(0,10);}
-async function countVisit(){
-  if(!FBC||/^(localhost|127\.)/.test(location.hostname)&&!window.SITE.countLocal)return;
-  const day=jstDay();let uv=1;
-  try{if(localStorage.getItem("rxr-visit")===day)uv=0;localStorage.setItem("rxr-visit",day);}catch(e){}
-  try{if(sessionStorage.getItem("rxr-pv"))return;sessionStorage.setItem("rxr-pv","1");}catch(e){}
-  await fsCommit([{transform:{document:fsDoc("stats/"+day),fieldTransforms:[{fieldPath:"pv",increment:{integerValue:"1"}},{fieldPath:"uv",increment:{integerValue:String(uv)}}]}}]);
-}
 async function sendFeedback(o){
   if(!FBC)throw new Error("no firebase");
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,10);
@@ -2239,7 +2232,6 @@ async function loadSite(){
   if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});Object.assign(BASE.SEAL,im.seals||{});Object.assign(BASE.SEALF,im.sealfull||{});Object.assign(BASE.KN,im.knights||{});Object.assign(BASE.KNF,im.knightfull||{});if(im.hero)BASE.HERO=im.hero;}
   SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();runOpenLink();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
-  countVisit().catch(()=>{});
   if(location.hash==="#admin")openAdminModule();
 }
 /* 管理画面の「選択肢」（public/options）を絞り込みボタンなどに反映 */
@@ -2577,7 +2569,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=48");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=49");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
