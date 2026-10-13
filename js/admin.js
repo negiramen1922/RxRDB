@@ -1358,7 +1358,10 @@ async function saveRow(force) {
       const hdrRef = F.doc(F.db, "tables", k);
       const hs = extra.length ? await tx.get(hdrRef) : null;
       const s = await tx.get(ref);
-      if (hs) { const cur = hs.exists() ? (hs.data().headers || []) : []; tx.set(hdrRef, { headers: cur.concat(extra.filter(x => !cur.includes(x))), t: now(), by: meId() }, { merge: true }); }
+      // 識別子（名前など）を変えたときは、古い識別子を削除済みとして記録する（GitHub の古い data/*.json から「無い行」として出てこないように）
+      const pv = s.exists() ? s.data() : null; const oldKey = pv ? keyOfCells(k, pv.c || {}) : ""; const renDk = pv && oldKey !== keyOfCells(k, cells) && oldKey.replace(/\|/g, "") ? { delKeys: { [oldKey]: now() } } : null;
+      if (hs) { const cur = hs.exists() ? (hs.data().headers || []) : []; tx.set(hdrRef, Object.assign({ headers: cur.concat(extra.filter(x => !cur.includes(x))), t: now(), by: meId() }, renDk || {}), { merge: true }); }
+      else if (renDk) tx.set(hdrRef, renDk, { merge: true });
       if (!creating && !force) {
         if (!s.exists()) throw { code: "gone" };
         const cur = s.data();
@@ -2438,7 +2441,11 @@ function onAdminClick(e) {
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
   if (ds.a === "reload") { location.reload(); return; }
   if (ds.a === "seed") { seedAll(); return; }
-  if (ds.a === "ghhide") { const g = GHNEW[ED.k]; if (g && g.sig) { try { localStorage.setItem("rxr-ghnew-hide-" + ED.k, g.sig); } catch (e) { } g.added = []; } const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(ED.k); return; }
+  if (ds.a === "ghhide") { const k = ED.k, g = GHNEW[k]; const keys = g && g.added ? g.added.slice() : [];
+    if (g && g.sig) { try { localStorage.setItem("rxr-ghnew-hide-" + k, g.sig); } catch (e) { } g.added = []; }
+    // ほかのメンバーにも出ないよう、無視した識別子を削除済みとして記録する
+    if (keys.length) { const dk = {}; keys.forEach(x => { dk[x] = now(); }); F.setDoc(F.doc(F.db, "tables", k), { delKeys: dk }, { merge: true }).catch(e => toast(fbErr(e))); }
+    const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(k); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.tdopen || ds.tdedit || ds.tdcancel || ds.tdsave || ds.tdgo || ds.tdadd || ds.tddel) { todoAction(ds); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
