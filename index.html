@@ -232,6 +232,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tfilter{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;background:var(--panel);box-shadow:var(--shadow);padding:8px 10px;margin-bottom:8px}
 .limsw{display:inline-flex;align-items:center;gap:6px}
 .tile.limdim{filter:grayscale(1);opacity:.35}
+.tile.owndim{filter:grayscale(1);opacity:.45}.tile.owndim:hover,.tile.owndim[aria-pressed="true"]{opacity:.8}
 .tile.limdim:hover,.tile.limdim[aria-pressed="true"]{opacity:.7}
 .tfilter .tfl{font-size:11.5px;font-weight:700;color:var(--accent-ink);letter-spacing:.1em}
 .teams{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
@@ -800,6 +801,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 .dlg .fbkinds label{display:inline-flex;align-items:center;gap:5px;margin:0;font-weight:500}
 .dlg .fbin{width:100%;border:1px solid var(--line2);background:var(--field);padding:8px;font-size:13px;color:var(--ink)}
 #dlgFeedback textarea{min-height:130px}
+.aclink2{border:0;background:none;color:var(--accent-ink);text-decoration:underline;padding:0;font:inherit;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
@@ -824,6 +826,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
       <div class="acts">
         <button class="btn ghost-dark small" data-news>お知らせ<span class="nbadge2" id="newsCount" hidden></span></button>
         <button class="btn ghost-dark small" data-feedback>不具合・ご要望</button>
+        <button class="btn ghost-dark small" data-account="head" id="acctBtn">ログイン</button>
       </div>
     </div>
   </div>
@@ -900,7 +903,8 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 <script type="application/json" id="assets">{}</script>
 <script>
 /* サイト設定：アクセス解析のIDを入れると有効になります */
-window.SITE={cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"}};
+/* authX: X（Twitter）ログインのボタンを出す（Firebase コンソールで X を有効にしてから true に） */
+window.SITE={authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"}};
 </script>
 <script id="app">
 (function(){
@@ -926,7 +930,9 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 /* ---------- state ---------- */
 function blank(){return{tiers:{},notes:{},curType:null,curFloor:null};}
 function load(){try{const r=localStorage.getItem(KEY);if(r){const s=JSON.parse(r);if(s&&s.tiers)return Object.assign(blank(),s);}}catch(e){}return blank();}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+let SAVEHOOK=null,LOGGEDIN=false;try{LOGGEDIN=localStorage.getItem("rxr-login")==="1";}catch(_){}
+function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function save(){saveLocal();if(SAVEHOOK)SAVEHOOK();}
 let S=load();
 let LIVE={};
 /* 列名の変更（古い公開データも新しい列名で読む）。キャラの「最大値」は完凸、スクリプトの「最大値」は Lv200 のステータス */
@@ -1233,10 +1239,12 @@ function tierFilterBar(){
   const lim=CH.some(c=>c.lim)?`<span class="limsw"><span class="count">限定</span><span class="viewsw"><button data-act="limon" aria-pressed="${!S.limOff}">あり</button><button data-act="limoff" aria-pressed="${!!S.limOff}">なし</button></span></span>`:"";
   const g=floorGrp(curFloor());
   const ownOn=(CFS.tier.sel.own||[]).includes("持っている");
-  const own=MODE!=="admin"&&hasOwn()?`<span class="limsw"><span class="count">所持</span><span class="viewsw"><button data-act="tierownoff" aria-pressed="${!ownOn}">すべて</button><button data-act="tierownon" aria-pressed="${ownOn}">所持だけ</button></span></span>`:"";
+  const own=MODE!=="admin"&&hasOwn()?`<span class="limsw"><span class="count">所持</span><span class="viewsw"><button data-act="tierownoff" aria-pressed="${!ownOn}">すべて</button><button data-act="tierownon" aria-pressed="${ownOn}">所持だけ</button></span>${ownOn?"":`<span class="count">グレー＝未所持</span>`}</span>`:"";
   return `<div class="tfilter">${b.btn}${own}${lim}${b.chips}</div>${g?`<p class="hint grpnote">${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団（${BABELGRP[g].join("・")}）のキャラだけを表示しています。</p>`:""}`;
 }
-const limDim=c=>S.limOff&&c.lim?" limdim":"";
+const limDim=c=>(S.limOff&&c.lim?" limdim":"")+ownDim(c);
+// 所持率チェッカーに記録があれば、Tier表で持っていないキャラをグレーにする（公開サイトだけ）
+const ownDim=c=>MODE!=="admin"&&hasOwn()&&!OWN()[c.id]?" owndim":"";
 /* ---------- 効果タグ（ゲーム内フィルターと同じ「攻撃／防御／HP／その他」）----------
    スキル・BLADE・特性の説明文から自動で付ける（1文の中にすべての条件が出てくれば該当。{not:…} はその言葉があれば対象外）。
    キャラの列「効果タグ」で直せる：「+タグ」で追加、「-タグ」で外す（カンマ区切り。管理画面のチェックで編集） */
@@ -2428,7 +2436,7 @@ function renderOwn(){
   <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}</span>${sub}</div>
   <div class="ownstars">${stars.map((n,i)=>`<div><span class="st">${"★".repeat(i+1)}</span><b>${n}</b></div>`).reverse().join("")}</div>
   <div class="ownbars"><div>${attrs.map(a=>bar(a,ownStats(by(a),o),K==="s"?"":ic(a))).join("")}</div><div>${roles.map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div>${ords.length?`<div>${ords.map(a=>bar(a,ownStats(items.filter(c=>c.order===a),o),ic(a,"ord"))).join("")}</div>`:""}</div></div>
-  <p class="hint" style="margin:0 0 10px">${W}の画像を押すと「持っている／持っていない」が切り替わります。★を押すと凸数（星の数）を記録できます。記録はこのブラウザにだけ保存されます。</p>
+  <p class="hint" style="margin:0 0 10px">${W}の画像を押すと「持っている／持っていない」が切り替わります。★を押すと凸数（星の数）を記録できます。${LOGGEDIN?"記録はアカウントにも保存されます（ほかの端末でも同じアカウントでログインすると同じ記録になります）。":`記録はこのブラウザに保存されます。<button class="aclink2" data-account>ログイン</button>するとアカウントにも保存でき、機種変更しても消えません。`}</p>
   <div class="ownctl"><input class="search" id="ownQ" placeholder="${W}名で絞り込み" value="${esc(F.q)}">
    <div class="seg"><button data-ownshow="all" aria-pressed="${F.show==="all"}">すべて</button><button data-ownshow="own" aria-pressed="${F.show==="own"}">所持</button><button data-ownshow="not" aria-pressed="${F.show==="not"}">未所持</button></div>
    <div class="seg"><button data-ownsort="date" aria-pressed="${F.sort==="date"}">新しい順</button><button data-ownsort="name" aria-pressed="${F.sort==="name"}">名前順</button><button data-ownsort="star" aria-pressed="${F.sort==="star"}">★順</button></div>
@@ -2593,6 +2601,14 @@ document.getElementById("fbSend").addEventListener("click",async e=>{
   e.target.disabled=false;e.target.textContent="送信する";
 });
 
+/* ================= ユーザーのログイン（js/user.js。ログインしたことがある端末か、ログインを押したときだけ読み込む） ================= */
+let USERMOD=null;
+function loadUser(){if(!USERMOD)USERMOD=import("./js/user.js?v=1").then(m=>{m.init();return m;}).catch(e=>{USERMOD=null;toast("ログインの準備ができませんでした。通信を確認してください");throw e;});return USERMOD;}
+document.addEventListener("click",ev=>{const b=ev.target.closest("[data-account]");if(!b)return;ev.preventDefault();loadUser().then(m=>m.open()).catch(()=>{});});
+function setAcctBtn(){const b=document.getElementById("acctBtn");if(b)b.textContent=LOGGEDIN?"アカウント":"ログイン";}
+setAcctBtn();
+if(LOGGEDIN&&FBC)setTimeout(()=>loadUser().catch(()=>{}),300);
+
 /* ================= bridge for admin module ================= */
 window.RXR={
   encU,get CFS(){return CFS;},cfBar,cfMatch,qbarChars,sfBar,scFiltered,PKSF,setPickRerender,sortList,get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
@@ -2611,6 +2627,7 @@ window.RXR={
   setOptions,
   liveInput,
   jstDay,get SITE_LOADED(){return SITE_LOADED;},
+  get S(){return S;},saveLocal,setSaveHook(fn){SAVEHOOK=fn;},setLoggedIn(v){const ch=LOGGEDIN!==!!v;LOGGEDIN=!!v;setAcctBtn();if(ch&&MODE!=="admin"&&(tab==="own"||tab==="sown"))render();},
   dlg(id){return document.getElementById(id);},
 };
 setHero();
