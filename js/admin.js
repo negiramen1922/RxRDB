@@ -221,7 +221,7 @@ function startListeners() {
     else maybePublish(k);
     softRender();
   }));
-  on(F.doc(F.db, "public", "all"), s => { ALLSIG = s.exists() ? (s.data().sig || "") : ""; scheduleBundle(); });
+  on(F.doc(F.db, "public", "all"), s => { const d = s.exists() ? s.data() : {}; ALLSIG = s.exists() ? (d.sig || "") : ""; GHP.gh = d.gh || ""; GHP.ghAt = d.ghAt || 0; GHP.at = d.at || 0; scheduleBundle(); scheduleGh(); });
   on(F.collection(F.db, "editing"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); EDITING = o; softRender(); });
   if (S.role === "owner") on(F.collection(F.db, "roles"), q => { ROLES = q.docs.map(d => Object.assign({ email: d.id }, d.data())); softRender(); });
   else ROLES = [];
@@ -402,10 +402,57 @@ async function writeBundle() {
     let json = "{" + BUNDLE_KEYS.filter(k => PUBRAW[k] != null).map(k => JSON.stringify(k) + ":" + PUBRAW[k]).join(",") + "}";
     // 1MB を超えるときは空にして、公開サイトには個別のドキュメントを読ませる
     if (new TextEncoder().encode(json).length > 1000000) json = "";
-    await F.setDoc(F.doc(F.db, "public", "all"), { json, sig, at: now() });
-    ALLSIG = sig; BUNDLE.failed = false;
+    await F.setDoc(F.doc(F.db, "public", "all"), { json, sig, at: now(), ghAt: GHP.ghAt || 0 });   // ghAt（前回 GitHub に出した時刻）は残す
+    ALLSIG = sig; BUNDLE.failed = false; GHP.gh = ""; GHP.at = now();
   } catch (e) { BUNDLE.failed = true; throw e; } finally { BUNDLE.busy = false; }
-  scheduleBundle();
+  scheduleBundle(); scheduleGh();
+}
+/* ---- 公開データを GitHub（data/all.json）にも置く ----
+   公開サイトは GitHub Pages の data/all.json を読む（Firestore を読まない＝閲覧で読み取り枠・費用を使わない）。
+   public/all が変わってから少し落ち着いたら（GH_QUIET）、前回から GH_MIN 空けて1コミット。GitHub Pages の作り直しは1時間に10回が目安。
+   反映済みかどうかは public/all の gh（公開した sig）・ghAt で全員が分かる。開いている管理画面のどれかが出せばよい */
+const GH_QUIET = 60 * 1000, GH_MIN = 6 * 60 * 1000;
+const GHP = { gh: "", ghAt: 0, at: 0, t: null, due: 0, busy: false, err: "" };
+const needGh = () => !!(GH && ALLSIG && GHP.gh !== ALLSIG && !BUNDLE.pending);
+function scheduleGh() {
+  clearTimeout(GHP.t); GHP.t = null; GHP.due = 0;
+  if (needGh() && !GHP.busy) {
+    const wait = Math.max(GH_QUIET - (now() - GHP.at), GH_MIN - (now() - GHP.ghAt), 0) + Math.random() * 15000;
+    GHP.due = Date.now() + wait; GHP.t = setTimeout(() => ghPublish(), wait);
+  }
+  ghStatus();
+}
+function ghStatusHtml() {
+  if (!ALLSIG) return "";
+  if (!GH) return `<span class="ghpub warn" title="公開サイトは Firestore から読むままです">公開サイト：GitHub 連携が未登録</span>`;
+  if (GHP.busy) return `<span class="ghpub mid">公開サイトに反映中…</span>`;
+  if (GHP.err) return `<span class="ghpub warn">公開サイトへの反映に失敗：${esc(GHP.err)} <button class="btn small" data-a="ghpubnow">もう一度</button></span>`;
+  if (BUNDLE.pending || GHP.gh !== ALLSIG) { const m = GHP.due ? Math.max(1, Math.ceil((GHP.due - Date.now()) / 60000)) : 0; return `<span class="ghpub mid">公開サイト：反映待ち${m ? `（約${m}分後に自動で反映）` : ""} <button class="btn small" data-a="ghpubnow">今すぐ公開</button></span>`; }
+  return `<span class="ghpub ok">公開サイト：反映済み（${fmtTime(GHP.ghAt)}）</span>`;
+}
+function ghStatus() { document.querySelectorAll(".ghpubwrap").forEach(el => { const h = ghStatusHtml(); if (el._h !== h) { el.innerHTML = h; el._h = h; } }); }
+setInterval(ghStatus, 30000);
+// 公開データ一式（public/all と同じ中身。GitHub には 1MB の上限が無いので常に全部入れる）
+const bundleJson = () => "{" + BUNDLE_KEYS.filter(k => PUBRAW[k] != null).map(k => JSON.stringify(k) + ":" + PUBRAW[k]).join(",") + `,"_at":${now()}}`;
+async function ghPublish() {
+  if (!GH || GHP.busy || !needGh()) { scheduleGh(); return; }
+  const sig = ALLSIG, body = bundleJson();
+  GHP.busy = true; GHP.err = ""; ghStatus();
+  try {
+    const br = GH.branch || "main";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
+      const commit = await gh(`/git/commits/${base}`);
+      const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree: [{ path: "data/all.json", mode: "100644", type: "blob", content: body }] }) });
+      if (t.sha === commit.tree.sha) break;   // ほかの人がもう同じ内容を出していた
+      const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: `公開データを更新\n\n管理画面から ${meName()}`, tree: t.sha, parents: [base] }) });
+      try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); break; }
+      catch (e) { if (e.status === 422 && attempt < 2) continue; throw e; }
+    }
+    // 出した内容が今の public/all のままなら「反映済み」にする（途中で変わっていたら次の回で出す）
+    if (ALLSIG === sig) await F.setDoc(F.doc(F.db, "public", "all"), { gh: sig, ghAt: now() }, { merge: true });
+  } catch (e) { console.warn(e); GHP.err = ghErr(e).replace(/^GitHub へのアップロードに失敗しました：/, ""); }
+  GHP.busy = false; scheduleGh();
 }
 function pubState(k) {
   if (!seeded(k)) return { cls: "warn", t: "未登録" };
@@ -446,14 +493,14 @@ function renderAll() { renderNav(); renderAdmin(false); }
 let softT = null;
 function softRender() { if (!S.open) return; if (document.activeElement && document.activeElement.id === "myname") return; clearTimeout(softT); softT = setTimeout(() => renderAdmin(true), 80); }
 function userBar() {
-  return rulesWarn() + `<div class="whoami">${S.user.photoURL ? `<img src="${esc(S.user.photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}<span><b>${esc(meName())}</b> <small>${esc(me())}</small></span><span class="rolebadge">${S.role === "owner" ? "オーナー" : "編集者"}</span><button class="btn small" data-a="nameedit">表示名を変更</button><button class="btn small" data-a="logout">ログアウト</button></div>${S.nameEdit || (S.role && S.nameSet === false) ? `<div class="astatus ${S.nameSet ? "" : "warn"}">${S.nameSet ? "" : "<b>表示名を決めてください。</b>変更履歴やメンバー一覧には、Google のアカウント名ではなくこの名前が表示されます。"}<div class="addcol" style="margin-top:6px"><input id="myname" maxlength="30" placeholder="表示名（例：ねぎ）" value="${esc(S.dname || "")}"><button class="btn primary small" data-a="namesave">保存</button>${S.nameSet ? `<button class="btn small" data-a="nameedit">やめる</button>` : ""}</div></div>` : ""}`;
+  return rulesWarn() + `<div class="ghpubwrap">${ghStatusHtml()}</div><div class="whoami">${S.user.photoURL ? `<img src="${esc(S.user.photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}<span><b>${esc(meName())}</b> <small>${esc(me())}</small></span><span class="rolebadge">${S.role === "owner" ? "オーナー" : "編集者"}</span><button class="btn small" data-a="nameedit">表示名を変更</button><button class="btn small" data-a="logout">ログアウト</button></div>${S.nameEdit || (S.role && S.nameSet === false) ? `<div class="astatus ${S.nameSet ? "" : "warn"}">${S.nameSet ? "" : "<b>表示名を決めてください。</b>変更履歴やメンバー一覧には、Google のアカウント名ではなくこの名前が表示されます。"}<div class="addcol" style="margin-top:6px"><input id="myname" maxlength="30" placeholder="表示名（例：ねぎ）" value="${esc(S.dname || "")}"><button class="btn primary small" data-a="namesave">保存</button>${S.nameSet ? `<button class="btn small" data-a="nameedit">やめる</button>` : ""}</div></div>` : ""}`;
 }
 function rulesWarn() { return S.rulesOld ? `<div class="astatus warn conflict"><b>Firestore のルールが古いままのため、保存ができません。</b>Firebase コンソール → Firestore Database → ルール に、<a href="https://github.com/negiramen1922/RxRDB/blob/main/firestore.rules" target="_blank" rel="noopener">最新の firestore.rules</a> を丸ごと貼り付けて「公開」し、このページを再読み込みしてください。</div>` : ""; }
 function statusBar() {
   if (!allReady()) return `<div class="astatus">データを読み込んでいます…</div>`;
   const notSeeded = TABLES.filter(k => !seeded(k));
   if (notSeeded.length) return `<div class="astatus warn">まだ取り込んでいないデータがあります（${notSeeded.map(k => TLABEL[k]).join("・")}）。<button class="btn small primary" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : "今のデータを取り込む"}</button></div>`;
-  return `<div class="astatus ok pubrow">${TABLES.map(k => { const p = pubState(k); return `<span>${TLABEL[k]} ${T[k].rows.size}件 <span class="mb ${p.cls}">${p.t}</span></span>`; }).join("")}<span class="count">保存すると数秒で公開サイトに反映されます</span></div>`;
+  return `<div class="astatus ok pubrow">${TABLES.map(k => { const p = pubState(k); return `<span>${TLABEL[k]} ${T[k].rows.size}件 <span class="mb ${p.cls}">${p.t}</span></span>`; }).join("")}<span class="count">保存すると管理画面にはすぐ、公開サイトには数分で反映されます</span></div>`;
 }
 function renderAdmin(soft) {
   if (!S.open) return;
@@ -1034,7 +1081,7 @@ async function bulkSave() {
       if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; } }
     b.set(F.doc(F.db, "log", rid()), logDoc({ act: "import", k: "chars", label: `キャラのレアリティ・実装をまとめて変更（${ids.length}人）` }));
     await b.commit();
-    toast(`${ids.length}人を保存しました。数秒で公開サイトに反映されます`); BK.ch = {};
+    toast(`${ids.length}人を保存しました。公開サイトには数分で反映されます`); BK.ch = {};
   } catch (e) { toast(fbErr(e), 6000); }
   BK.busy = false; if (BKDLG && BKDLG.open) bulkRender();
 }
@@ -1327,7 +1374,7 @@ async function saveRow(force) {
     ED.saving = false;
     ED.id = id; ED.isNew = false; ED.gone = false; ED.base = Object.assign({}, cells); ED.baseRev = rev; ED.dirty = false; ED.conflict = null; ED.remote = null;
     setPresence();
-    toast(creating ? "追加しました。数秒で公開サイトに反映されます" : "保存しました。数秒で公開サイトに反映されます");
+    toast(creating ? "追加しました。公開サイトには数分で反映されます" : "保存しました。公開サイトには数分で反映されます");
     renderForm();
   } catch (e) {
     ED.saving = false;
@@ -2011,7 +2058,7 @@ function tierInfo() {
   const n = Object.keys(R.OFFICIAL[fk] || {}).length;
   const ctx = R.TIER_CTX;
   const what = ctx === "seal" ? "封印戦" : ctx === "all" ? "全体Tier" : "階層";
-  return `<div class="toolbar"><div class="seg"><button data-tierctx="babel" aria-pressed="${ctx === "babel"}">バベル</button><button data-tierctx="seal" aria-pressed="${ctx === "seal"}">封印戦</button><button data-tierctx="all" aria-pressed="${ctx === "all"}">キャラ全体</button></div><span style="flex:1"></span>${ctx === "all" ? "" : `${f ? `<button class="btn small" data-a="tieredit">この${what}のデータを編集</button>` : ""}<button class="btn primary small" data-a="tieradd">＋ ${what}を追加</button>`}</div><div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（数秒で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
+  return `<div class="toolbar"><div class="seg"><button data-tierctx="babel" aria-pressed="${ctx === "babel"}">バベル</button><button data-tierctx="seal" aria-pressed="${ctx === "seal"}">封印戦</button><button data-tierctx="all" aria-pressed="${ctx === "all"}">キャラ全体</button></div><span style="flex:1"></span>${ctx === "all" ? "" : `${f ? `<button class="btn small" data-a="tieredit">この${what}のデータを編集</button>` : ""}<button class="btn primary small" data-a="tieradd">＋ ${what}を追加</button>`}</div><div class="astatus ok tierbar"><span>ここで並べた配置は、<b>そのまま公開サイトのTier表になります</b>（公開サイトには数分で反映）。キャラを選んで下のバーからTierを選ぶか、ドラッグで動かしてください。</span>
   <span class="tieracts">${n ? (TT.confirm === fk ? `<span class="danger-q">${esc(floorLabel(fk))}の配置${n}件をすべて外しますか？</span><button class="btn small danger" data-a="tierclearyes">外す</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierclear">この階層の配置をすべて外す</button>`) : ""}
   ${nLocal ? (TT.confirm === "import" ? `<span class="danger-q">このブラウザの配置${nLocal}件で、同じキャラの公開中の配置を上書きします。</span><button class="btn small primary" data-a="tierimportyes">取り込む</button><button class="btn small" data-a="tierclearno">やめる</button>` : `<button class="btn small" data-a="tierimport">このブラウザに保存していた配置（${nLocal}件）を取り込む</button>`) : ""}</span></div>`;
 }
@@ -2410,6 +2457,7 @@ function onAdminClick(e) {
   if (ds.a === "sealtier") { const name = ED.base["封印戦名"]; if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("seal"); R.setCurSeal("封印戦|" + name); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
   if (ds.a === "babeltier") { const fk = keyOfCells("babel", ED.base); if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("babel"); R.setCurFloor(fk); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
   if (ds.a === "tieradd") { tierAdd(); return; }
+  if (ds.a === "ghpubnow") { if (BUNDLE.pending) { toast("保存の反映中です。数秒後にもう一度押してください"); return; } GHP.err = ""; clearTimeout(GHP.t); ghPublish(); return; }
   if (ds.a === "bulkrar") { openBulk(); return; }
   if (ds.a === "tieredit") { tierEdit(); return; }
   if (ds.tierctx) { R.setTierCtx(ds.tierctx); renderTierTab(false); return; }
@@ -2474,6 +2522,7 @@ function injectStyle() {
   if (document.getElementById("adminCss")) return;
   const s = document.createElement("style"); s.id = "adminCss";
   s.textContent = `
+.ghpubwrap{margin-bottom:6px;font-size:12.5px}.ghpub{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;padding:3px 10px;border-radius:3px;background:var(--soft)}.ghpub.ok{color:#1a7f4b}.ghpub.mid{color:#a46800;background:#fff4dc}.ghpub.warn{color:#c0392b;background:#fdecea}.ghpub .btn{padding:2px 8px;font-size:12px}
 .whoami{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:13.5px;flex-wrap:wrap}
 .whoami img{width:28px;height:28px;border-radius:50%}
 .whoami small{color:var(--muted)}

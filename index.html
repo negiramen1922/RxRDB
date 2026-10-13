@@ -2217,7 +2217,10 @@ async function loadSite(){
   const st={};let crops=null;
   /* public/all（管理画面が作る、公開データ一式）を1回で読む。Firestore の読み取り回数（無料枠）を節約するため。
      読めなければ public/{k} を個別に読み、それも駄目なら data/*.json */
-  let all=null;if(FBC){try{all=await fsGetJson("public/all");}catch(e){}}
+  /* まず GitHub Pages の data/all.json（管理画面が数分ごとに置く）。Firestore を読まないので、閲覧で読み取り枠・費用を使わない。
+     無ければ（まだ一度も置かれていない等）Firestore の public/all */
+  let all=null;try{all=await get("data/all.json");if(!all||!all.chars)all=null;}catch(e){}
+  if(!all&&FBC){try{all=await fsGetJson("public/all");}catch(e){}}
   const part=k=>all?(all[k]!=null?Promise.resolve(all[k]):Promise.reject(new Error("none"))):FBC?fsGetJson("public/"+k):Promise.reject(new Error("no firebase"));
   await Promise.all(["chars","scripts","babel","teams","seals","people","events","bosses"].map(async k=>{
     try{const v=await part(k);if(v&&v.rows){st[k]=v;return;}}catch(e){}
@@ -2574,7 +2577,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=47");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=48");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
