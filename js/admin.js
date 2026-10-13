@@ -394,7 +394,7 @@ function scheduleBundle() {
   BUNDLE.t = setTimeout(() => writeBundle().catch(e => { console.warn(e); toast("公開サイトへの反映に失敗しました：" + fbErr(e), 8000); }), 600 + Math.random() * 600);
 }
 async function writeBundle() {
-  if (!bundleReady()) return;
+  if (!bundleReady()) { BUNDLE.pending = false; return; }
   if (BUNDLE.busy) { scheduleBundle(); return; }
   const sig = bundleSig(); if (sig === ALLSIG) { BUNDLE.pending = false; return; }
   clearTimeout(BUNDLE.t); BUNDLE.busy = true;
@@ -404,7 +404,7 @@ async function writeBundle() {
     if (new TextEncoder().encode(json).length > 1000000) json = "";
     await F.setDoc(F.doc(F.db, "public", "all"), { json, sig, at: now(), ghAt: GHP.ghAt || 0 });   // ghAt（前回 GitHub に出した時刻）は残す
     ALLSIG = sig; BUNDLE.failed = false; GHP.gh = ""; GHP.at = now();
-  } catch (e) { BUNDLE.failed = true; throw e; } finally { BUNDLE.busy = false; }
+  } catch (e) { BUNDLE.failed = true; BUNDLE.pending = false; setTimeout(scheduleBundle, 30000); scheduleGh(); throw e; } finally { BUNDLE.busy = false; }
   scheduleBundle(); scheduleGh();
 }
 /* ---- 公開データを GitHub（data/all.json）にも置く ----
@@ -427,15 +427,15 @@ function ghStatusHtml() {
   if (!GH) return `<span class="ghpub warn" title="公開サイトは Firestore から読むままです">公開サイト：GitHub 連携が未登録</span>`;
   if (GHP.busy) return `<span class="ghpub mid">公開サイトに反映中…</span>`;
   if (GHP.err) return `<span class="ghpub warn">公開サイトへの反映に失敗：${esc(GHP.err)} <button class="btn small" data-a="ghpubnow">もう一度</button></span>`;
-  if (BUNDLE.pending || GHP.gh !== ALLSIG) { const m = GHP.due ? Math.max(1, Math.ceil((GHP.due - Date.now()) / 60000)) : 0; return `<span class="ghpub mid">公開サイト：反映待ち${m ? `（約${m}分後に自動で反映）` : ""} <button class="btn small" data-a="ghpubnow">今すぐ公開</button></span>`; }
+  if (BUNDLE.pending || GHP.gh !== ALLSIG) { const m = GHP.due ? Math.max(1, Math.ceil((GHP.due - Date.now()) / 60000)) : 0; return `<span class="ghpub mid" title="${esc(`pending:${BUNDLE.pending} busy:${BUNDLE.busy} failed:${BUNDLE.failed} sig:${ALLSIG} gh:${GHP.gh || "-"}`)}">公開サイト：反映待ち${m ? `（約${m}分後に自動で反映）` : ""} <button class="btn small" data-a="ghpubnow">今すぐ公開</button></span>`; }
   return `<span class="ghpub ok">公開サイト：反映済み（${fmtTime(GHP.ghAt)}）</span>`;
 }
 function ghStatus() { document.querySelectorAll(".ghpubwrap").forEach(el => { const h = ghStatusHtml(); if (el._h !== h) { el.innerHTML = h; el._h = h; } }); }
 setInterval(ghStatus, 30000);
 // 公開データ一式（public/all と同じ中身。GitHub には 1MB の上限が無いので常に全部入れる）
 const bundleJson = () => "{" + BUNDLE_KEYS.filter(k => PUBRAW[k] != null).map(k => JSON.stringify(k) + ":" + PUBRAW[k]).join(",") + `,"_at":${now()}}`;
-async function ghPublish() {
-  if (!GH || GHP.busy || !needGh()) { scheduleGh(); return; }
+async function ghPublish(force) {
+  if (!GH || GHP.busy || !ALLSIG || (!force && !needGh())) { scheduleGh(); return; }
   const sig = ALLSIG, body = bundleJson();
   GHP.busy = true; GHP.err = ""; ghStatus();
   try {
@@ -1719,7 +1719,10 @@ function showLocal(items) {
 /* ---- GitHub への直接アップロード（オーナーが secrets/github にトークンを登録） ---- */
 async function gh(path, opt) {
   opt = opt || {};
+  // 返事が来ないまま止まらないよう、90秒で打ち切る
+  const ac = new AbortController(), to = setTimeout(() => ac.abort(), 90000); opt = Object.assign({ signal: ac.signal }, opt);
   const r = await fetch("https://api.github.com/repos/" + GH.repo + path, Object.assign({}, opt, { headers: Object.assign({ Authorization: "Bearer " + GH.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, opt.body ? { "Content-Type": "application/json" } : {}) }));
+  clearTimeout(to);
   if (!r.ok) { const e = new Error("GitHub " + r.status); e.status = r.status; try { e.detail = (await r.json()).message; } catch (_) { } throw e; }
   return r.status === 204 ? null : r.json();
 }
@@ -2458,7 +2461,12 @@ function onAdminClick(e) {
   if (ds.a === "sealtier") { const name = ED.base["封印戦名"]; if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("seal"); R.setCurSeal("封印戦|" + name); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
   if (ds.a === "babeltier") { const fk = keyOfCells("babel", ED.base); if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("babel"); R.setCurFloor(fk); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
   if (ds.a === "tieradd") { tierAdd(); return; }
-  if (ds.a === "ghpubnow") { if (BUNDLE.pending) { toast("保存の反映中です。数秒後にもう一度押してください"); return; } GHP.err = ""; clearTimeout(GHP.t); ghPublish(); return; }
+  if (ds.a === "ghpubnow") {
+    if (!GH) { toast("GitHub 連携が登録されていません（オーナーが「画像」タブで登録）", 6000); return; }
+    if (GHP.busy) { toast("いま公開しています。少しお待ちください"); return; }
+    GHP.err = ""; clearTimeout(GHP.t); toast("公開サイトに反映しています…（1分ほどで反映されます）");
+    (BUNDLE.pending && !BUNDLE.busy ? writeBundle().catch(() => {}) : Promise.resolve()).then(() => ghPublish(true)); return;
+  }
   if (ds.a === "bulkrar") { openBulk(); return; }
   if (ds.a === "tieredit") { tierEdit(); return; }
   if (ds.tierctx) { R.setTierCtx(ds.tierctx); renderTierTab(false); return; }
