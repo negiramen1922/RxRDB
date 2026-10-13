@@ -87,7 +87,9 @@ let OPTS = null;         // public/options（プルダウンの選択肢）
 let TIERPUB = {};        // public/tiers の中身（サーバー側）
 let TIERORD = {};        // public/tiers の orders（Tier行の中の並び順）
 let TIERNOTES = {};      // public/tiers の notes（キャラごとの運用メモ）
-const TIERPEND = [];     // 送信中の配置変更（画面には先に反映）       // public/news
+const TIERPEND = [];
+// 自分が上書きした直前の public/tiers の json。保存のあとにこの古い内容のスナップショットが届いても無視する（動かしたキャラが一瞬戻るのを防ぐ）
+const TIERSTALE = new Set();     // 送信中の配置変更（画面には先に反映）       // public/news
 let GH = null;           // {token, repo, branch} GitHub 連携（secrets/github）
 
 const esc = s => R.esc(s);
@@ -208,10 +210,11 @@ function startListeners() {
   });
   TABLES.concat(["crops", "news", "tiers", "options", "guide"]).forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
+    if (k === "tiers" && d && TIERSTALE.has(d.json)) return;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
     if (BUNDLE_KEYS.includes(k)) { PUBRAW[k] = d && typeof d.json === "string" ? d.json : null; scheduleBundle(); }
     if (k === "crops") { try { R.setCrops(d && d.json ? JSON.parse(d.json) : {}); } catch (e) { } }
-    else if (k === "tiers") { let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; TIERORD = v.orders || {}; TIERNOTES = v.notes || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
+    else if (k === "tiers") { if (d && TIERSTALE.has(d.json)) return; TIERSTALE.clear(); let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; TIERORD = v.orders || {}; TIERNOTES = v.notes || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
     else if (k === "options") { try { OPTS = d && d.json ? JSON.parse(d.json) : null; } catch (e) { OPTS = null; } if (OPTS) R.setOptions(OPTS); softRender(); return; }
     else if (k === "guide") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } GUIDEDOC = v; GUIDEAT = d ? d.at || 0 : 0; if (v) R.setDocs(v); if (!GD.dirty) GD.draft = null; if (S.tab === "guide") softRender(); return; }
     else if (k === "news") { try { NEWSLIST = d && d.json ? JSON.parse(d.json) : []; } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
@@ -1961,9 +1964,11 @@ async function flushTier() {
   if (TIERQ.busy || !TIERQ.q.length) return;
   TIERQ.busy = true;
   const batch = TIERQ.q.splice(0);
+  let wrote = null;
   try {
     await F.runTransaction(F.db, async tx => {
       const ref = F.doc(F.db, "public", "tiers"); const s = await tx.get(ref);
+      const prevJson = s.exists() ? s.data().json : null;
       let v = {}; try { v = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
       const tiers = v.tiers || {}, orders = v.orders || {}, notes = v.notes || {};
       batch.forEach(({ op: [fk, id, t, ol, nt] }) => { if (nt != null) { const m = notes[fk] || (notes[fk] = {}); if (nt) m[id] = nt; else delete m[id]; return; } if (ol) { orders[fk] = ol; return; } const P = tiers[fk] || (tiers[fk] = {}); if (t) P[id] = t; else delete P[id]; if (!Object.keys(P).length) delete tiers[fk]; });
@@ -1973,9 +1978,12 @@ async function flushTier() {
       Object.keys(notes).forEach(fk => { const P = tiers[fk] || {}; Object.keys(notes[fk] || {}).forEach(k => { if (!P[k] || !notes[fk][k]) delete notes[fk][k]; }); if (!Object.keys(notes[fk] || {}).length) delete notes[fk]; });
       const json = JSON.stringify({ tiers, orders, notes, at: now() });
       tx.set(ref, { json, at: now(), count: Object.keys(tiers).length });
+      wrote = { tiers, orders, notes, json, prevJson };
       const name = k => { const m = /^(.*)~(\d)$/.exec(k); const id = m ? m[1] : k; return (R.CHMAP[id] ? R.CHMAP[id].name : id) + (m ? " ★" + m[2] : ""); };
       tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "tier", label: (batch.filter(b => !b.op[3] && b.op[4] == null).map(({ op: [fk, id, t], prev }) => `${floorLabel(fk)} ${name(id)}：${prev || "未配置"} → ${t || "未配置"}`).concat(batch.filter(b => b.op[4] != null).map(({ op: [fk, id, , , nt] }) => `${floorLabel(fk)} ${name(id)} の運用メモを${nt ? "更新" : "削除"}`)).join(" ／ ") || `${[...new Set(batch.map(b => floorLabel(b.op[0])))].join("・")} の並び順を変更`).slice(0, 600) }));
     });
+    // 保存できた内容をすぐ手元に反映（スナップショットが届く前に古い配置へ戻って見えないように）
+    if (wrote) { TIERPUB = wrote.tiers; TIERORD = wrote.orders; TIERNOTES = wrote.notes; if (wrote.prevJson != null) TIERSTALE.add(wrote.prevJson); PUBRAW.tiers = wrote.json; scheduleBundle(); }
   } catch (e) {
     toast("Tier表を保存できませんでした：" + fbErr(e), 6000);
   }
