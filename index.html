@@ -801,6 +801,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 .dlg .fbkinds label{display:inline-flex;align-items:center;gap:5px;margin:0;font-weight:500}
 .dlg .fbin{width:100%;border:1px solid var(--line2);background:var(--field);padding:8px;font-size:13px;color:var(--ink)}
 #dlgFeedback textarea{min-height:130px}
+.grecaptcha-badge{visibility:hidden}
 .aclink2{border:0;background:none;color:var(--accent-ink);text-decoration:underline;padding:0;font:inherit;font-weight:700;cursor:pointer}
 </style>
 </head>
@@ -845,7 +846,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 <main id="main"></main>
 <main id="admin" hidden></main>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<footer class="sitefoot"><p>ファンメイドの非公式ツールです。ゲーム内の画像・テキストの権利は各権利者に帰属します。このサイトはアクセス解析に Google Analytics を使用しています。</p><p class="links"><a href="#" data-news>お知らせ</a><a href="#" data-feedback>不具合・ご要望を送る</a><a href="#admin">管理者ログイン</a></p></footer>
+<footer class="sitefoot"><p>ファンメイドの非公式ツールです。ゲーム内の画像・テキストの権利は各権利者に帰属します。このサイトはアクセス解析に Google Analytics を使用しています。ログイン・ご意見の送信などは reCAPTCHA で保護されており、Google の<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">プライバシーポリシー</a>と<a href="https://policies.google.com/terms" target="_blank" rel="noopener">利用規約</a>が適用されます。</p><p class="links"><a href="#" data-news>お知らせ</a><a href="#" data-feedback>不具合・ご要望を送る</a><a href="#admin">管理者ログイン</a></p></footer>
 <div id="actionbar" class="actionbar hidden"></div>
 
 
@@ -2191,19 +2192,14 @@ async function fsGetJson(path){
   const d=await r.json();const v=d.fields&&d.fields.json&&d.fields.json.stringValue;if(!v)throw new Error("empty");
   return JSON.parse(v);
 }
+// 書き込みには App Check のトークンを付ける（js/appcheck.js をそのときだけ読み込む。取れなければ付けずに送る）
 async function fsCommit(writes){
-  const r=await fetch(`${FSURL.replace(/\/documents$/,"/documents:commit")}?key=${FBC.apiKey}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({writes})});
+  let tk="";try{tk=await (await import("./js/appcheck.js")).appCheckToken();}catch(e){}
+  const r=await fetch(`${FSURL.replace(/\/documents$/,"/documents:commit")}?key=${FBC.apiKey}`,{method:"POST",headers:Object.assign({"Content-Type":"application/json"},tk?{"X-Firebase-AppCheck":tk}:{}),body:JSON.stringify({writes})});
   if(!r.ok)throw new Error("fs "+r.status);
 }
 const fsDoc=p=>`projects/${FBC.projectId}/databases/(default)/documents/${p}`;
 function jstDay(t){return new Date((t||Date.now())+9*3600e3).toISOString().slice(0,10);}
-async function countVisit(){
-  if(!FBC||/^(localhost|127\.)/.test(location.hostname)&&!window.SITE.countLocal)return;
-  const day=jstDay();let uv=1;
-  try{if(localStorage.getItem("rxr-visit")===day)uv=0;localStorage.setItem("rxr-visit",day);}catch(e){}
-  try{if(sessionStorage.getItem("rxr-pv"))return;sessionStorage.setItem("rxr-pv","1");}catch(e){}
-  await fsCommit([{transform:{document:fsDoc("stats/"+day),fieldTransforms:[{fieldPath:"pv",increment:{integerValue:"1"}},{fieldPath:"uv",increment:{integerValue:String(uv)}}]}}]);
-}
 async function sendFeedback(o){
   if(!FBC)throw new Error("no firebase");
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,10);
@@ -2239,7 +2235,6 @@ async function loadSite(){
   if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});Object.assign(BASE.SEAL,im.seals||{});Object.assign(BASE.SEALF,im.sealfull||{});Object.assign(BASE.KN,im.knights||{});Object.assign(BASE.KNF,im.knightfull||{});if(im.hero)BASE.HERO=im.hero;}
   SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();runOpenLink();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
-  countVisit().catch(()=>{});
   if(location.hash==="#admin")openAdminModule();
 }
 /* 管理画面の「選択肢」（public/options）を絞り込みボタンなどに反映 */
@@ -2577,7 +2572,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=48");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=50");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
