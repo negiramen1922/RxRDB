@@ -240,8 +240,10 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .team>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;margin:-10px -12px;padding:10px 12px}
 .team>summary::-webkit-details-marker{display:none}
 .team[open]>summary{margin-bottom:8px;border-bottom:1px dashed var(--line)}
-.tmhd{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
-.tmhd b{font-size:15px;font-weight:900}
+.tmhd{flex:1;min-width:0;display:grid;grid-template-columns:11em minmax(0,1fr);align-items:center;gap:6px 12px}
+@media (max-width:560px){.tmhd{grid-template-columns:minmax(0,1fr)}}
+.tmnot img,.tmnot .tmbn,.tmnot .noth,.tmnot .rowth{filter:grayscale(1);opacity:.45}.tmc.tmnot{border-color:var(--line2);box-shadow:none}.tmc.tmnot .tminfo{opacity:.7}
+.tmhd b{font-size:15px;font-weight:900;line-height:1.3;word-break:break-all}
 .tmfx{display:flex;flex-wrap:wrap;gap:4px}
 .tmf{position:relative;display:block}
 .tmf .tmo{left:auto;right:-3px}
@@ -1231,7 +1233,7 @@ function tierFilterBar(){
   const lim=CH.some(c=>c.lim)?`<span class="limsw"><span class="count">限定</span><span class="viewsw"><button data-act="limon" aria-pressed="${!S.limOff}">あり</button><button data-act="limoff" aria-pressed="${!!S.limOff}">なし</button></span></span>`:"";
   const g=floorGrp(curFloor());
   const ownOn=(CFS.tier.sel.own||[]).includes("持っている");
-  const own=MODE!=="admin"&&hasOwn()?`<button class="chip ownq" data-act="tierown" aria-pressed="${ownOn}">✓ 所持キャラだけ</button>`:"";
+  const own=MODE!=="admin"&&hasOwn()?`<span class="limsw"><span class="count">所持</span><span class="viewsw"><button data-act="tierownoff" aria-pressed="${!ownOn}">すべて</button><button data-act="tierownon" aria-pressed="${ownOn}">所持だけ</button></span></span>`:"";
   return `<div class="tfilter">${b.btn}${own}${lim}${b.chips}</div>${g?`<p class="hint grpnote">${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団（${BABELGRP[g].join("・")}）のキャラだけを表示しています。</p>`:""}`;
 }
 const limDim=c=>S.limOff&&c.lim?" limdim":"";
@@ -1834,15 +1836,17 @@ let TMV="c";try{TMV=localStorage.getItem("rxr-tmview")==="s"?"s":"c";}catch(_){}
 function tmArtPos(id){const r=2.2,v=(3/4.6)/r;const c=Object.values(CROPS).find(x=>x&&x.kind==="char"&&x.key===id);const fx=c?c.cx+c.cs/r/2:.5;return Math.round(Math.max(0,Math.min(1,(fx-v/2)/(1-v)))*100);}
 function teamsHtml(f){
   const ts=TEAMS[f.key];if(!ts||!ts.length)return "";
+  // 所持キャラ・スクリプトを記録していれば、持っていないものをグレーにする
+  const ho=MODE!=="admin"&&hasOwn(),hs=MODE!=="admin"&&Object.keys(S.sown||{}).length>0;const nc=id=>ho&&id&&!OWN()[id]?" tmnot":"",ns=n=>hs&&n&&!SOWN()[n]?" tmnot":"";
   const tog=`<span class="tmvseg">${[["c","キャラ"],["s","スクリプト"]].map(([k,l])=>`<button data-tmv="${k}" aria-pressed="${TMV===k}">${l}</button>`).join("")}</span>`;
   return `<div class="teams"><p class="note-h">編成例 <small class="count">（押すと開きます）</small></p>${ts.map(t=>{const ms=t.members;const hasOrd=ms.some(m=>m.ord);
-    return `<details class="team tv-${TMV}"><summary><span class="tmhd"><b>${esc(t.name)}</b><span class="tmfx">${ms.filter(m=>m.id).map(m=>{const c=CHMAP[m.id];return `<span class="tmf" title="${esc(c?c.name:m.id)}">${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}</span>`;}).join("")}</span></span><span class="tmtg" aria-hidden="true"></span></summary>
-    <div class="tmbar">${tog}${hasOrd?`<span class="tmordn">右上の青い数字＝出撃順（出撃AUTOカスタマイズ）</span>`:""}</div><div class="tmrow">${ms.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;const o=m.ord?`<i class="tmo">${esc(m.ord)}</i>`:"";
+    return `<details class="team tv-${TMV}"><summary><span class="tmhd"><b>${esc(t.name)}</b><span class="tmfx">${ms.filter(m=>m.id).map(m=>{const c=CHMAP[m.id];return `<span class="tmf${nc(m.id)}" title="${esc(c?c.name:m.id)}${nc(m.id)?"（未所持）":""}">${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}</span>`;}).join("")}</span></span><span class="tmtg" aria-hidden="true"></span></summary>
+    <div class="tmbar">${tog}${hasOrd?`<span class="tmordn">右上の青い数字＝出撃順（出撃AUTOカスタマイズ）</span>`:""}${ho?`<span class="tmordn">グレー＝所持していない${hs?"キャラ・スクリプト":"キャラ"}</span>`:""}</div><div class="tmrow">${ms.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;const o=m.ord?`<i class="tmo">${esc(m.ord)}</i>`:"";
     const bn=c&&BANNER[c.id];
-    const card=m.id?`<button class="tmc tmcc" ${c?`data-detail="${esc(m.id)}"`:""} title="${esc(c?c.name:m.id)}"><span class="tmart">${bn?`<span class="tmbn" style="background-image:url('${encU(bn)}');background-position:${tmArtPos(c.id)}% 0"></span>`:c&&IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth">${esc([...(c?c.name:m.id)][0]||"")}</span>`}</span>${c?`<span class="tmorg">${ic(c.order)}</span>`:""}${o}<span class="tminfo">${c?`<span class="tmat">${ic(c.attr)}</span>`:""}${m.star?`<span class="tmst">${"★".repeat(Math.min(+m.star||0,6))}</span>`:""}<span class="tmn">${esc(c?(c.base||c.name):m.id)}</span>${c&&c.style?`<span class="tmsy">${esc(c.style)}</span>`:""}</span>${c&&c.role?`<span class="tmrl">${ic(c.role)}</span>`:""}</button>`:`<span class="tmc tmempty"></span>`;
+    const card=m.id?`<button class="tmc tmcc${nc(m.id)}" ${c?`data-detail="${esc(m.id)}"`:""} title="${esc(c?c.name:m.id)}"><span class="tmart">${bn?`<span class="tmbn" style="background-image:url('${encU(bn)}');background-position:${tmArtPos(c.id)}% 0"></span>`:c&&IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth">${esc([...(c?c.name:m.id)][0]||"")}</span>`}</span>${c?`<span class="tmorg">${ic(c.order)}</span>`:""}${o}<span class="tminfo">${c?`<span class="tmat">${ic(c.attr)}</span>`:""}${m.star?`<span class="tmst">${"★".repeat(Math.min(+m.star||0,6))}</span>`:""}<span class="tmn">${esc(c?(c.base||c.name):m.id)}</span>${c&&c.style?`<span class="tmsy">${esc(c.style)}</span>`:""}</span>${c&&c.role?`<span class="tmrl">${ic(c.role)}</span>`:""}</button>`:`<span class="tmc tmempty"></span>`;
     const sf=s&&(SFULL[s.name]||SIMG[s.name]);
-    const scard=m.sc?`<button class="tmc tmcs" ${s?`data-sdetail="${s.i}"`:""} title="${esc(m.sc)}"><span class="tmart">${sf?`<img src="${encU(sf)}" alt="" loading="lazy">`:`<span class="noth">${esc([...m.sc][0]||"")}</span>`}</span>${c&&IMG[c.id]?`<span class="tmsc">${cth(c)}</span>`:""}${o}<span class="tminfo">${s&&s.rar?`<span class="tmsr">${esc(s.rar)}</span>`:""}<span class="tmn">${esc(m.sc)}</span></span></button>`:m.id?`<span class="tmc tmempty tmcs"><small>スクリプトなし</small></span>`:`<span class="tmc tmempty tmcs"></span>`;
-    const sline=m.sc?`<button class="tms" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:"";
+    const scard=m.sc?`<button class="tmc tmcs${ns(m.sc)}" ${s?`data-sdetail="${s.i}"`:""} title="${esc(m.sc)}"><span class="tmart">${sf?`<img src="${encU(sf)}" alt="" loading="lazy">`:`<span class="noth">${esc([...m.sc][0]||"")}</span>`}</span>${c&&IMG[c.id]?`<span class="tmsc">${cth(c)}</span>`:""}${o}<span class="tminfo">${s&&s.rar?`<span class="tmsr">${esc(s.rar)}</span>`:""}<span class="tmn">${esc(m.sc)}</span></span></button>`:m.id?`<span class="tmc tmempty tmcs"><small>スクリプトなし</small></span>`:`<span class="tmc tmempty tmcs"></span>`;
+    const sline=m.sc?`<button class="tms${ns(m.sc)}" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:"";
     return `<div class="tm">${card}${scard}${sline}</div>`;}).join("")}</div>${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</details>`;}).join("")}</div>`;
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-tmv]");if(!b)return;TMV=b.dataset.tmv==="s"?"s":"c";try{localStorage.setItem("rxr-tmview",TMV);}catch(_){}
@@ -2034,7 +2038,7 @@ document.addEventListener("click",e=>{
     if(!se.star){const base=String(RAR[CHMAP[se.id].rar]||3);moveTo(sel,"");moveTo(ekey(se.id,base),t0);used.delete("");used.add(base);sel=ekey(se.id,base);}
     const nx=["1","2","3","4","5"].find(n=>!used.has(n)&&+n>(+eparse(sel).star||0))||["1","2","3","4","5"].find(n=>!used.has(n));if(!nx){toast("★1〜★5 がすべて置いてあります");render();return;}
     moveTo(ekey(se.id,nx),t0);sel=ekey(se.id,nx);render();toast(`★${nx} の枠を追加しました。星は下のバーで変えられます`);}
-  else if(a==="tierown"){const on=!(CFS.tier.sel.own||[]).includes("持っている");[CFS.tier.sel,CFS.pool.sel].forEach(sl=>{if(on)sl.own=["持っている"];else delete sl.own;});render();}
+  else if(a==="tierownon"||a==="tierownoff"){const on=a==="tierownon";[CFS.tier.sel,CFS.pool.sel].forEach(sl=>{if(on)sl.own=["持っている"];else delete sl.own;});render();}
   else if(a==="ownlink"){shareOwnLink();}
   else if(a==="limon"||a==="limoff"){S.limOff=a==="limoff";save();render();}
   else if(a==="nolim"){S.noLim=!S.noLim;save();render();}
