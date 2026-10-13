@@ -40,7 +40,7 @@ const SCHEMA = {
   ],
   teams: [
     { g: "基本", f: [["バベル種類", "floor"], ["階層", "hide"], ["編成名", "text"]] },
-    { g: "編成", note: "最大6人。星の数はキャラのレアリティ（R=★1・SR=★2・SSR=★3 から）に合わせて選べます。スクリプトはキャラごとに1枚です。「出撃順」で何番目に出すかを記録できます（同じ番号を選ぶと入れ替わります）。", f: [["メンバー", "team"]] },
+    { g: "編成", note: "最大6人。星の数はキャラのレアリティ（R=★1・SR=★2・SSR=★3 から）に合わせて選べます。スクリプトはキャラごとに1枚です。枠の1〜6はゲームの編成画面の左からの並びです。「出撃順」はゲームの「出撃AUTOカスタマイズ」の順番です（同じ番号を選ぶと入れ替わります）。", f: [["メンバー", "team"]] },
     { g: "コメント", f: [["コメント", "long"]] },
   ],
   people: [
@@ -708,12 +708,10 @@ function parseTeam(v) { return String(v || "").split(/\n/).map(l => { const [id,
 function teamSlots(v) { const ls = String(v || "").split("\n"); const o = []; for (let n = 0; n < TEAM_N; n++) { const [id, star, sc, ord] = (ls[n] || "").split("|"); o.push({ id: (id || "").trim(), star: (star || "").trim(), sc: (sc || "").trim(), ord: (ord || "").trim() }); } return o; }
 const slotsStr = slots => slots.map(s => s.id || s.sc ? [s.id, s.star, s.sc].concat(s.ord ? [s.ord] : []).join("|") : "").join("\n").replace(/\n+$/, "");
 const RARSTAR = { R: 1, SR: 2, SSR: 3 };
-// 出撃順のあるメンバーを順番どおり前に（出撃順が無いメンバーは元の並びで後ろ）
-const ordSort = ms => ms.map((m, i) => ({ m, i })).sort((a, b) => (+a.m.ord || 99) - (+b.m.ord || 99) || a.i - b.i).map(x => x.m);
 function charRow(id) { for (const r of T.chars.rows.values()) if ((r.c || {})["ID"] === id) return r.c; return null; }
 function teamCard(r) {
   const c = r.c || {}; const ms = parseTeam(c["メンバー"]);
-  return `<button class="pcard teamcard" data-adrow="${esc(r.id)}"><span class="pinfo"><b>${esc(c["編成名"] || "(名前なし)")}</b><span class="tmfaces">${ordSort(ms).map(m => R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="" title="${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}">` : `<span class="tag">${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}</span>`).join("")}</span>${c["コメント"] ? `<small class="count">${esc(String(c["コメント"]).slice(0, 60))}</small>` : ""}</span></button>`;
+  return `<button class="pcard teamcard" data-adrow="${esc(r.id)}"><span class="pinfo"><b>${esc(c["編成名"] || "(名前なし)")}</b><span class="tmfaces">${ms.map(m => R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="" title="${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}">` : `<span class="tag">${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}</span>`).join("")}</span>${c["コメント"] ? `<small class="count">${esc(String(c["コメント"]).slice(0, 60))}</small>` : ""}</span></button>`;
 }
 function floorsList() { return rowsOf("babel").map(b => ({ key: keyOfCells("babel", b), label: `${b["バベル種類"] || ""} ${b["階層"] || ""}F${b["ボス"] ? " " + b["ボス"] : ""}` })).filter(x => x.key.replace("|", "")).concat(seeded("seals") ? rowsOf("seals").filter(x => String(x["封印戦名"] || "").trim()).map(x => ({ key: "封印戦|" + String(x["封印戦名"]).trim(), label: `封印戦 ${x["封印戦名"]}` })) : []); }
 // 編成例の「バベル種類|階層」の表示（封印戦は「封印戦 名前」）
