@@ -149,6 +149,11 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h{font-size:11.5px;font-weight:700;color:var(--accent-ink);letter-spacing:.12em;margin:0 0 3px;display:flex;align-items:center;gap:6px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
+.clampbox{margin-bottom:12px}.clampbox .note-b{margin:0}
+.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.clampbox.open .clamp{display:block;-webkit-line-clamp:unset}
+.clampbtn{border:0;background:none;color:var(--accent-ink);font-size:12.5px;font-weight:700;padding:4px 0;cursor:pointer}
+.memobox{margin-top:4px}.memobox>summary{cursor:pointer;list-style:none}.memobox>summary::-webkit-details-marker{display:none}.memobox>summary::after{content:"▼";font-size:9px;margin-left:2px}.memobox[open]>summary::after{content:"▲"}.memobox .memo{margin-top:4px}
 .recs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .tile .tstar{position:absolute;right:2px;bottom:2px;background:rgba(5,20,55,.85);color:#ffd54a;font-size:10.5px;font-weight:900;padding:0 4px;border-radius:3px;line-height:1.5;font-family:var(--display)}
 .abstars{display:inline-flex;gap:3px;align-items:center;flex-wrap:wrap}.abstars small{color:#cfe3ff;font-size:11px;margin:0 2px}
@@ -1629,7 +1634,13 @@ function morphKids(a,b){
   [...a.childNodes].slice(nb.length).forEach(n=>n.remove());
 }
 // 使い回した要素にイベントを重ねて付けないよう、付けた要素には _b の印を付ける
-function bindMemo(f){const m=document.getElementById("memo");if(!m)return;
+/* 長い文章（攻略のコツ・コメント）は4行まで見せて「続きを読む」。開いた状態は描き直しても保つ */
+const CLAMPOPEN=new Set(),MEMOOPEN=new Set();
+const clampBox=(title,text,key)=>`<div class="clampbox${CLAMPOPEN.has(key)?" open":""}" data-ck="${esc(key)}"><p class="note-h">${esc(title)}</p><p class="note-b clamp">${esc(text)}</p><button class="clampbtn" data-clamp="${esc(key)}" hidden>${CLAMPOPEN.has(key)?"閉じる ▲":"続きを読む ▼"}</button></div>`;
+function fixClamps(){requestAnimationFrame(()=>document.querySelectorAll(".clampbox").forEach(b=>{const p=b.querySelector(".clamp"),btn=b.querySelector(".clampbtn");if(!p||!btn)return;btn.hidden=!(b.classList.contains("open")||p.scrollHeight>p.clientHeight+2);}));}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-clamp]");if(!b)return;const k=b.dataset.clamp,box=b.closest(".clampbox");const on=!box.classList.contains("open");box.classList.toggle("open",on);if(on)CLAMPOPEN.add(k);else CLAMPOPEN.delete(k);b.textContent=on?"閉じる ▲":"続きを読む ▼";});
+document.addEventListener("toggle",e=>{const d=e.target;if(!(d instanceof HTMLDetailsElement)||!d.dataset.memo)return;if(d.open)MEMOOPEN.add(d.dataset.memo);else MEMOOPEN.delete(d.dataset.memo);},true);
+function bindMemo(f){fixClamps();const m=document.getElementById("memo");if(!m)return;
   if(m._fk!==f.key||document.activeElement!==m){const v=S.notes[f.key]||"";if(m.value!==v)m.value=v;}m._fk=f.key;
   if(!m._b){m._b=1;m.addEventListener("input",()=>{const k=curFloor().key;S.notes[k]=m.value;save();});}}
 function patchMain(h){
@@ -1664,9 +1675,10 @@ function renderTier(){
   h+=`<div class="floorcard"><div class="head"><span class="num"><small>FLOOR</small>${esc(f.floor)}</span>${BOSS[f.boss]?`<img class="bossimg" src="${BOSS[f.boss]}" alt="">`:""}<div><div class="type">${esc(f.type)}</div><h2>${esc(f.boss||"（ボス未登録）")}</h2>${f.attr?`<span class="attr ${esc(f.attr)}">推奨 ${esc(f.attr)}</span>${ic(f.attr,"big")}`:""}</div></div>
   <div class="fgrid"><div><p class="note-h">解析データ</p><ul class="effects">${f.lines.map(l=>`<li class="${l.sec?"sec":l.pol>0?"pos":l.pol<0?"neg":""}">${esc(l.text)}</li>`).join("")||'<li class="sec">なし</li>'}</ul></div><div>`;
   }
-  if(f.point)h+=`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`;
-  if(f.comment)h+=`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`;
-  h+=`<p class="note-h">自分用メモ</p><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など">${esc(S.notes[f.key]||"")}</textarea></div></div>${teamsHtml(f)}</div>`;
+  if(f.point)h+=clampBox("攻略のコツ",f.point,f.key+"|point");
+  if(f.comment)h+=clampBox("コメント",f.comment,f.key+"|comment");
+  /* 自分用メモは閉じておく（押すと開く。書いてあれば「あり」） */
+  h+=`<details class="memobox"${MEMOOPEN.has(f.key)?" open":""} data-memo="${esc(f.key)}"><summary class="note-h">自分用メモ${S.notes[f.key]?' <small class="count">（あり）</small>':""}</summary><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など（このブラウザ・ログインしていればアカウントに保存）">${esc(S.notes[f.key]||"")}</textarea></details></div></div>${teamsHtml(f)}</div>`;
   if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;patchMain(h);return;}
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
   h+=`<details class="tcrit"${S.critOpen?" open":""}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(tdesc(t))}</dd></div>`).join("")}</dl></details>`;
