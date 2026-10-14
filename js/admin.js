@@ -425,10 +425,12 @@ function scheduleGh() {
 function ghStatusHtml() {
   if (!ALLSIG) return "";
   if (!GH) return `<span class="ghpub warn" title="公開サイトは Firestore から読むままです">公開サイト：GitHub 連携が未登録</span>`;
-  if (GHP.busy) return `<span class="ghpub mid">公開サイトに反映中…</span>`;
-  if (GHP.err) return `<span class="ghpub warn">公開サイトへの反映に失敗：${esc(GHP.err)} <button class="btn small" data-a="ghpubnow">もう一度</button></span>`;
-  if (BUNDLE.pending || GHP.gh !== ALLSIG) { const m = GHP.due ? Math.max(1, Math.ceil((GHP.due - Date.now()) / 60000)) : 0; return `<span class="ghpub mid" title="${esc(`pending:${BUNDLE.pending} busy:${BUNDLE.busy} failed:${BUNDLE.failed} sig:${ALLSIG} gh:${GHP.gh || "-"}`)}">公開サイト：反映待ち${m ? `（約${m}分後に自動で反映）` : ""} <button class="btn small" data-a="ghpubnow">今すぐ公開</button></span>`; }
-  return `<span class="ghpub ok">公開サイト：反映済み（${fmtTime(GHP.ghAt)}）</span>`;
+  // 切り抜き位置を変えたのにサムネイル画像に反映していないものが多いと、公開サイトでは元の画像のまま（ずれた位置）で表示される
+  const ub = cropUnbaked().length, cw = ub ? `<span class="ghpub warn">サムネイルの切り抜き位置が <b>${ub}件</b> 未反映です（公開サイトでは前の位置のまま） <button class="btn small" data-a="cropbake">まとめて反映する</button></span> ` : "";
+  if (GHP.busy) return cw + `<span class="ghpub mid">公開サイトに反映中…</span>`;
+  if (GHP.err) return cw + `<span class="ghpub warn">公開サイトへの反映に失敗：${esc(GHP.err)} <button class="btn small" data-a="ghpubnow">もう一度</button></span>`;
+  if (BUNDLE.pending || GHP.gh !== ALLSIG) { const m = GHP.due ? Math.max(1, Math.ceil((GHP.due - Date.now()) / 60000)) : 0; return cw + `<span class="ghpub mid" title="${esc(`pending:${BUNDLE.pending} busy:${BUNDLE.busy} failed:${BUNDLE.failed} sig:${ALLSIG} gh:${GHP.gh || "-"}`)}">公開サイト：反映待ち${m ? `（約${m}分後に自動で反映）` : ""} <button class="btn small" data-a="ghpubnow">今すぐ公開</button></span>`; }
+  return cw + `<span class="ghpub ok">公開サイト：反映済み（${fmtTime(GHP.ghAt)}）</span>`;
 }
 function ghStatus() { document.querySelectorAll(".ghpubwrap").forEach(el => { const h = ghStatusHtml(); if (el._h !== h) { el.innerHTML = h; el._h = h; } }); }
 setInterval(ghStatus, 30000);
