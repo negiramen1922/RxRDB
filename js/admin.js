@@ -442,14 +442,14 @@ async function ghPublish(force) {
   GHP.busy = true; GHP.err = ""; ghStatus();
   try {
     const br = GH.branch || "main";
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < GH_TRY; attempt++) {
       const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
       const commit = await gh(`/git/commits/${base}`);
       const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree: [{ path: "data/all.json", mode: "100644", type: "blob", content: body }] }) });
       if (t.sha === commit.tree.sha) break;   // ほかの人がもう同じ内容を出していた
       const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: `公開データを更新\n\n管理画面から ${meName()}`, tree: t.sha, parents: [base] }) });
       try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); break; }
-      catch (e) { if (e.status === 422 && attempt < 2) continue; throw e; }
+      catch (e) { if (e.status === 422 && attempt < GH_TRY - 1) { await ghWait(attempt); continue; } throw e; }
     }
     // 出した内容が今の public/all のままなら「反映済み」にする（途中で変わっていたら次の回で出す）
     if (ALLSIG === sig) await F.setDoc(F.doc(F.db, "public", "all"), { gh: sig, ghAt: now() }, { merge: true });
@@ -1722,10 +1722,13 @@ function showLocal(items) {
   R.applyMedia(); R.rebuild();
 }
 /* ---- GitHub への直接アップロード（オーナーが secrets/github にトークンを登録） ---- */
+// ほかの人（自動の公開データ更新や画像のアップロード）と同時に GitHub を更新したときは、少し待ってから最新の上に作り直す
+const GH_TRY = 6, ghWait = a => new Promise(r => setTimeout(r, 800 * (a + 1) + Math.random() * 1500));
 async function gh(path, opt) {
   opt = opt || {};
   // 返事が来ないまま止まらないよう、90秒で打ち切る
-  const ac = new AbortController(), to = setTimeout(() => ac.abort(), 90000); opt = Object.assign({ signal: ac.signal }, opt);
+  // ブラウザが GitHub の返事を最大60秒ためるため、ためずに毎回聞く（古い最新コミットのまま更新して「not a fast forward」で失敗するのを防ぐ）
+  const ac = new AbortController(), to = setTimeout(() => ac.abort(), 90000); opt = Object.assign({ signal: ac.signal, cache: "no-store" }, opt);
   const r = await fetch("https://api.github.com/repos/" + GH.repo + path, Object.assign({}, opt, { headers: Object.assign({ Authorization: "Bearer " + GH.token, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }, opt.body ? { "Content-Type": "application/json" } : {}) }));
   clearTimeout(to);
   if (!r.ok) { const e = new Error("GitHub " + r.status); e.status = r.status; try { e.detail = (await r.json()).message; } catch (_) { } throw e; }
@@ -1746,7 +1749,7 @@ async function ghCommit(items, progress) {
     f.sha = b.sha; progress && progress(++n, total);
   }
   const msg = `画像を${items.length === 1 ? "更新" : items.length + "件追加・更新"}：${items.slice(0, 5).map(i => i.key).join("、")}${items.length > 5 ? " ほか" : ""}\n\n管理画面から ${meName()}`;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < GH_TRY; attempt++) {
     const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
     const commit = await gh(`/git/commits/${base}`);
     let json = {}; try { json = JSON.parse(unb64((await gh(`/contents/data/images.json?ref=${base}`)).content)); } catch (e) { if (e.status !== 404) throw e; }
@@ -1755,7 +1758,7 @@ async function ghCommit(items, progress) {
     const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree: tree.concat([{ path: "data/images.json", mode: "100644", type: "blob", content: JSON.stringify(json, null, 1) + "\n" }]) }) });
     const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: msg, tree: t.sha, parents: [base] }) });
     try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return c; }
-    catch (e) { if (e.status === 422 && attempt < 2) continue; throw e; }
+    catch (e) { if (e.status === 422 && attempt < GH_TRY - 1) { await ghWait(attempt); continue; } throw e; }
   }
 }
 /* ---- 編集画面に出す、アップロード・削除の進み具合 ---- */
@@ -1773,7 +1776,7 @@ const IMG_SECS = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], bo
 let IMGDEL = null, IMGDEL_BUSY = false;
 async function ghRemove(kind, key) {
   const br = GH.branch || "main"; const secs = IMG_SECS[kind];
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < GH_TRY; attempt++) {
     const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
     const commit = await gh(`/git/commits/${base}`);
     const json = JSON.parse(unb64((await gh(`/contents/data/images.json?ref=${base}`)).content));
@@ -1790,7 +1793,7 @@ async function ghRemove(kind, key) {
     const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree }) });
     const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: `画像を削除：${key}\n\n管理画面から ${meName()}`, tree: t.sha, parents: [base] }) });
     try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return c; }
-    catch (e) { if (e.status === 422 && attempt < 2) continue; throw e; }
+    catch (e) { if (e.status === 422 && attempt < GH_TRY - 1) { await ghWait(attempt); continue; } throw e; }
   }
 }
 async function removeImage(kind, key) {
