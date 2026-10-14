@@ -261,6 +261,25 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tv-c .tmcs,.tv-s .tmcc,.tv-s .tms{display:none}
 .tmbn{position:absolute;inset:0;background-size:auto 100%;background-repeat:no-repeat}
 .tmsc{position:absolute;left:3px;top:3px;z-index:2}.tmsc img,.tmsc .noth{width:30px;height:30px;border-radius:4px;border:1.5px solid #fff;object-fit:cover;display:grid;place-items:center;font-size:12px;box-shadow:0 0 3px rgba(0,0,0,.6)}
+.tmscs{position:absolute;left:3px;top:3px;z-index:3;display:block;cursor:pointer}.tmscs img,.tmscs .noth{width:30px;height:30px;border-radius:4px;border:1.5px solid #fff;object-fit:cover;display:grid;place-items:center;font-size:12px;box-shadow:0 0 3px rgba(0,0,0,.6);background:#1b2433;color:#fff}
+.tmcc .tmorg{top:37px}
+.tmc.tmempty::after{content:none}
+.tbadd{display:grid;place-items:center;cursor:pointer;color:var(--accent-ink)}.tbadd small{font-size:12px;font-weight:700;color:var(--accent-ink)}
+.tmc.tbcur{outline:3px solid #ffb400;outline-offset:1px}
+.tbopenbtn{margin-left:10px;vertical-align:middle}
+#dlgTB{width:min(1100px,calc(100% - 16px));margin-top:3vh;margin-bottom:auto}
+.tbmeta{display:flex;flex-wrap:wrap;gap:8px 16px;margin:8px 0}.tbmeta label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}.tbmeta select,.tbmeta input{border:1px solid var(--line2);background:var(--field);padding:6px 8px;font-size:14px;color:var(--ink);min-width:0}.tbmeta input{width:min(320px,60vw)}
+.tbteam{padding:8px;margin:6px 0}
+.tbed{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--soft);padding:8px 10px;margin:6px 0;font-size:13px}.tbed label{display:flex;align-items:center;gap:4px}.tbed select{border:1px solid var(--line2);background:var(--field);padding:4px 6px;color:var(--ink)}
+.tbpk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 6px}.tbpk .search{flex:1;min-width:160px}
+.tbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;max-height:38vh;overflow:auto;padding:2px}
+.tbch{border:1px solid var(--line);background:var(--panel);padding:4px 3px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--ink);position:relative;min-width:0}
+.tbch img,.tbch .noth,.tbch .rowth{width:56px;height:56px;border-radius:5px;object-fit:cover;display:grid;place-items:center}
+.tbch span{font-size:10.5px;line-height:1.2;word-break:break-all;text-align:center}.tbch i{position:absolute;right:3px;top:3px;font-style:normal;font-size:10px;font-weight:900;color:#e0a400;background:rgba(255,255,255,.9);padding:0 3px;border-radius:3px}
+.tbch.on{outline:3px solid #ffb400;outline-offset:-3px}
+.tbcm{display:block;margin-top:10px;font-size:13px;font-weight:700}.tbcm textarea{display:block;width:100%;min-height:70px;margin-top:4px;border:1px solid var(--line2);background:var(--field);padding:8px;font-size:14px;color:var(--ink)}
+.tbcta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}
+.tbfloor{font-weight:700;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .tmsr{font-size:10px;font-weight:900;color:#ffd84a;text-shadow:0 0 2px #000}
 .tmcs .tmn{font-size:11.5px}
 .tmempty small{display:grid;place-items:center;height:100%;font-size:11px;color:var(--muted)}
@@ -1240,7 +1259,8 @@ function tierFilterBar(){
   const lim=CH.some(c=>c.lim)?`<span class="limsw"><span class="count">限定</span><span class="viewsw"><button data-act="limon" aria-pressed="${!S.limOff}">あり</button><button data-act="limoff" aria-pressed="${!!S.limOff}">なし</button></span></span>`:"";
   const g=floorGrp(curFloor());
   const ownOn=(CFS.tier.sel.own||[]).includes("持っている");
-  const own=MODE!=="admin"&&hasOwn()?`<span class="limsw"><span class="count">所持</span><span class="viewsw"><button data-act="tierownoff" aria-pressed="${!ownOn}">すべて</button><button data-act="tierownon" aria-pressed="${ownOn}">所持だけ</button></span>${ownOn?"":`<span class="count">グレー＝未所持</span>`}</span>`:"";
+  /* 所持の記録があれば、未所持のキャラはグレー（所持だけにしたいときは ▼絞り込み の「所持」） */
+  const own=MODE!=="admin"&&hasOwn()&&!ownOn?`<span class="count">グレー＝未所持</span>`:"";
   return `<div class="tfilter">${b.btn}${own}${lim}${b.chips}</div>${g?`<p class="hint grpnote">${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団（${BABELGRP[g].join("・")}）のキャラだけを表示しています。</p>`:""}`;
 }
 const limDim=c=>(S.limOff&&c.lim?" limdim":"")+ownDim(c);
@@ -1290,7 +1310,7 @@ function autoTagsOf(text){const ss=String(text||"").split(/[。\n]/).filter(Bool
 function applyTagEdits(auto,edits){const set=new Set(auto);String(edits||"").split(/[,、，\n]/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(x[0]==="-")set.delete(x.slice(1));else set.add(x[0]==="+"?x.slice(1):x);});return [...set];}
 /* キャラ一覧のフィルター（ゲーム内と同じタブ）。同じ欄の中は「どれか」、欄どうしは「すべて」。効果タグはどれか／すべてを切り替え */
 /* 同じ絞り込みを キャラ一覧(chars)・Tier表(tier)・ランキング(rank) で使う。設定はそれぞれ別に持つ */
-const CFS={chars:{tab:"基本",sel:{},tagAll:false},tier:{tab:"基本",sel:{},tagAll:false},pool:{tab:"基本",sel:{},tagAll:false},rank:{tab:"基本",sel:{},tagAll:false},pick:{tab:"基本",sel:{},tagAll:false}};
+const CFS={chars:{tab:"基本",sel:{},tagAll:false},tier:{tab:"基本",sel:{},tagAll:false},pool:{tab:"基本",sel:{},tagAll:false},rank:{tab:"基本",sel:{},tagAll:false},pick:{tab:"基本",sel:{},tagAll:false},sov:{tab:"基本",sel:{},tagAll:false}};
 /* キャラ・スクリプトを選ぶ一覧（比較の相性・管理画面の紐付けなど）の絞り込み。描き直しは開いている一覧が登録する */
 let PICKRR=null;const setPickRerender=fn=>{PICKRR=fn||null;};
 let CFK="chars",CF=CFS.chars;
@@ -1304,7 +1324,7 @@ const unrelBadge=(c,cls)=>c.unrel?`<span class="limb unrel ${cls||""}">未実装
 function cfMatch(c,st){st=st||CFS.chars;
   for(const [k,vals] of Object.entries(st.sel)){if(!vals.length)continue;
     if(k==="tags"){const hit=vals.filter(t=>c.tags.includes(t)).length;if(st.tagAll?hit<vals.length:!hit)return false;continue;}
-    const v=k==="limit"?(c.limit||"通常"):k==="dtype"?(c.dtype==="物理"||c.dtype==="特殊"?c.dtype:"その他"):k==="own"?(OWN()[c.id]?"持っている":"持っていない"):k==="babel"?babelKind(c):k==="rel"?(c.unrel?"未実装":"実装済み"):c[k];
+    const v=k==="limit"?(c.limit||"通常"):k==="dtype"?(c.dtype==="物理"||c.dtype==="特殊"?c.dtype:"その他"):k==="own"?((st.ownMap||OWN())[c.id]?"持っている":"持っていない"):k==="babel"?babelKind(c):k==="rel"?(c.unrel?"未実装":"実装済み"):c[k];
     if(!vals.includes(v))return false;}
   return true;
 }
@@ -1324,7 +1344,7 @@ document.addEventListener("click",e=>{const g=e.target.closest("[data-goctier]")
 document.addEventListener("click",e=>{const b=e.target.closest("[data-qf],[data-qsrole]");if(!b)return;const ds=b.dataset;
   if(ds.qf){const [x,k,...r]=ds.qf.split("|"),v=r.join("|");const a=CFS[x].sel[k]||(CFS[x].sel[k]=[]);const j=a.indexOf(v);if(j>=0)a.splice(j,1);else{if(k==="babel")a.length=0;a.push(v);}cfRerender(x);return;}
   if(ds.qsrole){tstate.scripts.role=tstate.scripts.role===ds.qsrole?null:ds.qsrole;renderScripts();}});
-function cfRerender(k){if(k==="pick"){if(PICKRR)PICKRR();return;}if(k==="tier"||k==="pool")renderTier();else if(k==="rank")renderRank();else renderChars();}
+function cfRerender(k){if(k==="pick"){if(PICKRR)PICKRR();return;}if(k==="sov"){openSharedOwn();return;}if(k==="tier"||k==="pool")renderTier();else if(k==="rank")renderRank();else renderChars();}
 function cfToggle(k,v){const a=CF.sel[k]||(CF.sel[k]=[]);const i=a.indexOf(v);if(i>=0)a.splice(i,1);else a.push(v);}
 function cfDialogHtml(){
   const n=CH.filter(c=>cfMatch(c,CF)).length;const tabs=["基本",...tagCats().map(([c])=>c)];
@@ -1396,7 +1416,7 @@ function sortDialogHtml(kind){
   <div class="cffoot"><button class="btn" data-sortreset="${kind}">リセット</button><span style="flex:1"></span><button class="btn primary" data-sortclose="${kind}">並び替える</button></div>`;
 }
 function openSort(kind){const dl=document.getElementById("dlgSort");document.getElementById("sortBody").innerHTML=sortDialogHtml(kind);if(!dl.open)dl.showModal();}
-const rerenderKind=kind=>kind==="chars"?renderChars():renderScripts();
+const rerenderKind=kind=>{if(kind==="chars"&&sovOpen())openSharedOwn();if(MODE!=="admin"&&tab!=="chars"&&tab!=="scripts")return;kind==="chars"?renderChars():renderScripts();};
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-sortopen],[data-sortdir],[data-sortset],[data-sortreset],[data-sortclose]");if(!b)return;const ds=b.dataset;
   if(ds.sortopen){openSort(ds.sortopen);return;}
@@ -1408,7 +1428,7 @@ document.addEventListener("click",e=>{
 /* 絞り込み・並び替え：外側（暗いところ）を押したら閉じて、一覧に反映 */
 ["dlgCF","dlgSF","dlgSort"].forEach(id=>{const dl=document.getElementById(id);if(!dl)return;
   dl.addEventListener("click",e=>{if(e.target===dl)dl.close();});
-  dl.addEventListener("close",()=>{if((id==="dlgCF"&&CFK==="pick")||(id==="dlgSF"&&SFK==="pick")){if(PICKRR)PICKRR();return;}if(MODE==="admin")return;if(tab==="chars")renderChars();else if(tab==="scripts")renderScripts();else if(tab==="tier")renderTier();else if(tab==="rank")renderRank();});});
+  dl.addEventListener("close",()=>{if((id==="dlgCF"&&CFK==="pick")||(id==="dlgSF"&&SFK==="pick")){if(PICKRR)PICKRR();return;}if((id==="dlgCF"&&CFK==="sov")||(id==="dlgSort"&&sovOpen())){openSharedOwn();if(id==="dlgCF")return;}if(MODE==="admin")return;if(tab==="chars")renderChars();else if(tab==="scripts")renderScripts();else if(tab==="tier")renderTier();else if(tab==="rank")renderRank();});});
 /* 限定・周年限定のバッジ（images.json の icons に「限定」「周年限定」の画像があれば画像、なければ文字） */
 function limBadge(v,cls){if(!v)return "";return ICON[v]?`<img class="limimg ${cls||""}" src="${ICON[v]}" alt="${esc(v)}" title="${esc(v)}">`:`<span class="limb ${v==="周年限定"?"anv":""} ${cls||""}">${esc(v)}</span>`;}
 /* キャラのカード表示（ゲーム内のキャラ一覧に近い形） */
@@ -1843,23 +1863,120 @@ function openScript(i){document.getElementById("dlgDetail").classList.remove("cm
 let TMV="c";try{TMV=localStorage.getItem("rxr-tmview")==="s"?"s":"c";}catch(_){}
 // 覚醒イラスト（横長）から、縦長カードに顔のあたりが入る横位置（%）。サムネイルの切り抜き位置（無ければ真ん中）を使う
 function tmArtPos(id){const r=2.2,v=(3/4.6)/r;const c=Object.values(CROPS).find(x=>x&&x.kind==="char"&&x.key===id);const fx=c?c.cx+c.cs/r/2:.5;return Math.round(Math.max(0,Math.min(1,(fx-v/2)/(1-v)))*100);}
-function teamsHtml(f){
-  const ts=TEAMS[f.key];if(!ts||!ts.length)return "";
-  // 所持キャラ・スクリプトを記録していれば、持っていないものをグレーにする
-  const ho=MODE!=="admin"&&hasOwn(),hs=MODE!=="admin"&&Object.keys(S.sown||{}).length>0;const nc=id=>ho&&id&&!OWN()[id]?" tmnot":"",ns=n=>hs&&n&&!SOWN()[n]?" tmnot":"";
-  const tog=`<span class="tmvseg">${[["c","キャラ"],["s","スクリプト"]].map(([k,l])=>`<button data-tmv="${k}" aria-pressed="${TMV===k}">${l}</button>`).join("")}</span>`;
-  return `<div class="teams"><p class="note-h">編成例 <small class="count">（押すと開きます）</small></p>${ts.map(t=>{const ms=t.members;const hasOrd=ms.some(m=>m.ord);
-    return `<details class="team tv-${TMV}"><summary><span class="tmhd"><b>${esc(t.name)}</b><span class="tmfx">${ms.filter(m=>m.id).map(m=>{const c=CHMAP[m.id];return `<span class="tmf${nc(m.id)}" title="${esc(c?c.name:m.id)}${nc(m.id)?"（未所持）":""}">${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}</span>`;}).join("")}</span></span><span class="tmtg" aria-hidden="true"></span></summary>
-    <div class="tmbar">${tog}${hasOrd?`<span class="tmordn">右上の青い数字＝出撃順（出撃AUTOカスタマイズ）</span>`:""}${ho?`<span class="tmordn">グレー＝所持していない${hs?"キャラ・スクリプト":"キャラ"}</span>`:""}</div><div class="tmrow">${ms.map(m=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;const o=m.ord?`<i class="tmo">${esc(m.ord)}</i>`:"";
+// 所持キャラ・スクリプトを記録していれば、持っていないものをグレーにする（公開サイトだけ）
+function ownNot(){const ho=MODE!=="admin"&&hasOwn(),hs=MODE!=="admin"&&Object.keys(S.sown||{}).length>0;return{ho,hs,nc:id=>ho&&id&&!OWN()[id]?" tmnot":"",ns:n=>hs&&n&&!SOWN()[n]?" tmnot":""};}
+/* 編成の6枠のカード（キャラ表示：スクリプトはカードの左上に小さく／スクリプト表示：キャラの顔を左上に小さく）。
+   opt.slot=true は編成ビルダー用（押すとその枠を選ぶ。空の枠は「＋」）、opt.sel＝選んでいる枠 */
+function teamCardsHtml(ms,opt){opt=opt||{};const nc=opt.nc||(()=>""),ns=opt.ns||(()=>"");
+  return `<div class="tmrow">${ms.map((m,i)=>{const c=CHMAP[m.id];const s=m.sc?SC.find(x=>x.name===m.sc):null;const o=m.ord?`<i class="tmo">${esc(m.ord)}</i>`:"";
+    const sl=k=>opt.slot?`data-tbslot="${i}|${k}"`:"",cur=opt.slot&&opt.sel===i?" tbcur":"";
     const bn=c&&BANNER[c.id];
-    const card=m.id?`<button class="tmc tmcc${nc(m.id)}" ${c?`data-detail="${esc(m.id)}"`:""} title="${esc(c?c.name:m.id)}"><span class="tmart">${bn?`<span class="tmbn" style="background-image:url('${encU(bn)}');background-position:${tmArtPos(c.id)}% 0"></span>`:c&&IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth">${esc([...(c?c.name:m.id)][0]||"")}</span>`}</span>${c?`<span class="tmorg">${ic(c.order)}</span>`:""}${o}<span class="tminfo">${c?`<span class="tmat">${ic(c.attr)}</span>`:""}${m.star?`<span class="tmst">${"★".repeat(Math.min(+m.star||0,6))}</span>`:""}<span class="tmn">${esc(c?(c.base||c.name):m.id)}</span>${c&&c.style?`<span class="tmsy">${esc(c.style)}</span>`:""}</span>${c&&c.role?`<span class="tmrl">${ic(c.role)}</span>`:""}</button>`:`<span class="tmc tmempty"></span>`;
+    const sthumb=s&&SIMG[s.name]?`<span class="tmscs${ns(m.sc)}" ${opt.slot?"":`data-sdetail="${s.i}"`} title="${esc(m.sc)}"><img src="${SIMG[s.name]}" alt=""></span>`:m.sc?`<span class="tmscs" title="${esc(m.sc)}"><span class="noth">${esc([...m.sc][0]||"")}</span></span>`:"";
+    const card=m.id?`<button class="tmc tmcc${nc(m.id)}${cur}" ${opt.slot?sl("c"):c?`data-detail="${esc(m.id)}"`:""} title="${esc(c?c.name:m.id)}${m.sc?" ／ "+esc(m.sc):""}"><span class="tmart">${bn?`<span class="tmbn" style="background-image:url('${encU(bn)}');background-position:${tmArtPos(c.id)}% 0"></span>`:c&&IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth">${esc([...(c?c.name:m.id)][0]||"")}</span>`}</span>${sthumb}${c?`<span class="tmorg">${ic(c.order)}</span>`:""}${o}<span class="tminfo">${c?`<span class="tmat">${ic(c.attr)}</span>`:""}${m.star?`<span class="tmst">${"★".repeat(Math.min(+m.star||0,6))}</span>`:""}<span class="tmn">${esc(c?(c.base||c.name):m.id)}</span>${c&&c.style?`<span class="tmsy">${esc(c.style)}</span>`:""}</span>${c&&c.role?`<span class="tmrl">${ic(c.role)}</span>`:""}</button>`
+      :opt.slot?`<button class="tmc tmempty tbadd${cur}" ${sl("c")}><small>＋ 枠${i+1}</small></button>`:`<span class="tmc tmempty"></span>`;
     const sf=s&&(SFULL[s.name]||SIMG[s.name]);
-    const scard=m.sc?`<button class="tmc tmcs${ns(m.sc)}" ${s?`data-sdetail="${s.i}"`:""} title="${esc(m.sc)}"><span class="tmart">${sf?`<img src="${encU(sf)}" alt="" loading="lazy">`:`<span class="noth">${esc([...m.sc][0]||"")}</span>`}</span>${c&&IMG[c.id]?`<span class="tmsc">${cth(c)}</span>`:""}${o}<span class="tminfo">${s&&s.rar?`<span class="tmsr">${esc(s.rar)}</span>`:""}<span class="tmn">${esc(m.sc)}</span></span></button>`:m.id?`<span class="tmc tmempty tmcs"><small>スクリプトなし</small></span>`:`<span class="tmc tmempty tmcs"></span>`;
-    const sline=m.sc?`<button class="tms${ns(m.sc)}" ${s?`data-sdetail="${s.i}"`:""}>${s?sth(s):""}<span>${esc(m.sc)}</span></button>`:"";
-    return `<div class="tm">${card}${scard}${sline}</div>`;}).join("")}</div>${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</details>`;}).join("")}</div>`;
+    const scard=m.sc?`<button class="tmc tmcs${ns(m.sc)}${cur}" ${opt.slot?sl("s"):s?`data-sdetail="${s.i}"`:""} title="${esc(m.sc)}"><span class="tmart">${sf?`<img src="${encU(sf)}" alt="" loading="lazy">`:`<span class="noth">${esc([...m.sc][0]||"")}</span>`}</span>${c&&IMG[c.id]?`<span class="tmsc">${cth(c)}</span>`:""}${o}<span class="tminfo">${s&&s.rar?`<span class="tmsr">${esc(s.rar)}</span>`:""}<span class="tmn">${esc(m.sc)}</span></span></button>`
+      :opt.slot?`<button class="tmc tmempty tmcs tbadd${cur}" ${sl(m.id?"s":"c")}><small>${m.id?"＋ スクリプト":"＋ 枠"+(i+1)}</small></button>`:m.id?`<span class="tmc tmempty tmcs"><small>スクリプトなし</small></span>`:`<span class="tmc tmempty tmcs"></span>`;
+    return `<div class="tm">${card}${scard}</div>`;}).join("")}</div>`;}
+/* 編成1つ（閉じると編成名＋アイコン、開くとカード）。open=true で開いた状態 */
+// 開いている編成例（描き直しても開いたままにする。キー＝階層|編成名）
+const TEAMOPEN=new Set();
+document.addEventListener("toggle",e=>{const d=e.target;if(!(d instanceof HTMLDetailsElement)||!d.dataset.tk)return;if(d.open)TEAMOPEN.add(d.dataset.tk);else TEAMOPEN.delete(d.dataset.tk);},true);
+function teamOneHtml(t,open,tk){if(tk&&TEAMOPEN.has(tk))open=true;const ms=t.members;const hasOrd=ms.some(m=>m.ord);const {ho,hs,nc,ns}=ownNot();
+  const tog=`<span class="tmvseg">${[["c","キャラ"],["s","スクリプト"]].map(([k,l])=>`<button data-tmv="${k}" aria-pressed="${TMV===k}">${l}</button>`).join("")}</span>`;
+  return `<details class="team tv-${TMV}"${open?" open":""}${tk?` data-tk="${esc(tk)}"`:""}><summary><span class="tmhd"><b>${esc(t.name||"(名前なし)")}</b><span class="tmfx">${ms.filter(m=>m.id).map(m=>{const c=CHMAP[m.id];return `<span class="tmf${nc(m.id)}" title="${esc(c?c.name:m.id)}${nc(m.id)?"（未所持）":""}">${c?cth(c):`<span class="noth">${esc([...m.id][0]||"")}</span>`}${m.ord?`<i class="tmo">${esc(m.ord)}</i>`:""}</span>`;}).join("")}</span></span><span class="tmtg" aria-hidden="true"></span></summary>
+    <div class="tmbar">${tog}${hasOrd?`<span class="tmordn">右上の青い数字＝出撃順（出撃AUTOカスタマイズ）</span>`:""}${ho?`<span class="tmordn">グレー＝所持していない${hs?"キャラ・スクリプト":"キャラ"}</span>`:""}</div>${teamCardsHtml(ms,{nc,ns})}${t.comment?`<p class="note-b">${esc(t.comment)}</p>`:""}</details>`;}
+function teamsHtml(f){
+  const ts=TEAMS[f.key]||[];
+  return `<div class="teams"><p class="note-h">編成例 ${ts.length?`<small class="count">（押すと開きます）</small>`:""}<button class="btn small tbopenbtn" data-tbopen="floor">🛠 自分で編成を組む</button></p>${ts.map(t=>teamOneHtml(t,false,f.key+"|"+t.name)).join("")}</div>`;
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-tmv]");if(!b)return;TMV=b.dataset.tmv==="s"?"s":"c";try{localStorage.setItem("rxr-tmview",TMV);}catch(_){}
   document.querySelectorAll("details.team").forEach(d=>{d.classList.toggle("tv-c",TMV==="c");d.classList.toggle("tv-s",TMV==="s");d.querySelectorAll("[data-tmv]").forEach(x=>x.setAttribute("aria-pressed",x.dataset.tmv===TMV));});});
+/* ---------- 編成ビルダー（所持キャラで編成を組んで、リンクで共有） ----------
+   入口：共有された所持キャラ（「この所持キャラで編成を組む」）／所持率チェッカー／階層・封印戦のページ（「自分で編成を組む」）。
+   pool＝使えるキャラ（{キャラID:★}。null ならすべて）。リンクは ?team=コード（JSON を deflate して base64url。ブラウザが未対応なら圧縮なし） */
+const TB={pool:null,owner:"",floor:"",name:"",comment:"",ms:[],sel:0,pick:"c",q:""};
+const tbBlank=()=>Array.from({length:6},()=>({id:"",star:"",sc:"",ord:""}));
+const rarMin=c=>c&&RARSTAR[c.rar]||1;
+function tbOpen(o){Object.assign(TB,{pool:null,owner:"",floor:"",name:"",comment:"",ms:tbBlank(),sel:0,pick:"c",q:""},o||{});if(TB.ms.length<6)TB.ms=TB.ms.concat(tbBlank()).slice(0,6);
+  let dl=document.getElementById("dlgTB");if(!dl){dl=document.createElement("dialog");dl.id="dlgTB";dl.className="wide";dl.innerHTML=`<div class="dlg" id="tbBody"></div>`;document.body.appendChild(dl);}
+  tbRender();if(!dl.open)dl.showModal();}
+function tbFloorOpts(){const fs=FLOORS.filter(f=>!f.seal).map(f=>[f.key,`${f.type} ${f.floor}F`]).concat(SEALS.map(f=>[f.key,`封印戦 ${f.floor}`]));
+  return `<option value="">（階層を選ばない）</option>`+fs.map(([k,l])=>`<option value="${esc(k)}" ${k===TB.floor?"selected":""}>${esc(l)}</option>`).join("");}
+function tbPoolList(){const f=FLOORS.find(x=>x.key===TB.floor)||SEALS.find(x=>x.key===TB.floor);const q=TB.q.trim().toLowerCase();
+  return CH.filter(c=>!c.unrel&&(!TB.pool||TB.pool[c.id])&&(!f||grpOk(c,f))&&(!q||(c.name+c.id+(c.base||"")+(c.kana||"")).toLowerCase().includes(q)));}
+function tbRender(){const body=document.getElementById("tbBody");if(!body)return;const m=TB.ms[TB.sel]||{};const c=CHMAP[m.id];
+  const who=TB.pool?(TB.owner?`${esc(TB.owner)} さんの所持キャラ`:TB.pool===S.own?"あなたの所持キャラ":"共有された所持キャラ"):"すべてのキャラ";
+  const g=floorGrp(FLOORS.find(x=>x.key===TB.floor));
+  let pick="";
+  if(TB.pick==="c"){const L=sortList("chars",tbPoolList().slice());
+    pick=`<div class="tbpk"><input class="search" id="tbQ" placeholder="キャラ名で絞り込み" value="${esc(TB.q)}"><span class="count">${L.length}人${g?`（${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団だけ）`:""}</span></div>
+    <div class="tbgrid">${L.map(x=>{const st=TB.pool?+TB.pool[x.id]||0:0;return `<button class="tbch${x.id===m.id?" on":""}" data-tbpick="${esc(x.id)}" title="${esc(x.name)}">${cth(x)}<span>${esc(x.name)}</span>${st?`<i>★${st}</i>`:""}</button>`;}).join("")||'<p class="count">使えるキャラがいません</p>'}</div>`;}
+  else if(c){const q=TB.q.trim().toLowerCase();const L=SC.filter(x=>x.name&&!x.unrel&&(!x.role||!c.role||x.role===c.role||x.role==="ワイルド")&&(!q||x.name.toLowerCase().includes(q))).sort((a,b)=>(RAR[b.rar]||0)-(RAR[a.rar]||0)||b.date-a.date);
+    pick=`<div class="tbpk"><input class="search" id="tbQ" placeholder="スクリプト名で絞り込み" value="${esc(TB.q)}"><span class="count">${esc(c.role||"")}・ワイルドのスクリプト ${L.length}枚</span>${m.sc?`<button class="btn small" data-tbsc="">スクリプトを外す</button>`:""}</div>
+    <div class="tbgrid">${L.map(x=>`<button class="tbch${x.name===m.sc?" on":""}" data-tbsc="${esc(x.name)}" title="${esc(x.name)}">${sth(x)}<span>${esc(x.name)}</span></button>`).join("")}</div>`;}
+  const min=rarMin(c);
+  const ed=c?`<div class="tbed"><b>枠${TB.sel+1}：${esc(c.name)}</b>
+    <label>星 <select data-tbf="star">${[1,2,3,4,5].filter(n=>n>=min).map(n=>`<option value="${n}" ${String(n)===String(m.star)?"selected":""}>★${n}</option>`).join("")}</select></label>
+    <label>出撃順 <select data-tbf="ord"><option value="">なし</option>${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${String(n)===m.ord?"selected":""}>${n}番目</option>`).join("")}</select></label>
+    <span class="seg"><button data-tbmode="c" aria-pressed="${TB.pick==="c"}">キャラを選ぶ</button><button data-tbmode="s" aria-pressed="${TB.pick==="s"}">スクリプトを選ぶ</button></span>
+    <button class="btn small" data-tbclear="1">この枠を空にする</button></div>`
+    :`<div class="tbed"><b>枠${TB.sel+1}</b><span class="count">下からキャラを選んでください</span></div>`;
+  const n=TB.ms.filter(x=>x.id).length;
+  setDlg("tbBody",`<div class="pkhead"><h2>編成を組む</h2><span class="count">${who}から選べます</span><span style="flex:1"></span><button class="btn small" data-close>閉じる</button></div>
+  <div class="tbmeta"><label>階層 <select data-tbf="floor">${tbFloorOpts()}</select></label><label>編成名 <input data-tbf="name" value="${esc(TB.name)}" placeholder="例：〇〇階 クリア編成" maxlength="40"></label></div>
+  <p class="hint" style="margin:4px 0">カードを押すとその枠を選びます（枠の1〜6はゲームの編成画面の左からの並び）。キャラを選ぶと続けてスクリプトを選べます。</p>
+  <div class="team tv-c tbteam">${teamCardsHtml(TB.ms,{slot:true,sel:TB.sel})}</div>${ed}${pick}
+  <label class="tbcm">コメント（運用のコツなど）<textarea data-tbf="comment" maxlength="600" placeholder="例：1番目にタンクを出して、ゲージが溜まったら〇〇のBLADE">${esc(TB.comment)}</textarea></label>
+  <div class="foot"><button class="btn" data-tbreset="1">最初から</button><span style="flex:1"></span><button class="btn primary" data-tbshare="1" ${n?"":"disabled"}>🔗 リンクで共有</button></div>`);
+  const qi=document.getElementById("tbQ");if(qi)liveInput(qi,()=>{TB.q=qi.value;const p=qi.selectionStart;tbRender();const nq=document.getElementById("tbQ");if(nq){nq.focus();nq.setSelectionRange(p,p);}});
+}
+function tbNextEmpty(){const i=TB.ms.findIndex(x=>!x.id);return i>=0?i:TB.sel;}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[data-tbslot],[data-tbpick],[data-tbsc],[data-tbmode],[data-tbclear],[data-tbreset],[data-tbshare],[data-tbedit]");if(!b)return;const ds=b.dataset;
+  if(ds.tbopen){const k=ds.tbopen;
+    if(k==="sov"){tbOpen({pool:SOV.o,owner:SOV.name});return;}
+    if(k==="own"){if(!hasOwn()){toast("まず所持率チェッカーで持っているキャラを選んでください");return;}tbOpen({pool:OWN()});return;}
+    if(k==="floor"){const f=curFloor();tbOpen({pool:hasOwn()?OWN():null,floor:f?f.key:""});return;}
+    return;}
+  if(ds.tbedit){const t=TBSHARED;if(t)tbOpen({pool:hasOwn()?OWN():null,floor:t.f||"",name:t.n||"",comment:t.c||"",ms:t.m.map(x=>({id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}))});return;}
+  if(ds.tbslot){const [i,k]=ds.tbslot.split("|");TB.sel=+i;TB.pick=k==="s"&&TB.ms[+i].id?"s":"c";TB.q="";tbRender();return;}
+  if(ds.tbpick){const m=TB.ms[TB.sel],c=CHMAP[ds.tbpick];m.id=ds.tbpick;const ps=TB.pool?+TB.pool[c.id]||0:0;m.star=String(Math.max(ps||rarMin(c),rarMin(c)));
+    if(m.sc){const s=SC.find(x=>x.name===m.sc);if(s&&s.role&&c.role&&s.role!==c.role&&s.role!=="ワイルド")m.sc="";}
+    TB.pick="s";TB.q="";tbRender();return;}
+  if(ds.tbsc!==undefined){TB.ms[TB.sel].sc=ds.tbsc;if(ds.tbsc){TB.sel=tbNextEmpty();TB.pick="c";}TB.q="";tbRender();return;}
+  if(ds.tbmode){TB.pick=ds.tbmode;TB.q="";tbRender();return;}
+  if(ds.tbclear){TB.ms[TB.sel]={id:"",star:"",sc:"",ord:""};TB.pick="c";tbRender();return;}
+  if(ds.tbreset){if(!confirm("組んだ編成を消して最初からにしますか？"))return;TB.ms=tbBlank();TB.sel=0;TB.pick="c";TB.name="";TB.comment="";tbRender();return;}
+  if(ds.tbshare){tbShare();return;}
+});
+document.addEventListener("change",e=>{const el=e.target.closest("[data-tbf]");if(!el)return;const f=el.dataset.tbf,v=el.value;
+  if(f==="star")TB.ms[TB.sel].star=v;
+  else if(f==="ord"){const dup=v&&TB.ms.find((x,j)=>j!==TB.sel&&x.ord===v);if(dup)dup.ord=TB.ms[TB.sel].ord;TB.ms[TB.sel].ord=v;}
+  else if(f==="floor"){TB.floor=v;}
+  else return;tbRender();});
+document.addEventListener("input",e=>{const el=e.target.closest("[data-tbf]");if(!el)return;const f=el.dataset.tbf;if(f==="name")TB.name=el.value;else if(f==="comment")TB.comment=el.value;});
+const b64uEnc=u=>{let x="";for(let i=0;i<u.length;i+=0x8000)x+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");};
+const b64uDec=t=>Uint8Array.from(atob(t.replace(/-/g,"+").replace(/_/g,"/")),ch=>ch.charCodeAt(0));
+async function teamEncode(o){const by=new TextEncoder().encode(JSON.stringify(o));
+  if(window.CompressionStream){try{const z=new Uint8Array(await new Response(new Blob([by]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());return "z"+b64uEnc(z);}catch(e){}}
+  return "j"+b64uEnc(by);}
+async function teamDecode(code){const t=code[0],by=b64uDec(code.slice(1));
+  if(t==="z")return JSON.parse(await new Response(new Blob([by]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text());
+  return JSON.parse(new TextDecoder().decode(by));}
+async function tbShare(){const o={v:1,f:TB.floor||"",n:TB.name.trim().slice(0,40),c:TB.comment.trim().slice(0,600),o:TB.owner||"",m:TB.ms.map(x=>x.id||x.sc?[x.id,+x.star||0,x.sc,+x.ord||0]:0)};
+  while(o.m.length&&!o.m[o.m.length-1])o.m.pop();
+  const code=await teamEncode(o);const f=FLOORS.find(x=>x.key===o.f)||SEALS.find(x=>x.key===o.f);
+  shareUrl(location.origin+location.pathname+"?team="+code,`${o.n||"編成"}${f?`（${f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F"}）`:""} | RxRwiki`);}
+/* 共有された編成を開く */
+let TBSHARED=null;
+async function openSharedTeam(code){let t;try{t=await teamDecode(code);}catch(e){toast("編成のリンクを読めませんでした（途中で切れているかもしれません）",6000);return;}
+  if(!t||!Array.isArray(t.m)){toast("編成のリンクを読めませんでした",6000);return;}TBSHARED=t;
+  const ms=t.m.map(x=>x?{id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}:{id:"",star:"",sc:"",ord:""});while(ms.length<6)ms.push({id:"",star:"",sc:"",ord:""});
+  const f=FLOORS.find(x=>x.key===t.f)||SEALS.find(x=>x.key===t.f);
+  const h=`<h2>共有された編成</h2>${f?`<p class="tbfloor">${f.seal?"封印戦 "+esc(f.floor):esc(f.type)+" "+esc(f.floor)+"F"}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}を見る</button></p>`:""}${t.o?`<p class="hint">${esc(t.o)} さんの所持キャラで組んだ編成です</p>`:""}
+  <div class="teams" style="border:0;margin:0;padding:0">${teamOneHtml({name:t.n||"編成",members:ms,comment:t.c||""},true)}</div>
+  <div class="foot"><button class="btn" data-tbedit="1">この編成をもとに組み直す</button><button class="btn primary" data-close>閉じる</button></div>`;
+  document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
 function cth(c){return IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth" title="画像未登録">${esc([...(c.name||"")][0]||"")}</span>`;}
 function sth(s){return SIMG[s.name]?`<img src="${SIMG[s.name]}" alt="" class="rowth">`:`<span class="rowth sph ${esc(s.rar)}" title="画像未登録">${esc((s.rar||"").slice(0,3))}</span>`;}
 const RKDEF={chars:[["完凸 HP","HP（完凸）","desc"],["完凸 攻撃力","攻撃力（完凸）","desc"],["Lv200 HP","HP（Lv200）","desc"],["Lv200 攻撃力","攻撃力（Lv200）","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"],["攻撃速度","攻撃速度","desc"],["抵抗値","抵抗値","desc"],["初期コスト","出撃コスト","asc"],["育成後コスト","育成後コスト","asc"],["再出撃時間(S)","再出撃時間","asc"],["スキルクールタイム","スキルCT","asc"],["BLADEゲージ","BLADEゲージ","asc"],["HP初期値","HP初期値","desc"],["攻撃力初期値","攻撃力初期値","desc"]],
@@ -2151,7 +2268,7 @@ function applyMedia(){
   HERO=BASE.HERO;setHero();applyCrops();
 }
 let rerenderT=null,ADMIN_RENDER=null,ADMIN_LIST=null;
-function rerender(){clearTimeout(rerenderT);rerenderT=setTimeout(()=>{buildModels();if(MODE==="admin"){if(ADMIN_RENDER)ADMIN_RENDER(true);}else render();},60);}
+function rerender(){clearTimeout(rerenderT);rerenderT=setTimeout(()=>{buildModels();if(MODE==="admin"){if(ADMIN_RENDER)ADMIN_RENDER(true);}else{render();if(sovOpen())openSharedOwn();}},60);}
 function enterAdmin(){location.hash="#admin";}
 function canvasBlob(im,sx,sy,sw,sh,dw,dh,type,q){const c=document.createElement("canvas");c.width=Math.round(dw);c.height=Math.round(dh);const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height);
   return new Promise(r=>c.toBlob(b=>{if(b&&b.type===type)r(b);else c.toBlob(r,"image/png");},type,q));}
@@ -2435,7 +2552,7 @@ function renderOwn(){
   const attrs=K==="s"?["SSR","SR","R"].filter(a=>items.some(c=>c.rar===a)):ATTRS.filter(a=>items.some(c=>c.attr===a)),roles=ROLES.concat(K==="s"?["ワイルド"]:[]).filter(a=>items.some(c=>c.role===a)),ords=K==="s"?[]:ORDERS.filter(a=>items.some(c=>c.order===a));
   const by=(a)=>items.filter(c=>(K==="s"?c.rar:c.attr)===a);
   let sub="";if(K==="c"){const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;sub=`<span>キャラクター ${bOwned} / ${bases.length}</span>`;const un=CH.filter(c=>c.unrel).length;if(un)sub+=`<span>未実装の${un}スタイルは数えません</span>`;}
-  let h=`<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span>${K==="c"?`<button class="btn small primary" data-act="ownlink">🔗 所持キャラを共有</button>`:""}<button class="btn small" data-act="ownshare">画像で共有</button></div>
+  let h=`<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span>${K==="c"?`<button class="btn small primary" data-act="ownlink">🔗 所持キャラを共有</button><button class="btn small" data-tbopen="own">🛠 所持キャラで編成を組む</button>`:""}<button class="btn small" data-act="ownshare">画像で共有</button></div>
   <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}</span>${sub}</div>
   <div class="ownstars">${stars.map((n,i)=>`<div><span class="st">${"★".repeat(i+1)}</span><b>${n}</b></div>`).reverse().join("")}</div>
   <div class="ownbars"><div>${attrs.map(a=>bar(a,ownStats(by(a),o),K==="s"?"":ic(a))).join("")}</div><div>${roles.map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div>${ords.length?`<div>${ords.map(a=>bar(a,ownStats(items.filter(c=>c.order===a),o),ic(a,"ord"))).join("")}</div>`:""}</div></div>
@@ -2518,18 +2635,23 @@ function shareOwnLink(){const o=OWN();if(!Object.keys(o).length){toast("まず�
   const code=ownEncode(o);if(!code){toast("共有できるキャラがありません（No が未登録）");return;}
   shareUrl(location.origin+location.pathname+"?own="+code+(S.ownName?"&n="+encodeURIComponent(S.ownName):""),`${S.ownName?S.ownName+"さんの":""}所持キャラ | RxRwiki`);}
 const SOV={o:null,name:"",show:"own"};
-function openSharedOwn(){if(!SOV.o)return;const o=SOV.o,mine=OWN(),items=ownItems("c");const st=ownStats(items,o);
+const sovOpen=()=>!!(SOV.o&&document.getElementById("dlgDetail").open&&document.querySelector("#detailBody [data-sovimport]"));
+/* 共有された所持キャラ：キャラ一覧と同じ絞り込み（CFS.sov。「所持」は共有した人の所持）・並び替え（SORTS.chars） */
+function openSharedOwn(){if(!SOV.o)return;const o=SOV.o,mine=OWN(),items=ownItems("c");const st=ownStats(items,o);CFS.sov.ownMap=o;
   const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;
   const both=items.filter(c=>o[c.id]&&mine[c.id]).length;
-  let list=items.slice();if(SOV.show==="own")list=list.filter(c=>o[c.id]);else if(SOV.show==="not")list=list.filter(c=>!o[c.id]);
-  list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
+  let list=CH.filter(c=>!c.unrel&&cfMatch(c,CFS.sov));if(SOV.show==="own")list=list.filter(c=>o[c.id]);else if(SOV.show==="not")list=list.filter(c=>!o[c.id]);
+  list=sortList("chars",list.slice());
+  const b=cfBar("sov");
   let h=`<h2>${SOV.name?esc(SOV.name)+" さんの":"共有された"}所持キャラ</h2>
   <div class="ownhead sown"><div class="ownrate"><small>所持率</small><b>${st.p}<span>%</span></b><span>${st.k} / ${st.n} スタイル</span><span>キャラクター ${bOwned} / ${bases.length}</span>${hasOwn()?`<span>あなたも持っている：${both}</span>`:""}</div>
   <div class="ownbars"><div>${ATTRS.filter(a=>items.some(c=>c.attr===a)).map(a=>bar(a,ownStats(items.filter(c=>c.attr===a),o),ic(a))).join("")}</div><div>${ROLES.filter(a=>items.some(c=>c.role===a)).map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div></div></div>
-  <div class="ownctl"><div class="seg"><button data-sovshow="own" aria-pressed="${SOV.show==="own"}">所持</button><button data-sovshow="not" aria-pressed="${SOV.show==="not"}">未所持</button><button data-sovshow="all" aria-pressed="${SOV.show==="all"}">すべて</button></div></div>
-  <div class="owngrid">${list.map(c=>{const v=o[c.id]||0;return `<div class="ocard${v?" on":""}" style="--gc:${c.col}"><span class="oimg" title="${esc(c.name)}">${c.img?`<img src="${c.img}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${v?'<span class="ock">✓</span>':""}</span><span class="onm">${esc(c.name)}</span><span class="ostars ro">${[1,2,3,4,5].map(n=>`<i class="${n<=v?"on":""}">★</i>`).join("")}</span></div>`;}).join("")||'<p class="count">該当するキャラがいません</p>'}</div>
+  <div class="tbcta"><button class="btn primary" data-tbopen="sov">🛠 この所持キャラで編成を組む</button><span class="hint">組んだ編成はリンクで送れます</span></div>
+  <div class="ownctl"><div class="seg"><button data-sovshow="own" aria-pressed="${SOV.show==="own"}">所持</button><button data-sovshow="not" aria-pressed="${SOV.show==="not"}">未所持</button><button data-sovshow="all" aria-pressed="${SOV.show==="all"}">すべて</button></div>${b.btn}${sortBar("chars")}<span class="count">${list.length}人</span></div>
+  ${qbarChars("sov")}${b.chips}
+  <div class="owngrid">${list.map(c=>{const v=o[c.id]||0;return `<div class="ocard${v?" on":""}" style="--gc:${attrColor(c.attr)}"><span class="oimg" title="${esc(c.name)}">${IMG[c.id]?`<img src="${IMG[c.id]}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${v?'<span class="ock">✓</span>':""}</span><span class="onm">${esc(c.name)}</span><span class="ostars ro">${[1,2,3,4,5].map(n=>`<i class="${n<=v?"on":""}">★</i>`).join("")}</span></div>`;}).join("")||'<p class="count">該当するキャラがいません</p>'}</div>
   <div class="foot"><button class="btn" data-sovimport="1">自分の所持データとして読み込む</button><button class="btn primary" data-close>閉じる</button></div>`;
-  document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
+  const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(dl.open&&sovOpen())setDlg("detailBody",h);else document.getElementById("detailBody").innerHTML=h;if(!dl.open)dl.showModal();}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-sovshow],[data-sovimport]");if(!b)return;
   if(b.dataset.sovshow){SOV.show=b.dataset.sovshow;openSharedOwn();return;}
   if(b.dataset.sovimport){if(hasOwn()&&!confirm("いまこのブラウザに記録している所持キャラを、共有された内容で置き換えます。よろしいですか？"))return;
@@ -2541,6 +2663,7 @@ function applyLinkParam(){try{const q=new URLSearchParams(location.search);let h
   const sn=q.get("script");if(sn){const x=SC.find(y=>y.name===sn);if(x){tab="scripts";OPENLINK=()=>openScript(x.i);hit=true;}}
   const en=q.get("event");if(en){const x=(typeof EVENTS!=="undefined"?EVENTS:[]).find(y=>y.name===en);if(x){tab="events";OPENLINK=()=>openEvent(x.i);hit=true;}}
   const kn=q.get("knight");if(kn&&PMAP[kn]){tab="knights";OPENLINK=()=>openKnight(kn);hit=true;}
+  const tm=q.get("team");if(tm){OPENLINK=()=>openSharedTeam(tm);hit=true;}
   const ow=q.get("own");if(ow){SOV.o=ownDecode(ow);SOV.name=(q.get("n")||"").slice(0,20);SOV.show="own";tab="own";OPENLINK=()=>openSharedOwn();hit=true;}
   if(hit)history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 function runOpenLink(){if(OPENLINK){const f=OPENLINK;OPENLINK=null;try{f();}catch(e){}}}
