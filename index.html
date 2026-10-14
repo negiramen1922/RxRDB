@@ -1406,6 +1406,10 @@ const SORTDEF={
   chars:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["order","騎士団順",1],["no","No順",1],["role","ロール順",1],["attr","属性順",1],["name","名前順",1]],
   scripts:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["role","ロール順",1],["name","名前順",1]]};
 const SORTS={chars:[{k:"order",dir:1},{k:"name",dir:1}],scripts:[{k:"rar",dir:-1},null]};
+/* 並び替えはブラウザに覚える（キャラ一覧・共有された所持キャラ・編成ビルダーの一覧で同じ並び） */
+const SORTS_DEF=JSON.parse(JSON.stringify(SORTS));
+try{const v=JSON.parse(localStorage.getItem("rxr-sorts")||"null");if(v)["chars","scripts"].forEach(k=>{const a=v[k];if(Array.isArray(a)&&a.length===2&&a.every(x=>x===null||(x&&typeof x.k==="string"&&(x.dir===1||x.dir===-1))))SORTS[k]=a;});}catch(_){}
+function saveSorts(){try{localStorage.setItem("rxr-sorts",JSON.stringify(SORTS));}catch(_){}}
 const SORTCOL={chars:{hp:["完凸 HP","Lv200 HP"],atk:["完凸 攻撃力","Lv200 攻撃力"],pdef:["物理防御"],sdef:["特殊防御"],no:["No"]},scripts:{hp:["完凸 HP","Lv200 HP"],atk:["完凸 攻撃力","Lv200 攻撃力"],pdef:["物理防御"],sdef:["特殊防御"]}};
 function sortLabel(kind,k){if(!k)return "—";if(k.startsWith("col:")){const d=data(kind);return d.headers[+k.slice(4)]||"";}const x=SORTDEF[kind].find(([a])=>a===k);return x?x[1]:k;}
 function sortVal(kind,x,k){
@@ -1427,7 +1431,7 @@ function sortList(kind,list){
     if(va==null&&vb==null)continue;if(va==null)return 1;if(vb==null)return -1;   // 値が無いものは常に後ろ
     const r=typeof va==="number"&&typeof vb==="number"?va-vb:String(va).localeCompare(String(vb),"ja",{numeric:true});if(r)return r*s.dir;}return 0;});
 }
-function setColSort(kind,i){const s=SORTS[kind][0];const k="col:"+i;SORTS[kind]=[{k,dir:s&&s.k===k?-s.dir:1},null];}
+function setColSort(kind,i){const s=SORTS[kind][0];const k="col:"+i;SORTS[kind]=[{k,dir:s&&s.k===k?-s.dir:1},null];saveSorts();}
 const colArrow=(kind,i)=>{const s=SORTS[kind][0];return s&&s.k==="col:"+i?(s.dir>0?" ▲":" ▼"):"";};
 function sortBar(kind){
   const [a,b]=SORTS[kind];const one=(n,s)=>`<span class="sortslot"><i>${n}</i><button data-sortopen="${kind}">${esc(sortLabel(kind,s&&s.k))}</button>${s&&s.k?`<button class="sortdir" data-sortdir="${kind}|${n-1}" title="昇順・降順を切り替え">${s.dir>0?"▲":"▼"}</button>`:""}</span>`;
@@ -1440,13 +1444,13 @@ function sortDialogHtml(kind){
   <div class="cffoot"><button class="btn" data-sortreset="${kind}">リセット</button><span style="flex:1"></span><button class="btn primary" data-sortclose="${kind}">並び替える</button></div>`;
 }
 function openSort(kind){const dl=document.getElementById("dlgSort");document.getElementById("sortBody").innerHTML=sortDialogHtml(kind);if(!dl.open)dl.showModal();}
-const rerenderKind=kind=>{if(kind==="chars"&&sovOpen())openSharedOwn();if(MODE!=="admin"&&tab!=="chars"&&tab!=="scripts")return;kind==="chars"?renderChars():renderScripts();};
+const rerenderKind=kind=>{saveSorts();if(kind==="chars"&&sovOpen())openSharedOwn();if(MODE!=="admin"&&tab!=="chars"&&tab!=="scripts")return;kind==="chars"?renderChars():renderScripts();};
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-sortopen],[data-sortdir],[data-sortset],[data-sortreset],[data-sortclose]");if(!b)return;const ds=b.dataset;
   if(ds.sortopen){openSort(ds.sortopen);return;}
   if(ds.sortdir){const [kind,i]=ds.sortdir.split("|");const s=SORTS[kind][+i];if(s){s.dir*=-1;rerenderKind(kind);}return;}
   if(ds.sortset){const [kind,slot,k]=ds.sortset.split("|");if(!k)SORTS[kind][+slot]=null;else{const def=SORTDEF[kind].find(([a])=>a===k);SORTS[kind][+slot]={k,dir:def?def[2]:1};}setDlg("sortBody",sortDialogHtml(kind));return;}
-  if(ds.sortreset){const kind=ds.sortreset;SORTS[kind]=kind==="chars"?[{k:"no",dir:1},null]:[{k:"rar",dir:-1},null];setDlg("sortBody",sortDialogHtml(kind));return;}
+  if(ds.sortreset){const kind=ds.sortreset;SORTS[kind]=JSON.parse(JSON.stringify(SORTS_DEF[kind]));setDlg("sortBody",sortDialogHtml(kind));return;}
   if(ds.sortclose){document.getElementById("dlgSort").close();rerenderKind(ds.sortclose);return;}
 });
 /* 絞り込み・並び替え：外側（暗いところ）を押したら閉じて、一覧に反映 */
