@@ -1267,12 +1267,13 @@ function tierFilterBar(){
   const g=floorGrp(curFloor());
   const ownOn=(CFS.tier.sel.own||[]).includes("持っている");
   /* 所持の記録があれば、未所持のキャラはグレー（所持だけにしたいときは ▼絞り込み の「所持」） */
-  const own=MODE!=="admin"&&hasOwn()&&!ownOn?`<span class="count">グレー＝未所持</span>`:"";
+  /* 所持 あり／なし（限定と同じ）：なし にすると、持っていないキャラをグレーにする（所持の記録があるときだけ出す） */
+  const own=MODE!=="admin"&&hasOwn()&&!ownOn?`<span class="limsw"><span class="count">所持</span><span class="viewsw"><button data-act="ownon" aria-pressed="${!S.ownOff}">あり</button><button data-act="ownoff" aria-pressed="${!!S.ownOff}">なし</button></span></span>`:"";
   return `<div class="tfilter">${b.btn}${own}${lim}${b.chips}</div>${g?`<p class="hint grpnote">${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団（${BABELGRP[g].join("・")}）のキャラだけを表示しています。</p>`:""}`;
 }
 const limDim=c=>(S.limOff&&c.lim?" limdim":"")+ownDim(c);
 // 所持率チェッカーに記録があれば、Tier表で持っていないキャラをグレーにする（公開サイトだけ）
-const ownDim=c=>MODE!=="admin"&&hasOwn()&&!OWN()[c.id]?" owndim":"";
+const ownDim=c=>MODE!=="admin"&&S.ownOff&&hasOwn()&&!OWN()[c.id]?" owndim":"";
 /* ---------- 効果タグ（ゲーム内フィルターと同じ「攻撃／防御／HP／その他」）----------
    スキル・BLADE・特性の説明文から自動で付ける（1文の中にすべての条件が出てくれば該当。{not:…} はその言葉があれば対象外）。
    キャラの列「効果タグ」で直せる：「+タグ」で追加、「-タグ」で外す（カンマ区切り。管理画面のチェックで編集） */
@@ -2171,6 +2172,7 @@ document.addEventListener("click",e=>{
   else if(a==="tierownon"||a==="tierownoff"){const on=a==="tierownon";[CFS.tier.sel,CFS.pool.sel].forEach(sl=>{if(on)sl.own=["持っている"];else delete sl.own;});render();}
   else if(a==="ownlink"){shareOwnLink("");}
   else if(a==="limon"||a==="limoff"){S.limOff=a==="limoff";save();render();}
+  else if(a==="ownon"||a==="ownoff"){S.ownOff=a==="ownoff";save();render();}
   else if(a==="nolim"){S.noLim=!S.noLim;save();render();}
   else if(a==="tfclear"){pool.attr=null;pool.role=null;S.onlyOwn=false;S.noLim=false;save();render();}
   else if(a==="mytext"){const f=curFloor();const tx=f&&floorText(f);if(!tx){toast("まだ配置がありません");return;}navigator.clipboard.writeText(tx).then(()=>toast("テキストをコピーしました。SNSなどに貼り付けられます"),()=>toast("コピーできませんでした"));}
