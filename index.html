@@ -288,6 +288,9 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 #dlgOSH{width:min(560px,calc(100% - 24px))}.oshl{display:block;margin:10px 0;font-size:13px;font-weight:700}.oshl input{display:block;width:100%;margin-top:4px;border:1px solid var(--line2);background:var(--field);padding:8px;font-size:15px;color:var(--ink)}
 .oshfix{display:flex;align-items:center;gap:12px;margin-top:4px;font-size:15px}
 .helpbtn{background:#fff4dc;border-color:#f0a000;color:#8a5a00}
+.oshwarn{background:#fdecea;border-left:4px solid #d33;padding:10px 12px;margin:8px 0}.oshwarn b{color:#b42318}.oshwarn p{margin:6px 0}
+.oshinfo{background:var(--soft);padding:8px 10px;font-size:12.5px;margin:8px 0}.oshinfo .aclink2{margin-left:4px}
+.oshback{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:#fff4dc;border-left:4px solid #f0a000;padding:8px 12px;margin:0 0 10px;font-size:13.5px}
 .oshchk{display:block;margin:10px 0;font-size:13px;font-weight:700}.oshchk small{display:block;font-weight:400;margin:2px 0 0 1.6em}
 .oshseg{display:flex;flex-wrap:wrap;margin-top:6px}.oshfl{display:grid;grid-template-columns:repeat(auto-fill,minmax(62px,1fr));gap:4px;margin-top:6px;max-height:30vh;overflow:auto}
 .oshfl button{border:1px solid var(--line2);background:var(--field);padding:5px 2px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer}.oshfl button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -2584,7 +2587,7 @@ function renderOwn(){
   const attrs=K==="s"?["SSR","SR","R"].filter(a=>items.some(c=>c.rar===a)):ATTRS.filter(a=>items.some(c=>c.attr===a)),roles=ROLES.concat(K==="s"?["ワイルド"]:[]).filter(a=>items.some(c=>c.role===a)),ords=K==="s"?[]:ORDERS.filter(a=>items.some(c=>c.order===a));
   const by=(a)=>items.filter(c=>(K==="s"?c.rar:c.attr)===a);
   let sub="";if(K==="c"){const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;sub=`<span>キャラクター ${bOwned} / ${bases.length}</span>`;const un=CH.filter(c=>c.unrel).length;if(un)sub+=`<span>未実装の${un}スタイルは数えません</span>`;}
-  let h=`<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span>${K==="c"?`<button class="btn small primary" data-act="ownlink">🔗 所持キャラを共有</button><button class="btn small" data-tbopen="own">🛠 所持キャラで編成を組む</button>`:""}<button class="btn small" data-act="ownshare">画像で共有</button></div>
+  let h=`${OSH.ret!=null?`<div class="oshback">${K==="s"?"スクリプト":"キャラ"}の所持を設定したら → <button class="btn small primary" data-ownret="1">編成を組んでもらうに戻る</button>${K==="c"?`<button class="aclink2" data-owngo="sown">スクリプトの所持も設定する</button>`:`<button class="aclink2" data-owngo="own">キャラの所持を設定する</button>`}</div>`:""}<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span>${K==="c"?`<button class="btn small primary" data-act="ownlink">🔗 所持キャラを共有</button><button class="btn small" data-tbopen="own">🛠 所持キャラで編成を組む</button>`:""}<button class="btn small" data-act="ownshare">画像で共有</button></div>
   <details class="ownheadbox"${OWNHEADOPEN?" open":""}><summary><span>所持率 <b>${all.p}%</b>（${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}）</span><span class="count">グラフを見る</span></summary>
   <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}</span>${sub}</div>
   <div class="ownstars">${stars.map((n,i)=>`<div><span class="st">${"★".repeat(i+1)}</span><b>${n}</b></div>`).reverse().join("")}</div>
@@ -2669,7 +2672,7 @@ function sownDecode(code){const by={};SC.forEach(x=>{if(x.name)by[fnv(x.name)&0x
 function ownDecode(code){code=String(code||"");const dot=code.indexOf(".");if(dot>0)code="A".repeat(Math.min(5000,parseInt(code.slice(0,dot),36)||0))+code.slice(dot+1);const byNo={};CH.forEach(c=>{const n=charNo(c);if(n)byNo[n]=c.id;});const o={};
   String(code||"").split("").forEach((ch,i)=>{const v=B64.indexOf(ch);if(v<0)return;const a=v>>3,b=v&7,n=i*2+1;if(a&&byNo[n])o[byNo[n]]=Math.min(5,a);if(b&&byNo[n+1])o[byNo[n+1]]=Math.min(5,b);});return o;}
 /* 所持キャラを共有するダイアログ：名前・困っている階層（任意）・ひとこと（任意）。階層を入れると、組む側の編成ビルダーはその階層で固定 */
-const OSH={floor:"",type:"",msg:"",auto:false,pick:false,sc:true};
+const OSH={floor:"",type:"",msg:"",auto:false,pick:false,sc:true,ret:null};
 const floorObj=k=>FLOORS.find(x=>x.key===k&&!x.seal)||SEALS.find(x=>x.key===k)||null;
 const floorName=k=>{const f=floorObj(k);return f?(f.seal?`封印戦 ${f.floor}`:`${f.type} ${f.floor}F`):"";};
 function shareOwnLink(floor){if(!floor&&!hasOwn()){toast("まず所持率チェッカーで持っているキャラを選んでください",5000);return;}
@@ -2679,9 +2682,10 @@ function shareOwnLink(floor){if(!floor&&!hasOwn()){toast("まず所持率チェ�
 function oshRender(){const types=TYPES.concat(SEALS.length?["封印戦"]:[]);const t=OSH.type;
   const fl=t==="封印戦"?SEALS.map(f=>[f.key,f.floor]):t?FLOORS.filter(f=>!f.seal&&f.type===t).map(f=>[f.key,f.floor+"F"]):[];
   if(!hasOwn()){setDlg("oshBody",`<h2>所持キャラで編成を組んでもらう</h2>
-    <p>あなたの所持キャラと「${esc(floorName(OSH.floor))}」を入れたリンクを作って、詳しい人に送ると、持っているキャラだけで編成を組んでもらえます。</p>
-    <div class="sovreq">まだ所持キャラが登録されていません。先に所持率チェッカーで、持っているキャラを選んでください（ログインしていればアカウントにも保存されます）。</div>
-    <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" data-owngo="1">所持率チェッカーを開く</button></div>`);return;}
+    <div class="oshwarn"><b>⚠ 所持キャラが設定されていません</b><p>このままでは、持っているキャラが相手に伝わりません。先に所持率チェッカーで、持っているキャラを選んでください（画像を押すだけです。ログインしていればアカウントにも保存されます）。</p>
+    <button class="btn primary" data-owngo="own">キャラの所持をここから設定する</button><p class="hint" style="margin:6px 0 0">設定が終わったら、所持率チェッカーの上の「編成を組んでもらうに戻る」で、この画面に戻れます。</p></div>
+    <p class="hint">あなたの所持キャラと「${esc(floorName(OSH.floor))}」を入れたリンクを作って詳しい人に送ると、持っているキャラだけで編成を組んでもらえます。</p>
+    <div class="foot"><button class="btn" data-close>やめる</button></div>`);return;}
   const fixed=OSH.auto&&!OSH.pick&&OSH.floor;
   setDlg("oshBody",`<h2>${OSH.auto?"所持キャラで編成を組んでもらう":"所持キャラを共有"}</h2>${OSH.auto?`<p class="hint" style="margin:0 0 6px">あなたの所持キャラと階層を入れたリンクを作ります。詳しい人に送ると、持っているキャラだけでこの階層の編成を組んでもらえます（組んだ編成はリンクで返ってきます）。</p>`:""}
   <label class="oshl">名前（空欄でもOK）<input id="oshName" maxlength="20" value="${esc(S.ownName||"")}" placeholder="例：ねぎ"></label>
@@ -2689,13 +2693,15 @@ function oshRender(){const types=TYPES.concat(SEALS.length?["封印戦"]:[]);con
     <div class="seg oshseg"><button data-oshtype="" aria-pressed="${!t}">なし</button>${types.map(x=>`<button data-oshtype="${esc(x)}" aria-pressed="${t===x}">${esc(x)}</button>`).join("")}</div>
     ${fl.length?`<div class="oshfl">${fl.map(([k,l])=>`<button data-oshfloor="${esc(k)}" aria-pressed="${OSH.floor===k}">${esc(l)}</button>`).join("")}</div>`:""}
     ${OSH.floor?`<p class="hint" style="margin:4px 0 0">→ <b>${esc(floorName(OSH.floor))}</b>。リンクを開いた人は、この階層で使えるキャラだけで編成を組めます</p>`:""}</div>`}
+  ${Object.keys(S.sown||{}).length?"":`<div class="oshinfo">スクリプトの所持は未設定です（任意）。設定すると、組む人が持っているスクリプトから選べます。<button class="aclink2" data-owngo="sown">スクリプトの所持をここから設定する</button></div>`}
   ${Object.keys(S.sown||{}).length?`<label class="oshchk"><input type="checkbox" id="oshSc" ${OSH.sc?"checked":""}> 所持スクリプト（${Object.keys(S.sown).length}種類）も入れる <small class="count">編成を組む人がスクリプトも持っているものから選べます</small></label>`:""}
   <label class="oshl">課題（任意）<input id="oshMsg" maxlength="80" value="${esc(OSH.msg)}" placeholder="例：ボスの全体攻撃で前線が崩れます"></label>
   <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" data-oshgo="1">🔗 リンクを作って共有</button></div>`);}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-oshtype],[data-oshfloor],[data-oshgo],[data-ownhelp],[data-oshpick],[data-owngo]");if(!b)return;const ds=b.dataset;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-oshtype],[data-oshfloor],[data-oshgo],[data-ownhelp],[data-oshpick],[data-owngo],[data-ownret]");if(!b)return;const ds=b.dataset;
   const keep=()=>{const n=document.getElementById("oshName"),m=document.getElementById("oshMsg"),sc=document.getElementById("oshSc");if(sc)OSH.sc=sc.checked;if(n)S.ownName=n.value.trim().slice(0,20);if(m)OSH.msg=m.value.trim().slice(0,80);};
   if(ds.ownhelp!==undefined){const f=curFloor();shareOwnLink(f?f.key:"");return;}
-  if(ds.owngo){document.getElementById("dlgOSH").close();goSub("own");return;}
+  if(ds.owngo){keep();OSH.ret=OSH.floor||"";document.getElementById("dlgOSH").close();goSub(ds.owngo==="sown"?"sown":"own");window.scrollTo(0,0);return;}
+  if(ds.ownret!==undefined){const k=OSH.ret;OSH.ret=null;const f=floorObj(k);if(f){if(f.seal){S.curSeal=f.key;switchTab("seal");}else{S.curType=f.type;S.curFloor=f.key;switchTab("tier");}}shareOwnLink(k);return;}
   if(ds.oshpick){keep();OSH.pick=true;oshRender();return;}
   if(ds.oshtype!==undefined){keep();OSH.type=ds.oshtype;OSH.floor="";oshRender();return;}
   if(ds.oshfloor){keep();OSH.floor=OSH.floor===ds.oshfloor?"":ds.oshfloor;oshRender();return;}
