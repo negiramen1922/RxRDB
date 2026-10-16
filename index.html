@@ -1938,7 +1938,7 @@ function tbOpen(o){Object.assign(TB,{pool:null,spool:null,sonly:true,owner:"",fl
   tbRender();if(!dl.open)dl.showModal();}
 function tbPoolList(){const f=floorObj(TB.floor);const q=TB.q.trim().toLowerCase();
   return CH.filter(c=>!c.unrel&&(!TB.pool||TB.pool[c.id])&&(!f||grpOk(c,f))&&(!q||(c.name+c.id+(c.base||"")+(c.kana||"")).toLowerCase().includes(q)));}
-function tbRender(){const body=document.getElementById("tbBody");if(!body)return;const m=TB.ms[TB.sel]||{};const c=CHMAP[m.id];
+function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById("tbBody");if(!body)return;const m=TB.ms[TB.sel]||{};const c=CHMAP[m.id];
   const who=TB.pool?(TB.owner?`${esc(TB.owner)} さんの所持キャラ`:TB.pool===S.own?"あなたの所持キャラ":"共有された所持キャラ"):"すべてのキャラ";
   const g=floorGrp(floorObj(TB.floor));
   let pick="";
@@ -1968,7 +1968,8 @@ function tbRender(){const body=document.getElementById("tbBody");if(!body)return
   const qi=document.getElementById("tbQ");if(qi)liveInput(qi,()=>{TB.q=qi.value;const p=qi.selectionStart;tbRender();const nq=document.getElementById("tbQ");if(nq){nq.focus();nq.setSelectionRange(p,p);}});
 }
 // 同じキャラ（スタイル違いも同じ騎士）がほかの枠にいれば、その枠の番号（いなければ -1）
-function tbUsedChar(x){return TB.ms.findIndex((y,j)=>{if(j===TB.sel||!y.id)return false;const c=CHMAP[y.id];return y.id===x.id||(c&&c.base&&x.base&&c.base===x.base);});}
+// 同じキャラ（同じスタイル）は1枠だけ。スタイルが違えば同じ騎士でも編成できる
+function tbUsedChar(x){return TB.ms.findIndex((y,j)=>j!==TB.sel&&y.id&&y.id===x.id);}
 function tbNextEmpty(){const i=TB.ms.findIndex(x=>!x.id);return i>=0?i:TB.sel;}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[data-tbslot],[data-tbpick],[data-tbsc],[data-tbmode],[data-tbclear],[data-tbreset],[data-tbshare],[data-tbedit],[data-tbsonly]");if(!b)return;const ds=b.dataset;
   if(ds.tbopen){const k=ds.tbopen;
@@ -1978,7 +1979,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[d
     return;}
   if(ds.tbedit){const t=TBSHARED;if(t)tbOpen({pool:hasOwn()?OWN():null,spool:SOWN(),floor:t.f||"",name:t.n||"",comment:t.c||"",ms:t.m.map(x=>({id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}))});return;}
   if(ds.tbslot){const [i,k]=ds.tbslot.split("|");TB.sel=+i;TB.pick=k==="s"&&TB.ms[+i].id?"s":"c";TB.q="";tbRender();return;}
-  if(ds.tbpick){if(tbUsedChar(CHMAP[ds.tbpick]||{id:ds.tbpick})>=0){toast("同じキャラはほかの枠で使っています");return;}const m=TB.ms[TB.sel],c=CHMAP[ds.tbpick];m.id=ds.tbpick;const ps=TB.pool?+TB.pool[c.id]||0:0;m.star=String(Math.max(ps||rarMin(c),rarMin(c)));
+  if(ds.tbpick){if(tbUsedChar(CHMAP[ds.tbpick]||{id:ds.tbpick})>=0){toast("同じキャラ（同じスタイル）はほかの枠で使っています");return;}const m=TB.ms[TB.sel],c=CHMAP[ds.tbpick];m.id=ds.tbpick;const ps=TB.pool?+TB.pool[c.id]||0:0;m.star=String(Math.max(ps||rarMin(c),rarMin(c)));
     if(m.sc){const s=SC.find(x=>x.name===m.sc);if(s&&s.role&&c.role&&s.role!==c.role&&s.role!=="ワイルド")m.sc="";}
     TB.pick="s";TB.q="";tbRender();return;}
   if(ds.tbsc!==undefined){if(ds.tbsc&&TB.ms.some((y,j)=>j!==TB.sel&&y.sc===ds.tbsc)){toast("同じスクリプトはほかの枠で使っています");return;}TB.ms[TB.sel].sc=ds.tbsc;if(ds.tbsc){TB.sel=tbNextEmpty();TB.pick="c";}TB.q="";tbRender();return;}
@@ -1992,7 +1993,7 @@ document.addEventListener("change",e=>{const el=e.target.closest("[data-tbf]");i
   if(f==="star")TB.ms[TB.sel].star=v;
   else if(f==="ord"){const dup=v&&TB.ms.find((x,j)=>j!==TB.sel&&x.ord===v);if(dup)dup.ord=TB.ms[TB.sel].ord;TB.ms[TB.sel].ord=v;}
   else return;tbRender();});
-document.addEventListener("input",e=>{const el=e.target.closest("[data-tbf]");if(!el)return;const f=el.dataset.tbf;if(f==="name")TB.name=el.value;else if(f==="comment")TB.comment=el.value;});
+document.addEventListener("input",e=>{const el=e.target.closest("[data-tbf]");if(!el)return;const f=el.dataset.tbf;if(f==="name")TB.name=el.value;else if(f==="comment")TB.comment=el.value;clearTimeout(TBCODE.t);TBCODE.t=setTimeout(tbPrepCode,300);});
 const b64uEnc=u=>{let x="";for(let i=0;i<u.length;i+=0x8000)x+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");};
 const b64uDec=t=>Uint8Array.from(atob(t.replace(/-/g,"+").replace(/_/g,"/")),ch=>ch.charCodeAt(0));
 async function teamEncode(o){const by=new TextEncoder().encode(JSON.stringify(o));
@@ -2001,9 +2002,14 @@ async function teamEncode(o){const by=new TextEncoder().encode(JSON.stringify(o)
 async function teamDecode(code){const t=code[0],by=b64uDec(code.slice(1));
   if(t==="z")return JSON.parse(await new Response(new Blob([by]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text());
   return JSON.parse(new TextDecoder().decode(by));}
-async function tbShare(){const o={v:1,f:TB.floor||"",n:TB.name.trim().slice(0,40),c:TB.comment.trim().slice(0,600),o:TB.owner||"",m:TB.ms.map(x=>x.id||x.sc?[x.id,+x.star||0,x.sc,+x.ord||0]:0)};
-  while(o.m.length&&!o.m[o.m.length-1])o.m.pop();
-  const code=await teamEncode(o);const f=FLOORS.find(x=>x.key===o.f)||SEALS.find(x=>x.key===o.f);
+/* スマホの共有メニューは「押した直後」でないと開けない（圧縮を待つと開けずに何も起きない）。
+   圧縮したリンクは画面を描くたびに先に作っておき、押したときは待たずに使う（まだなら圧縮しない形でその場で作る） */
+function tbObj(){const o={v:1,f:TB.floor||"",n:TB.name.trim().slice(0,40),c:TB.comment.trim().slice(0,600),o:TB.owner||"",m:TB.ms.map(x=>x.id||x.sc?[x.id,+x.star||0,x.sc,+x.ord||0]:0)};
+  while(o.m.length&&!o.m[o.m.length-1])o.m.pop();return o;}
+const TBCODE={j:"",code:""};
+function tbPrepCode(){const o=tbObj(),j=JSON.stringify(o);if(TBCODE.j===j&&TBCODE.code)return;TBCODE.j=j;TBCODE.code="";teamEncode(o).then(c=>{if(TBCODE.j===j)TBCODE.code=c;}).catch(()=>{});}
+function tbShare(){const o=tbObj(),j=JSON.stringify(o);
+  const code=TBCODE.j===j&&TBCODE.code?TBCODE.code:"j"+b64uEnc(new TextEncoder().encode(j));const f=FLOORS.find(x=>x.key===o.f)||SEALS.find(x=>x.key===o.f);
   shareUrl(location.origin+location.pathname+"?team="+code,`${o.n||"編成"}${f?`（${f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F"}）`:""} | RxRwiki`);}
 /* 階層の情報（ページを移らずにその場で開いて見る）：ボス・解析データ／ステージ効果・攻略のコツ・コメント・運営Tier表。pool があればその人が持っていないキャラをグレー */
 const FLOPEN=new Set();
