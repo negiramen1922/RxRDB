@@ -297,7 +297,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tbcta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}
 .dlgx{position:absolute;right:14px;top:14px;z-index:5}#dlgTB .dlg{position:relative}
 .tbch.tbused{opacity:.35;cursor:not-allowed;filter:grayscale(1)}.tbch em{position:absolute;left:3px;top:3px;font-style:normal;font-size:10px;font-weight:900;color:#fff;background:#555;padding:0 3px;border-radius:3px}
-.flinfo{margin:8px 0;border:1px solid var(--line);background:var(--panel)}.flinfo>summary{cursor:pointer;padding:8px 12px;font-weight:700;font-size:13px;color:var(--accent-ink);list-style:none}.flinfo>summary::-webkit-details-marker{display:none}.flinfo>summary::after{content:" ▼";font-size:10px}.flinfo[open]>summary::after{content:" ▲"}
+.flinfos{display:flex;flex-direction:column;gap:6px;margin:8px 0}.flinfos .flinfo{margin:0}.flinfo{margin:8px 0;border:1px solid var(--line);background:var(--panel)}.flinfo>summary{cursor:pointer;padding:8px 12px;font-weight:700;font-size:13px;color:var(--accent-ink);list-style:none}.flinfo>summary::-webkit-details-marker{display:none}.flinfo>summary::after{content:" ▼";font-size:10px}.flinfo[open]>summary::after{content:" ▲"}
 .flbody{padding:0 12px 10px;max-height:50vh;overflow:auto}.flboss{display:flex;align-items:center;gap:8px;margin:0 0 8px}.flboss img{width:40px;height:40px;object-fit:cover;border-radius:4px}
 .fltier>div{display:flex;gap:6px;align-items:flex-start;margin:3px 0}.fltier b{min-width:2.6em;text-align:center;font-size:12px;padding:2px 4px;background:var(--soft)}.fltier>div>span{display:flex;flex-wrap:wrap;gap:3px}
 .fltc{position:relative;display:block}.fltc img,.fltc .noth{width:34px;height:34px;border-radius:4px;object-fit:cover;display:grid;place-items:center}.fltc i{position:absolute;right:-2px;bottom:-2px;font-style:normal;font-size:9px;font-weight:900;color:#e0a400;background:#fff;padding:0 2px;border-radius:3px}
@@ -1372,15 +1372,20 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-qf],[data-
 function cfRerender(k){if(k==="pick"){if(PICKRR)PICKRR();return;}if(k==="sov"){openSharedOwn();return;}if(k==="tier"||k==="pool")renderTier();else if(k==="rank")renderRank();else renderChars();}
 function cfToggle(k,v){const a=CF.sel[k]||(CF.sel[k]=[]);const i=a.indexOf(v);if(i>=0)a.splice(i,1);else a.push(v);}
 function cfDialogHtml(){
-  const n=CH.filter(c=>cfMatch(c,CF)).length;const tabs=["基本",...tagCats().map(([c])=>c)];
+  const n=CH.filter(c=>cfMatch(c,CF)).length;const tabs=["基本","スタイル",...tagCats().map(([c])=>c)];
   const opt=(k,v,icon,cnt)=>`<button class="cfopt" data-cf="${esc(k)}|${esc(v)}" aria-pressed="${(CF.sel[k]||[]).includes(v)}"><i></i>${icon||""}<span>${esc(v)}</span>${cnt!=null?`<small>${cnt}</small>`:""}</button>`;
   let body="";
-  if(CF.tab==="基本")body=cfBase().map(([l,k,vs])=>`<div class="cfsec"><b>${l}</b><div class="cfopts">${vs.map(([v,i])=>opt(k,v,i)).join("")}</div></div>`).join("");
+  if(CF.tab==="スタイル"){
+    // スタイルごと（DEFAULT・聖典学園など）。並びはスタイル表の順、無ければ登場順
+    const sd=data("styles"),si=sd.headers.indexOf("スタイル"),ord=si>=0?sd.rows.map(r=>String(r[si]||"").trim()).filter(Boolean):[];
+    const all=[...new Set(CH.map(c=>c.style).filter(Boolean))].sort((a,b)=>((ord.indexOf(a)+1)||1e4)-((ord.indexOf(b)+1)||1e4)||a.localeCompare(b,"ja"));
+    body=`<div class="cfopts cfgrid">${all.map(v=>opt("style",v,"",CH.filter(c=>c.style===v).length)).join("")||'<p class="count">スタイルが登録されていません</p>'}</div>`;}
+  else if(CF.tab==="基本")body=cfBase().map(([l,k,vs])=>`<div class="cfsec"><b>${l}</b><div class="cfopts">${vs.map(([v,i])=>opt(k,v,i)).join("")}</div></div>`).join("");
   else{const ts=(tagCats().find(([c])=>c===CF.tab)||[,[]])[1].map(([t])=>[t,CH.filter(c=>c.tags.includes(t)).length]).filter(([t,cnt])=>cnt||(CF.sel.tags||[]).includes(t));
     body=`<div class="cfopts cfgrid">${ts.map(([t,cnt])=>opt("tags",t,"",cnt)).join("")||'<p class="count">該当するキャラがいません</p>'}</div>`;}
-  return `<div class="cfhead">${tabs.map(t=>`<button data-cftab="${t}" aria-pressed="${CF.tab===t}">${t}${t!=="基本"&&(CF.sel.tags||[]).some(x=>(tagCats().find(([c])=>c===t)||[,[]])[1].some(([y])=>y===x))?" ●":""}</button>`).join("")}</div>
+  return `<div class="cfhead">${tabs.map(t=>`<button data-cftab="${t}" aria-pressed="${CF.tab===t}">${t}${t==="スタイル"?((CF.sel.style||[]).length?" ●":""):t!=="基本"&&(CF.sel.tags||[]).some(x=>(tagCats().find(([c])=>c===t)||[,[]])[1].some(([y])=>y===x))?" ●":""}</button>`).join("")}</div>
   <div class="cfbody">${body}</div>
-  <div class="cffoot"><button class="btn" data-cfact="reset">リセット</button>${CF.tab!=="基本"?`<label class="cfall"><input type="checkbox" id="cfAll" ${CF.tagAll?"checked":""}> 選んだ効果をすべて持つキャラだけ</label>`:"<span></span>"}<span style="flex:1"></span><button class="btn primary" data-cfact="close">${n}人を表示</button></div>
+  <div class="cffoot"><button class="btn" data-cfact="reset">リセット</button>${CF.tab!=="基本"&&CF.tab!=="スタイル"?`<label class="cfall"><input type="checkbox" id="cfAll" ${CF.tagAll?"checked":""}> 選んだ効果をすべて持つキャラだけ</label>`:"<span></span>"}<span style="flex:1"></span><button class="btn primary" data-cfact="close">${n}人を表示</button></div>
   <p class="hint" style="margin:6px 0 0">効果は、スキル・BLADE・特性の説明文から自動で判定しています（運営が手で直したものを含みます）。</p>`;
 }
 /* ダイアログの中身を描き直しても、スクロール位置（ダイアログ・項目の欄・タブの列）を保つ。keepBody=false で項目の欄だけ上に戻す（タブを切り替えたとき） */
@@ -1939,7 +1944,7 @@ function tbOpen(o){Object.assign(TB,{pool:null,spool:null,sonly:true,owner:"",fl
   tbRender();if(!dl.open)dl.showModal();}
 function tbPoolList(){const f=floorObj(TB.floor);const q=TB.q.trim().toLowerCase();
   return CH.filter(c=>!c.unrel&&(!TB.pool||TB.pool[c.id])&&(!f||grpOk(c,f))&&(!q||(c.name+c.id+(c.base||"")+(c.kana||"")).toLowerCase().includes(q)));}
-function tbRender(){const body=document.getElementById("tbBody");if(!body)return;const m=TB.ms[TB.sel]||{};const c=CHMAP[m.id];
+function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById("tbBody");if(!body)return;const m=TB.ms[TB.sel]||{};const c=CHMAP[m.id];
   const who=TB.pool?(TB.owner?`${esc(TB.owner)} さんの所持キャラ`:TB.pool===S.own?"あなたの所持キャラ":"共有された所持キャラ"):"すべてのキャラ";
   const g=floorGrp(floorObj(TB.floor));
   let pick="";
@@ -1961,7 +1966,7 @@ function tbRender(){const body=document.getElementById("tbBody");if(!body)return
   const n=TB.ms.filter(x=>x.id).length;
   setDlg("tbBody",`<button class="btn small dlgx" data-close aria-label="閉じる">✕ 閉じる</button><h2 style="margin-right:90px">編成を組む</h2><p class="count" style="margin:0">${who}から選べます（同じキャラ・同じスクリプトは1枠だけ）</p>
   <div class="tbmeta"><span class="tbfl">階層：<b>${TB.floor?esc(floorName(TB.floor)):"指定なし"}</b>${g?`（${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団のキャラだけ）`:""}</span><label>編成名 <input data-tbf="name" value="${esc(TB.name)}" placeholder="例：〇〇階 クリア編成" maxlength="40"></label></div>
-  ${TB.floor?floorInfoHtml(TB.floor,TB.pool,`${floorName(TB.floor)} の情報を見る（解析データ・攻略のコツ・運営Tier表）`):""}
+  ${TB.floor?floorInfoHtml(TB.floor,TB.pool,`${floorName(TB.floor)} の情報`):""}
   <p class="hint" style="margin:4px 0">カードを押すとその枠を選びます（枠の1〜6はゲームの編成画面の左からの並び）。キャラを選ぶと続けてスクリプトを選べます。</p>
   <div class="team tv-c tbteam">${teamCardsHtml(TB.ms,{slot:true,sel:TB.sel})}</div>${ed}${pick}
   <label class="tbcm">コメント（運用のコツなど）<textarea data-tbf="comment" maxlength="600" placeholder="例：1番目にタンクを出して、ゲージが溜まったら〇〇のBLADE">${esc(TB.comment)}</textarea></label>
@@ -1969,7 +1974,8 @@ function tbRender(){const body=document.getElementById("tbBody");if(!body)return
   const qi=document.getElementById("tbQ");if(qi)liveInput(qi,()=>{TB.q=qi.value;const p=qi.selectionStart;tbRender();const nq=document.getElementById("tbQ");if(nq){nq.focus();nq.setSelectionRange(p,p);}});
 }
 // 同じキャラ（スタイル違いも同じ騎士）がほかの枠にいれば、その枠の番号（いなければ -1）
-function tbUsedChar(x){return TB.ms.findIndex((y,j)=>{if(j===TB.sel||!y.id)return false;const c=CHMAP[y.id];return y.id===x.id||(c&&c.base&&x.base&&c.base===x.base);});}
+// 同じキャラ（同じスタイル）は1枠だけ。スタイルが違えば同じ騎士でも編成できる
+function tbUsedChar(x){return TB.ms.findIndex((y,j)=>j!==TB.sel&&y.id&&y.id===x.id);}
 function tbNextEmpty(){const i=TB.ms.findIndex(x=>!x.id);return i>=0?i:TB.sel;}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[data-tbslot],[data-tbpick],[data-tbsc],[data-tbmode],[data-tbclear],[data-tbreset],[data-tbshare],[data-tbedit],[data-tbsonly]");if(!b)return;const ds=b.dataset;
   if(ds.tbopen){const k=ds.tbopen;
@@ -1979,7 +1985,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[d
     return;}
   if(ds.tbedit){const t=TBSHARED;if(t)tbOpen({pool:hasOwn()?OWN():null,spool:SOWN(),floor:t.f||"",name:t.n||"",comment:t.c||"",ms:t.m.map(x=>({id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}))});return;}
   if(ds.tbslot){const [i,k]=ds.tbslot.split("|");TB.sel=+i;TB.pick=k==="s"&&TB.ms[+i].id?"s":"c";TB.q="";tbRender();return;}
-  if(ds.tbpick){if(tbUsedChar(CHMAP[ds.tbpick]||{id:ds.tbpick})>=0){toast("同じキャラはほかの枠で使っています");return;}const m=TB.ms[TB.sel],c=CHMAP[ds.tbpick];m.id=ds.tbpick;const ps=TB.pool?+TB.pool[c.id]||0:0;m.star=String(Math.max(ps||rarMin(c),rarMin(c)));
+  if(ds.tbpick){if(tbUsedChar(CHMAP[ds.tbpick]||{id:ds.tbpick})>=0){toast("同じキャラ（同じスタイル）はほかの枠で使っています");return;}const m=TB.ms[TB.sel],c=CHMAP[ds.tbpick];m.id=ds.tbpick;const ps=TB.pool?+TB.pool[c.id]||0:0;m.star=String(Math.max(ps||rarMin(c),rarMin(c)));
     if(m.sc){const s=SC.find(x=>x.name===m.sc);if(s&&s.role&&c.role&&s.role!==c.role&&s.role!=="ワイルド")m.sc="";}
     TB.pick="s";TB.q="";tbRender();return;}
   if(ds.tbsc!==undefined){if(ds.tbsc&&TB.ms.some((y,j)=>j!==TB.sel&&y.sc===ds.tbsc)){toast("同じスクリプトはほかの枠で使っています");return;}TB.ms[TB.sel].sc=ds.tbsc;if(ds.tbsc){TB.sel=tbNextEmpty();TB.pick="c";}TB.q="";tbRender();return;}
@@ -1993,7 +1999,7 @@ document.addEventListener("change",e=>{const el=e.target.closest("[data-tbf]");i
   if(f==="star")TB.ms[TB.sel].star=v;
   else if(f==="ord"){const dup=v&&TB.ms.find((x,j)=>j!==TB.sel&&x.ord===v);if(dup)dup.ord=TB.ms[TB.sel].ord;TB.ms[TB.sel].ord=v;}
   else return;tbRender();});
-document.addEventListener("input",e=>{const el=e.target.closest("[data-tbf]");if(!el)return;const f=el.dataset.tbf;if(f==="name")TB.name=el.value;else if(f==="comment")TB.comment=el.value;});
+document.addEventListener("input",e=>{const el=e.target.closest("[data-tbf]");if(!el)return;const f=el.dataset.tbf;if(f==="name")TB.name=el.value;else if(f==="comment")TB.comment=el.value;clearTimeout(TBCODE.t);TBCODE.t=setTimeout(tbPrepCode,300);});
 const b64uEnc=u=>{let x="";for(let i=0;i<u.length;i+=0x8000)x+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");};
 const b64uDec=t=>Uint8Array.from(atob(t.replace(/-/g,"+").replace(/_/g,"/")),ch=>ch.charCodeAt(0));
 async function teamEncode(o){const by=new TextEncoder().encode(JSON.stringify(o));
@@ -2002,9 +2008,14 @@ async function teamEncode(o){const by=new TextEncoder().encode(JSON.stringify(o)
 async function teamDecode(code){const t=code[0],by=b64uDec(code.slice(1));
   if(t==="z")return JSON.parse(await new Response(new Blob([by]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text());
   return JSON.parse(new TextDecoder().decode(by));}
-async function tbShare(){const o={v:1,f:TB.floor||"",n:TB.name.trim().slice(0,40),c:TB.comment.trim().slice(0,600),o:TB.owner||"",m:TB.ms.map(x=>x.id||x.sc?[x.id,+x.star||0,x.sc,+x.ord||0]:0)};
-  while(o.m.length&&!o.m[o.m.length-1])o.m.pop();
-  const code=await teamEncode(o);const f=FLOORS.find(x=>x.key===o.f)||SEALS.find(x=>x.key===o.f);
+/* スマホの共有メニューは「押した直後」でないと開けない（圧縮を待つと開けずに何も起きない）。
+   圧縮したリンクは画面を描くたびに先に作っておき、押したときは待たずに使う（まだなら圧縮しない形でその場で作る） */
+function tbObj(){const o={v:1,f:TB.floor||"",n:TB.name.trim().slice(0,40),c:TB.comment.trim().slice(0,600),o:TB.owner||"",m:TB.ms.map(x=>x.id||x.sc?[x.id,+x.star||0,x.sc,+x.ord||0]:0)};
+  while(o.m.length&&!o.m[o.m.length-1])o.m.pop();return o;}
+const TBCODE={j:"",code:""};
+function tbPrepCode(){const o=tbObj(),j=JSON.stringify(o);if(TBCODE.j===j&&TBCODE.code)return;TBCODE.j=j;TBCODE.code="";teamEncode(o).then(c=>{if(TBCODE.j===j)TBCODE.code=c;}).catch(()=>{});}
+function tbShare(){const o=tbObj(),j=JSON.stringify(o);
+  const code=TBCODE.j===j&&TBCODE.code?TBCODE.code:"j"+b64uEnc(new TextEncoder().encode(j));const f=FLOORS.find(x=>x.key===o.f)||SEALS.find(x=>x.key===o.f);
   shareUrl(location.origin+location.pathname+"?team="+code,`${o.n||"編成"}${f?`（${f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F"}）`:""} | RxRwiki`);}
 /* 階層の情報（ページを移らずにその場で開いて見る）：ボス・解析データ／ステージ効果・攻略のコツ・コメント・運営Tier表。pool があればその人が持っていないキャラをグレー */
 const FLOPEN=new Set();
@@ -2012,19 +2023,23 @@ document.addEventListener("toggle",e=>{const d=e.target;if(!(d instanceof HTMLDe
 function floorInfoHtml(key,pool,label){const f=floorObj(key);if(!f)return "";const fk=key+"|"+(label||"");
   const P=OFFICIAL[key]||{};const rows=TIERS.map(t=>[t,Object.keys(P).filter(k=>P[k]===t)]).filter(([,ks])=>ks.length);
   const ef=(f.lines||[]).map(l=>`<li class="${l.sec?"sec":l.pol>0?"pos":l.pol<0?"neg":""}">${esc(l.text)}</li>`).join("");
-  return `<details class="flinfo" data-fl="${esc(fk)}"${FLOPEN.has(fk)?" open":""}><summary>${esc(label||`${floorName(key)} の情報を見る`)}</summary><div class="flbody">
-    <p class="flboss">${BOSS[f.boss]?`<img src="${BOSS[f.boss]}" alt="">`:""}<span><b>${esc(f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F")}</b>${f.boss?` ${esc(f.boss)}`:""}${f.attr?` <span class="count">（推奨 ${esc(f.attr)}）</span>`:""}</span></p>
+  const ts=TEAMS[key]||[];const W=f.seal?"封印戦":"階層";
+  // 邪魔にならないよう、情報・編成例・Tier表はそれぞれ閉じたトグル（開いた状態は FLOPEN）
+  const box=(id,sum,inner)=>`<details class="flinfo" data-fl="${esc(fk+"|"+id)}"${FLOPEN.has(fk+"|"+id)?" open":""}><summary>${sum}</summary><div class="flbody">${inner}</div></details>`;
+  return `<div class="flinfos">`+box("info",`📋 ${esc(label||floorName(key)+" の情報")} <small class="count">（${f.seal?"ステージ効果":"解析データ"}・攻略のコツ）</small>`,
+    `<p class="flboss">${BOSS[f.boss]?`<img src="${BOSS[f.boss]}" alt="">`:""}<span><b>${esc(f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F")}</b>${f.boss?` ${esc(f.boss)}`:""}${f.attr?` <span class="count">（推奨 ${esc(f.attr)}）</span>`:""}</span></p>
     ${ef?`<p class="note-h">${f.seal?"ステージ効果":"解析データ"}</p><ul class="effects">${ef}</ul>`:""}
-    ${f.point?`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`:""}${f.comment?`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`:""}
-    ${rows.length?`<p class="note-h">運営Tier表${pool?` <small class="count">（グレー＝持っていない）</small>`:""}</p><div class="fltier">${rows.map(([t,ks])=>`<div><b class="t-${esc(t)}">${esc(t)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<span class="fltc${pool&&!pool[c.id]?" tmnot":""}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</span>`;}).join("")}</span></div>`).join("")}</div>`:""}
-  </div></details>`;}
+    ${f.point?`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`:""}${f.comment?`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`:""}${!ef&&!f.point&&!f.comment?'<p class="count">まだ情報がありません</p>':""}`)
+  +box("teams",`🧩 クリア編成例 <small class="count">（${ts.length}件）</small>`,ts.length?ts.map(t=>teamOneHtml(t,false,"fi|"+key+"|"+t.name)).join(""):`<p class="count">この${W}の編成例はまだありません</p>`)
+  +box("tier",`📊 運営Tier表${pool&&rows.length?` <small class="count">（グレー＝持っていない）</small>`:""}`,rows.length?`<div class="fltier">${rows.map(([t,ks])=>`<div><b class="t-${esc(t)}">${esc(t)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<span class="fltc${pool&&!pool[c.id]?" tmnot":""}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</span>`;}).join("")}</span></div>`).join("")}</div>`:`<p class="count">この${W}の運営Tier表はまだありません</p>`)
+  +`</div>`;}
 /* 共有された編成を開く */
 let TBSHARED=null;
 async function openSharedTeam(code){let t;try{t=await teamDecode(code);}catch(e){toast("編成のリンクを読めませんでした（途中で切れているかもしれません）",6000);return;}
   if(!t||!Array.isArray(t.m)){toast("編成のリンクを読めませんでした",6000);return;}TBSHARED=t;
   const ms=t.m.map(x=>x?{id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}:{id:"",star:"",sc:"",ord:""});while(ms.length<6)ms.push({id:"",star:"",sc:"",ord:""});
   const f=FLOORS.find(x=>x.key===t.f)||SEALS.find(x=>x.key===t.f);
-  const h=`<h2>共有された編成</h2>${f?`<p class="tbfloor">${f.seal?"封印戦 "+esc(f.floor):esc(f.type)+" "+esc(f.floor)+"F"}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ</button></p>${floorInfoHtml(f.key,null,"この"+(f.seal?"封印戦":"階層")+"の情報をここで見る")}`:""}${t.o?`<p class="hint">${esc(t.o)} さんの所持キャラで組んだ編成です</p>`:""}
+  const h=`<h2>共有された編成</h2>${f?`<p class="tbfloor">${f.seal?"封印戦 "+esc(f.floor):esc(f.type)+" "+esc(f.floor)+"F"}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ</button></p>${floorInfoHtml(f.key,null,"この"+(f.seal?"封印戦":"階層")+"の情報")}`:""}${t.o?`<p class="hint">${esc(t.o)} さんの所持キャラで組んだ編成です</p>`:""}
   <div class="teams" style="border:0;margin:0;padding:0">${teamOneHtml({name:t.n||"編成",members:ms,comment:t.c||""},true)}</div>
   <div class="foot"><button class="btn" data-tbedit="1">この編成をもとに組み直す</button><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
@@ -2747,7 +2762,7 @@ function openSharedOwn(){if(!SOV.o)return;const o=SOV.o,mine=OWN(),items=ownItem
   <details class="ownheadbox"${OWNHEADOPEN?" open":""}><summary><span>所持率 <b>${st.p}%</b>（${st.k} / ${st.n} スタイル）${SOV.so?`・所持スクリプト ${Object.keys(SOV.so).length}種類`:""}</span><span class="count">グラフを見る</span></summary>
   <div class="ownhead sown"><div class="ownrate"><small>所持率</small><b>${st.p}<span>%</span></b><span>${st.k} / ${st.n} スタイル</span><span>キャラクター ${bOwned} / ${bases.length}</span>${hasOwn()?`<span>あなたも持っている：${both}</span>`:""}</div>
   <div class="ownbars"><div>${ATTRS.filter(a=>items.some(c=>c.attr===a)).map(a=>bar(a,ownStats(items.filter(c=>c.attr===a),o),ic(a))).join("")}</div><div>${ROLES.filter(a=>items.some(c=>c.role===a)).map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div></div></div></details>
-  ${SOV.floor&&floorObj(SOV.floor)||SOV.msg?`<div class="sovreq">${SOV.floor&&floorObj(SOV.floor)?`<b>${esc(floorName(SOV.floor))}</b> の編成を相談しています`:"編成を相談しています"}${SOV.msg?`<p>課題：${esc(SOV.msg)}</p>`:""}</div>${SOV.floor&&floorObj(SOV.floor)?floorInfoHtml(SOV.floor,SOV.o,`${floorName(SOV.floor)} の情報を見る（解析データ・攻略のコツ・運営Tier表）`):""}`:""}
+  ${SOV.floor&&floorObj(SOV.floor)||SOV.msg?`<div class="sovreq">${SOV.floor&&floorObj(SOV.floor)?`<b>${esc(floorName(SOV.floor))}</b> の編成を相談しています`:"編成を相談しています"}${SOV.msg?`<p>課題：${esc(SOV.msg)}</p>`:""}</div>${SOV.floor&&floorObj(SOV.floor)?floorInfoHtml(SOV.floor,SOV.o,`${floorName(SOV.floor)} の情報`):""}`:""}
   <div class="tbcta"><button class="btn primary" data-tbopen="sov">🛠 この所持キャラで編成を組む</button><span class="hint">組んだ編成はリンクで送れます</span></div>
   <div class="ownctl"><div class="seg"><button data-sovshow="own" aria-pressed="${SOV.show==="own"}">所持</button><button data-sovshow="not" aria-pressed="${SOV.show==="not"}">未所持</button><button data-sovshow="all" aria-pressed="${SOV.show==="all"}">すべて</button></div>${b.btn}${sortBar("chars")}<span class="count">${list.length}人</span></div>
   ${qbarChars("sov")}${b.chips}
