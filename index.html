@@ -1157,7 +1157,8 @@ function switchTab(t){track("tab",{tab:t});NAVSEQ++;tab=t;sel=null;HEROKEY=null;
 /* 日本語入力（IME）の変換中は再描画しない */
 function liveInput(el,fn){if(!el)return;el.addEventListener("input",e=>{if(e.isComposing||el._comp)return;fn();});el.addEventListener("compositionstart",()=>{el._comp=true;});el.addEventListener("compositionend",()=>{el._comp=false;fn();});}
 let main=document.getElementById("main");
-function render(){
+function render(){renderMain();syncUrl();}
+function renderMain(){
   if(MODE==="admin"){if(ADMIN_LIST)ADMIN_LIST();return;}
   if(!SITE_LOADED){main.innerHTML=`<div class="empty"><h2>読み込み中…</h2><p>データを読み込んでいます。</p></div>`;return;}
   renderNav();tabHero();
@@ -2783,7 +2784,50 @@ function applyLinkParam(){try{const q=new URLSearchParams(location.search);let h
   const ow=q.get("own");if(ow){SOV.o=ownDecode(ow);SOV.name=(q.get("n")||"").slice(0,20);SOV.floor=q.get("f")||"";SOV.so=q.get("s")?sownDecode(q.get("s")):null;SOV.msg=(q.get("m")||"").slice(0,80);SOV.show="own";tab="own";OPENLINK=()=>openSharedOwn();hit=true;}
   if(hit)history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 function runOpenLink(){if(OPENLINK){const f=OPENLINK;OPENLINK=null;try{f();}catch(e){}}}
-function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&["home","guide","faq","own","sown","ctier","knights","events","chars","scripts","tier","sum","babel","seal"].includes(tp)){tab=tp;history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&URLTABS.includes(tp)){tab=tp;if(tp==="rank"){const rk=new URLSearchParams(location.search).get("rk");if(rk==="chars"||rk==="scripts")RK.t=rk;}history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+
+/* ================= ページごとのURL（ブックマーク・戻るボタン用） =================
+   いま見ているページ・開いている詳細に合わせて、アドレスバーのURLとタブの題名を変える。
+   キャラ詳細 ?char=ID／スクリプト ?script=名前／イベント ?event=名前／騎士 ?knight=名前／バベル・封印戦 ?floor=キー／ほかのページ ?tab=名前（ランキングは &rk=chars|scripts）。ホームは何も付けない。
+   人が押して移ったときは履歴を足し（戻るボタンで前のページへ）、それ以外は置き換える。戻る・進むでは URL のページを開き直す */
+const URLTABS=["home","guide","faq","own","sown","ctier","knights","events","chars","scripts","rank","tier","sum","babel","seal"];
+const TITLE0=document.title;let DETAIL=null,URLPOP=false,NAVPUSH=false,DETPUSHED=false,IGNOREPOP=false;
+const isDetQ=q=>/^\?(char|script|event|knight)=/.test(q||"");
+document.addEventListener("click",()=>{NAVPUSH=true;},true);
+function urlState(){
+  if(DETAIL&&document.getElementById("dlgDetail").open&&DETAIL.n===document.getElementById("detailBody").firstElementChild){const k=DETAIL.k,v=DETAIL.v;return {q:`?${k}=${encodeURIComponent(v)}`,t:DETAIL.t};}
+  if(tab==="tier"&&S.curFloor){const f=FLOORS.find(x=>x.key===S.curFloor);if(f)return {q:`?floor=${encodeURIComponent(f.key)}`,t:`${f.type} ${f.floor}F${f.boss?" "+f.boss:""}`};}
+  if(tab==="seal"&&S.curSeal){const f=FLOORS.find(x=>x.key===S.curSeal);if(f)return {q:`?floor=${encodeURIComponent(f.key)}`,t:`封印戦 ${f.floor}`};}
+  if(tab==="home")return {q:"",t:""};
+  const lab=(()=>{for(const k in TOPS){const x=TOPS[k].find(([y])=>y===tab||(tab==="rank"&&y==="rank:"+RK.t));if(x)return tab==="rank"?`ランキング（${RK.t==="scripts"?"スクリプト":"キャラ"}）`:x[1];}return "";})();
+  return {q:`?tab=${tab}${tab==="rank"?"&rk="+RK.t:""}`,t:lab};
+}
+function syncUrl(){if(MODE==="admin"||URLPOP||!SITE_LOADED)return;try{const st=urlState();document.title=st.t?`${st.t} | RxRwiki`:TITLE0;
+  if(location.search===st.q)return;const u=location.pathname+st.q+location.hash;
+  // 詳細を開いたときだけ履歴を足す（詳細から別の詳細へ移るときは置き換え）。閉じたときは「戻る」と同じにする
+  const wasDet=isDetQ(location.search),push=NAVPUSH&&!(isDetQ(st.q)&&wasDet);if(push)history.pushState(null,"",u);else history.replaceState(null,"",u);
+  if(isDetQ(st.q)&&!wasDet)DETPUSHED=push;NAVPUSH=false;}catch(e){}}
+// 詳細を開く関数に、URL の印を付ける
+// n＝そのとき詳細の中身の先頭の要素（ほかの画面＝キーワード一覧・比較などに入れ替わったら、ページのURLに戻す）
+const setDetail=(k,v,t)=>{DETAIL={k,v,t,n:document.getElementById("detailBody").firstElementChild};syncUrl();};
+new MutationObserver(()=>{if(DETAIL)queueMicrotask(syncUrl);}).observe(document.getElementById("detailBody"),{childList:true});
+{const oc=openChar;openChar=function(id){const r=oc.apply(this,arguments);const c=CHMAP[id];if(c)setDetail("char",id,c.name);return r;};
+ const os=openScript;openScript=function(i){const r=os.apply(this,arguments);const x=SC.find(y=>y.i===i);if(x)setDetail("script",x.name,x.name);return r;};
+ const oe=openEvent;openEvent=function(i){const r=oe.apply(this,arguments);const x=EVENTS.find(y=>y.i===i);if(x)setDetail("event",x.name,x.name);return r;};
+ const ok=openKnight;openKnight=function(n){const r=ok.apply(this,arguments);if(PMAP[n])setDetail("knight",n,n);return r;};}
+document.getElementById("dlgDetail").addEventListener("close",()=>{DETAIL=null;if(URLPOP)return;if(DETPUSHED&&isDetQ(location.search)){DETPUSHED=false;IGNOREPOP=true;history.back();return;}syncUrl();});
+// 戻る・進む
+addEventListener("popstate",()=>{if(MODE==="admin"||!SITE_LOADED)return;if(IGNOREPOP){IGNOREPOP=false;const st=urlState();document.title=st.t?`${st.t} | RxRwiki`:TITLE0;if(location.search!==st.q)history.replaceState(null,"",location.pathname+st.q+location.hash);return;}DETPUSHED=false;URLPOP=true;try{
+  const q=new URLSearchParams(location.search),dl=document.getElementById("dlgDetail");
+  const det=["char","script","event","knight"].find(k=>q.get(k));
+  if(dl.open){DETAIL=null;dl.close();}
+  const fl=q.get("floor"),tp=q.get("tab");
+  if(fl){const f=FLOORS.find(x=>x.key===fl);if(f){if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}}}
+  else if(tp&&URLTABS.includes(tp)){tab=tp;if(tp==="rank"){const rk=q.get("rk");if(rk==="chars"||rk==="scripts")RK.t=rk;}}
+  else if(!det)tab="home";
+  sel=null;HEROKEY=null;render();
+  if(det){const v=q.get(det);if(det==="char"&&CHMAP[v])openChar(v);else if(det==="script"){const x=SC.find(y=>y.name===v);if(x)openScript(x.i);}else if(det==="event"){const x=EVENTS.find(y=>y.name===v);if(x)openEvent(x.i);}else if(det==="knight"&&PMAP[v])openKnight(v);}
+}catch(e){}finally{URLPOP=false;const st=urlState();document.title=st.t?`${st.t} | RxRwiki`:TITLE0;}});
 
 /* ================= お知らせ ================= */
 let NEWS=[];
@@ -2811,7 +2855,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=52");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=53");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
