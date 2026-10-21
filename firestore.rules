@@ -70,6 +70,24 @@ service cloud.firestore {
       allow read, update, delete: if isEditor();
     }
 
+    // テスターモードの記録（公開前の確認）: だれでも自分の分（推測できない長い ID）を作成・上書きできる。中身は編集者だけが読める
+    // d は記録の JSON 文字列。chk は管理画面で付ける「対応済み」の印（テスターの送信では変えられない）
+    match /testers/{id} {
+      function okBody() {
+        return request.resource.data.name is string && request.resource.data.name.size() <= 40
+          && request.resource.data.d is string && request.resource.data.d.size() <= 200000
+          && request.resource.data.ua is string && request.resource.data.ua.size() <= 200
+          && request.resource.data.t == request.time;
+      }
+      allow read, delete: if isEditor();
+      allow create: if id.size() >= 20 && id.size() <= 40
+        && request.resource.data.keys().hasOnly(["name", "d", "ua", "v", "t"]) && okBody();
+      allow update: if request.resource.data.keys().hasOnly(["name", "d", "ua", "v", "t", "chk"]) && okBody()
+        && request.resource.data.get("chk", null) == resource.data.get("chk", null)
+        && request.time > resource.data.t + duration.value(3, "s");
+      allow update: if isEditor() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["chk"]);
+    }
+
     // 一般ユーザーの記録（所持キャラ・自分用Tier表など。本人だけが読み書きできる。d は記録の JSON 文字列）
     match /users/{uid} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;

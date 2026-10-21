@@ -197,7 +197,7 @@ async function resolveRole(u) {
 }
 
 /* ================= live listeners ================= */
-function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = false; TODODOC = null; }
+function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = false; TODODOC = null; }
 function startListeners() {
   const on = (ref, fn, opt) => S.unsubs.push(F.onSnapshot(ref, opt || {}, fn, err => {
     console.warn(ref.path, err);
@@ -208,7 +208,7 @@ function startListeners() {
     on(F.doc(F.db, "tables", k), s => { T[k].hdrExists = s.exists(); T[k].headers = s.exists() ? (s.data().headers || []) : []; T[k].dels = s.exists() ? (s.data().dels || {}) : {}; T[k].delKeys = s.exists() ? (s.data().delKeys || {}) : {}; T[k].hdrReady = true; applyDels(k); tableChanged(k); });
     listenRows(k, on);
   });
-  TABLES.concat(["crops", "news", "tiers", "options", "guide"]).forEach(k => on(F.doc(F.db, "public", k), s => {
+  TABLES.concat(["crops", "news", "tiers", "options", "guide", "testlist"]).forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
     if (k === "tiers" && d && TIERSTALE.has(d.json)) return;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
@@ -217,6 +217,7 @@ function startListeners() {
     else if (k === "tiers") { if (d && TIERSTALE.has(d.json)) return; TIERSTALE.clear(); let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; TIERORD = v.orders || {}; TIERNOTES = v.notes || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
     else if (k === "options") { try { OPTS = d && d.json ? JSON.parse(d.json) : null; } catch (e) { OPTS = null; } if (OPTS) R.setOptions(OPTS); softRender(); return; }
     else if (k === "guide") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } GUIDEDOC = v; GUIDEAT = d ? d.at || 0 : 0; if (v) R.setDocs(v); if (!GD.dirty) GD.draft = null; if (S.tab === "guide") softRender(); return; }
+    else if (k === "testlist") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } TESTLIST = v; TESTAT = d ? d.at || 0 : 0; if (!TS.dirty) TS.text = null; if (S.tab === "test") softRender(); return; }
     else if (k === "news") { try { NEWSLIST = d && d.json ? JSON.parse(d.json) : []; } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
     else maybePublish(k);
     softRender();
@@ -228,7 +229,7 @@ function startListeners() {
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
   initName().then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
-  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = false; TODODOC = null;
+  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = false; TODODOC = null;
   // ご意見・変更履歴は、そのタブを開いたときに読む（未対応のご意見の数だけは件数クエリで数える＝1回の読み取り）
   F.getCountFromServer(F.query(F.collection(F.db, "feedback"), F.where("status", "==", "new"))).then(c => { S.fbNew = c.data().count; renderNav(); }).catch(e => console.warn("fbcount", e));
   S.unsubs.push(F.onSnapshot(F.doc(F.db, "secrets", "github"), s => { GH = s.exists() && s.data().token ? s.data() : null; softRender(); }, () => { GH = null; }));
@@ -278,13 +279,17 @@ function listenRows(k, on) {
     }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
   }
 }
-const LAZY = { log: false, fb: false, todo: false };
+const LAZY = { log: false, fb: false, todo: false, test: false };
 function ensureLazy(tab) {
   if (!S.on) return;
   if (tab === "log" && !LAZY.log) { LAZY.log = true; S.on(F.query(F.collection(F.db, "log"), F.orderBy("at", "desc"), F.limit(150)), q => { LOG = q.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.tab === "log") softRender(); }); }
   if (tab === "fb" && !LAZY.fb) { LAZY.fb = true; S.on(F.query(F.collection(F.db, "feedback"), F.orderBy("at", "desc"), F.limit(200)), q => {
     FEEDBACK = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: x.at && x.at.toMillis ? x.at.toMillis() : (x.at || 0) }); });
     S.fbNew = FEEDBACK.filter(f => f.status === "new").length; renderNav(); if (S.tab === "fb") softRender();
+  }); }
+  if (tab === "test" && !LAZY.test) { LAZY.test = true; S.on(F.collection(F.db, "testers"), q => {
+    TESTERS = q.docs.map(d => { const x = d.data(); let v = {}; try { v = JSON.parse(x.d || "{}"); } catch (e) { } return { id: d.id, name: x.name || v.name || "", ua: x.ua || "", t: x.t && x.t.toMillis ? x.t.toMillis() : 0, chk: x.chk || {}, r: v.r || {}, f: v.f || {}, rep: v.rep || [] }; }).sort((a, b) => b.t - a.t);
+    if (S.tab === "test") softRender();
   }); }
 }
 function derive(k) {
@@ -381,7 +386,7 @@ async function publish(k, force) {
 }
 /* ---- public/all：公開サイトが読む データ一式（1回の読み取りで済ませ、Firestore の無料枠を節約する） ----
    public/{chars,scripts,babel,teams,seals,crops,options,news,tiers} の json をまとめたもの。どれかが変わるたびに作り直す */
-const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "people", "events", "bosses", "crops", "options", "news", "tiers", "guide"];
+const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "people", "events", "bosses", "crops", "options", "news", "tiers", "guide", "testlist"];
 const PUBRAW = {};       // k -> public/{k} の json（文字列）。ドキュメントがなければ null
 let ALLSIG;              // public/all の sig（undefined = まだ読んでいない）
 const BUNDLE = { t: null, pending: false, busy: false, failed: false };
@@ -479,7 +484,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "やること"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "やること"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = S.fbNew || 0;
@@ -519,6 +524,7 @@ function renderAdmin(soft) {
   else if (S.tab === "guide") { if (!(soft && GD.dirty)) renderGuideTab(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
+  else if (S.tab === "test") { if (!(soft && TS.dirty)) renderTest(); }
   else if (S.tab === "stats") renderStats(soft);
   else if (S.tab === "members") renderMembers(soft);
 }
@@ -1571,6 +1577,7 @@ async function ioAction(a, btn) {
     try { const Z = await loadJSZip(); const z = new Z(); TABLES.forEach(t => { const d = curData(t); if (d.headers.length) z.file(`data/${t}.json`, JSON.stringify({ headers: d.headers, rows: d.rows }, null, 1)); });
       z.file("data/news.json", JSON.stringify(NEWSLIST, null, 1));
       if (GUIDEDOC) z.file("data/guide.json", JSON.stringify(GUIDEDOC, null, 1));
+      if (TESTLIST) z.file("data/testlist.json", JSON.stringify(TESTLIST, null, 1));
       z.file("data/tiers.json", JSON.stringify({ tiers: TIERPUB, orders: TIERORD, notes: TIERNOTES, at: now() }, null, 1));
       download(`rxrdb-data-${R.jstDay()}.zip`, await z.generateAsync({ type: "blob" })); toast("data/*.json を書き出しました"); }
     catch (e) { toast("ZIP を作れませんでした。通信状態を確認してください", 5000); } return;
@@ -2328,6 +2335,108 @@ async function fbNote(id) {
   try { await F.updateDoc(F.doc(F.db, "feedback", id), { note: v.slice(0, 500), noteBy: meId() }); } catch (e) { toast(fbErr(e)); }
 }
 
+/* ================= テスト（テスターモードのチェックリストと結果） ================= */
+// 項目は public/testlist（json={groups:[{title,items:[{id,text,free}]}]}。公開データ一式に入り、公開サイトのテスターモードが読む。無ければ data/testlist.json）
+// 結果は testers/{tid}（テスターの端末が送る。d＝記録の JSON 文字列、chk＝「対応済み」の印）。このタブを開いたときに読む
+let TESTLIST = null, TESTAT = 0, TESTERS = [];
+const TS = { v: "items", text: null, baseAt: 0, dirty: false, busy: false, err: "", open: {}, done: false, confirm: null };
+const TSN = { ok: "OK", ng: "気になる", na: "できなかった" };
+const tsKey = s => s.replace(/[.~*/[\]]/g, "_");   // chk のフィールド名（updateDoc の区切りの「.」などを避ける）
+function tsText(l) { return ((l && l.groups) || []).map(g => "## " + g.title + "\n" + g.items.map(i => `${i.id} ${i.free ? "✎ " : ""}${i.text}`).join("\n")).join("\n\n"); }
+function tsParse(src) {
+  const groups = [], ids = new Set();
+  for (const [n, line0] of src.split("\n").entries()) {
+    const line = line0.trim(); if (!line) continue;
+    if (line.startsWith("## ")) { groups.push({ title: line.slice(3).trim(), items: [] }); continue; }
+    const m = line.match(/^(\S+)\s+(.+)$/); if (!m) throw new Error(`${n + 1}行目：「番号 項目」の形にしてください`);
+    if (!groups.length) throw new Error(`${n + 1}行目：最初に「## グループ名」の行が必要です`);
+    if (ids.has(m[1])) throw new Error(`${n + 1}行目：番号「${m[1]}」が重複しています`); ids.add(m[1]);
+    const free = /^✎/.test(m[2]); groups[groups.length - 1].items.push(Object.assign({ id: m[1], text: m[2].replace(/^✎\s*/, "") }, free ? { free: true } : {}));
+  }
+  if (!groups.some(g => g.items.length)) throw new Error("項目がありません");
+  return { groups: groups.filter(g => g.items.length) };
+}
+async function tsLoad() { if (TS.text != null) return; let v = TESTLIST; if (!v) { try { v = await staticJson("data/testlist.json"); } catch (e) { v = { groups: [] }; } } TS.text = tsText(v); TS.baseAt = TESTAT; TS.dirty = false; TS.err = ""; }
+const tsList = () => TESTLIST || TS.static || { groups: [] };
+// 報告（項目ごとのメモ・項目と関係ない報告）を1つの一覧に
+function tsReports() {
+  const items = {}; tsList().groups.forEach(g => g.items.forEach(i => { items[i.id] = i; }));
+  const out = [];
+  TESTERS.forEach(t => {
+    Object.entries(t.r).forEach(([id, r]) => { if ((r.n || "").trim() || r.s === "ng" || r.s === "na") out.push({ t, key: tsKey("i:" + id), id, item: items[id], s: r.s, text: r.n || "", p: r.p, u: r.u, at: r.at || t.t }); });
+    t.rep.forEach(x => out.push({ t, key: tsKey("r:" + x.id), text: x.text, p: x.p, u: x.u, at: x.at || t.t }));
+  });
+  return out.sort((a, b) => b.at - a.at);
+}
+function tsRep(x) {
+  const ck = !!x.t.chk[x.key];
+  return `<article class="fbcard ${ck ? "st-done" : x.s === "na" ? "st-hold" : x.s === "ng" || !x.item ? "" : "st-doing"}"><header>${x.item ? `<span class="fk ${x.s === "ng" ? "" : "k-other"}">${esc(x.id)} ${esc(TSN[x.s] || "メモ")}</span>` : `<span class="fk k-request">報告</span>`}<b>${esc(x.t.name || "（名前なし）")}</b><span class="count">${esc(fmtTime(x.at))}</span><span style="flex:1"></span>
+    <label class="ck2" style="min-height:0"><input type="checkbox" data-tsk="${esc(x.t.id)}|${esc(x.key)}" ${ck ? "checked" : ""}>対応済み</label></header>
+    ${x.item ? `<p class="count" style="margin:0">${esc(x.item.text)}</p>` : ""}${x.text ? `<p class="fbtext">${esc(x.text)}</p>` : ""}
+    <footer><small class="count">${x.u ? `<a href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.p || "ページ")}</a>` : esc(x.p || "")}</small><span style="flex:1"></span><small class="count ua">${esc(uaShort(x.t.ua))}</small></footer></article>`;
+}
+function renderTest() {
+  if (!TESTLIST && !TS.static) { AM.innerHTML = userBar() + `<div class="empty"><h2>読み込み中…</h2></div>`; staticJson("data/testlist.json").then(v => { TS.static = v; }).catch(() => { TS.static = { groups: [] }; }).then(() => { if (S.tab === "test") renderTest(); }); return; }
+  const L = tsList(), checks = L.groups.flatMap(g => g.items.filter(i => !i.free)), reps = tsReports();
+  const open = reps.filter(x => !x.t.chk[x.key]).length;
+  const link = R.SITE_URL + "?tester=1";
+  let h = userBar() + `<div class="toolbar"><h2><small>TEST</small>テスト（公開前の確認）</h2><div class="seg">${[["items", "項目ごと"], ["reps", `報告 ${open}/${reps.length}`], ["people", `テスター ${TESTERS.length}`], ["edit", "項目の編集"]].map(([k, l]) => `<button data-tsv="${k}" aria-pressed="${TS.v === k}">${l}</button>`).join("")}</div></div>
+  <div class="astatus">テスターに渡すリンク：<code style="user-select:all">${esc(link)}</code> <button class="btn small" data-tse="copy">コピー</button><br><span class="count">このリンクで開いた端末だけ、画面の右端に「テスト」ボタンが出ます（終わるときはパネルの一番下、または <code>?tester=0</code>）。記録は少したつと自動で送られ、ここに出ます。</span></div>`;
+  if (TS.v === "items") {
+    h += L.groups.map((g, gi) => `<section class="apanel"><h3 style="margin:0 0 8px">${esc(g.title)}</h3>${g.items.map(it => {
+      if (it.free) { const ans = TESTERS.filter(t => (t.f[it.id] || "").trim()); return `<div class="tsrow"><div><b class="count">${esc(it.id)}</b> ${esc(it.text)}</div>${ans.map(t => `<p class="tsans"><b>${esc(t.name || "（名前なし）")}</b>：${esc(t.f[it.id])}</p>`).join("") || `<p class="count">まだ回答がありません</p>`}</div>`; }
+      const c = { ok: 0, ng: 0, na: 0 }; TESTERS.forEach(t => { const s = t.r[it.id] && t.r[it.id].s; if (s in c) c[s]++; });
+      const notes = reps.filter(x => x.id === it.id && x.item);
+      const op = TS.open[it.id];
+      return `<div class="tsrow"><div class="tshead"><span><b class="count">${esc(it.id)}</b> ${esc(it.text)}</span><span class="tscnt"><span class="ok">OK ${c.ok}</span><span class="ng">気になる ${c.ng}</span><span class="na">できなかった ${c.na}</span>${notes.length ? `<button class="btn small" data-tsv="open|${esc(it.id)}">メモ ${notes.length}${op ? " ▲" : " ▼"}</button>` : ""}</span></div>
+        ${op && notes.length ? `<div class="fblist" style="margin-top:6px">${notes.map(tsRep).join("")}</div>` : ""}</div>`;
+    }).join("")}</section>`).join("");
+  } else if (TS.v === "reps") {
+    const list = reps.filter(x => TS.done || !x.t.chk[x.key]);
+    h += `<div class="row2" style="margin:0 0 10px"><label class="ck2"><input type="checkbox" data-tse="done" ${TS.done ? "checked" : ""}>対応済みも表示</label></div><p class="hint" style="margin:-4px 0 10px">「気になる」「できなかった」・メモ・項目と関係ない報告をまとめて、新しい順に出しています。</p>`;
+    h += `<div class="fblist">${list.map(tsRep).join("") || '<p class="count">該当するものはありません</p>'}</div>`;
+  } else if (TS.v === "people") {
+    h += `<div class="tblwrap"><table class="chtbl tstbl"><tr><th>名前</th><th>進み</th><th>OK</th><th>気になる</th><th>できなかった</th><th>報告</th><th>最終送信</th><th>端末</th><th></th></tr>${TESTERS.map(t => { const c = { ok: 0, ng: 0, na: 0 }; checks.forEach(i => { const s = t.r[i.id] && t.r[i.id].s; if (s in c) c[s]++; }); const n = c.ok + c.ng + c.na;
+      return `<tr><th>${esc(t.name || "（名前なし）")}</th><td>${n}/${checks.length}</td><td>${c.ok}</td><td>${c.ng}</td><td>${c.na}</td><td>${t.rep.length}</td><td>${esc(fmtTime(t.t))}</td><td>${esc(uaShort(t.ua))}</td><td>${TS.confirm === t.id ? `<button class="btn small danger" data-tsdelyes="${esc(t.id)}">削除</button><button class="btn small" data-tsdelno="1">やめる</button>` : `<button class="btn small" data-tsdel="${esc(t.id)}">削除</button>`}</td></tr>`; }).join("") || `<tr><td colspan="9" class="count">まだ送られていません</td></tr>`}</table></div>`;
+  } else {
+    if (TS.text == null) { tsLoad().then(() => { if (S.tab === "test") renderTest(); }); TS.text = ""; }
+    const remoteNew = TESTAT && TESTAT !== TS.baseAt;
+    h += `<p class="hint" style="margin:0 0 8px">1行に1項目、「番号 項目」の形で書きます（例：<code>2-3 「絞り込み」でゲーム内と同じ感覚で絞れた</code>）。「## 」で始まる行はグループの見出し。項目の前に「✎」を付けると自由に書く欄になります。<br>番号ごとに結果を集めるので、<b>テストが始まったあとは番号を変えないでください</b>（文言の手直しはOK）。${TESTLIST ? "" : "<br><b>まだ保存していません</b>（いまは data/testlist.json の内容が使われています）。"}</p>
+    ${remoteNew && TS.dirty ? `<div class="astatus warn">ほかのメンバーが項目を更新しました。保存すると上書きします。<button class="btn small" data-tse="reset">相手の内容を読み込む</button></div>` : ""}
+    <textarea id="tstext" rows="28" style="width:100%;font-family:inherit;font-size:13.5px;padding:8px">${esc(TS.text || "")}</textarea>${TS.err ? `<p class="err">${esc(TS.err)}</p>` : ""}
+    <div class="row2" style="margin-top:8px">${TS.dirty ? `<button class="btn" data-tse="reset">変更を取り消す</button>` : ""}<button class="btn primary" data-tse="save" ${TS.dirty && !TS.busy ? "" : "disabled"}>${TS.busy ? "保存中…" : "保存して公開"}</button></div>`;
+  }
+  AM.innerHTML = h;
+  const ta = document.getElementById("tstext");
+  if (ta) ta.addEventListener("input", () => { TS.text = ta.value; if (!TS.dirty) { TS.dirty = true; const b = AM.querySelector('[data-tse="save"]'); if (b) b.disabled = false; } });
+}
+async function tsSave() {
+  let d; try { d = tsParse(TS.text || ""); } catch (e) { TS.err = e.message; renderTest(); return; }
+  TS.err = ""; TS.busy = true; renderTest();
+  try {
+    const at = now(), n = d.groups.reduce((a, g) => a + g.items.length, 0);
+    await F.runTransaction(F.db, async tx => {
+      const ref = F.doc(F.db, "public", "testlist"); await tx.get(ref);
+      tx.set(ref, { json: JSON.stringify(d), at, count: n });
+      tx.set(F.doc(F.db, "log", rid()), logDoc({ act: "guide", label: `テスト項目 ${n}件を公開` }));
+    });
+    TS.text = tsText(d); TS.baseAt = at; TESTAT = at; TS.dirty = false; toast("テスト項目を保存しました（公開サイトには数分で反映）");
+  } catch (e) { toast(fbErr(e), 6000); }
+  TS.busy = false; renderTest();
+}
+async function tsAction(ds, el) {
+  if (ds.tsv) { if (ds.tsv.startsWith("open|")) { const id = ds.tsv.slice(5); TS.open[id] = !TS.open[id]; } else TS.v = ds.tsv; renderTest(); return; }
+  if (ds.tsk) { const i = ds.tsk.indexOf("|"), tid = ds.tsk.slice(0, i), key = ds.tsk.slice(i + 1);
+    try { await F.updateDoc(F.doc(F.db, "testers", tid), { ["chk." + key]: !!el.checked }); } catch (e) { toast(fbErr(e)); } return; }
+  if (ds.tsdel) { TS.confirm = ds.tsdel; renderTest(); return; }
+  if (ds.tsdelno) { TS.confirm = null; renderTest(); return; }
+  if (ds.tsdelyes) { TS.confirm = null; F.deleteDoc(F.doc(F.db, "testers", ds.tsdelyes)).then(() => toast("削除しました"), e => toast(fbErr(e))); return; }
+  if (ds.tse === "copy") { try { await navigator.clipboard.writeText(R.SITE_URL + "?tester=1"); toast("コピーしました"); } catch (e) { toast("コピーできませんでした"); } return; }
+  if (ds.tse === "done") { TS.done = !!el.checked; renderTest(); return; }
+  if (ds.tse === "save") { tsSave(); return; }
+  if (ds.tse === "reset") { TS.text = null; TS.dirty = false; TS.err = ""; renderTest(); return; }
+}
+
 /* ================= access stats ================= */
 let statsAt = 0;
 async function loadStats(force) {
@@ -2440,7 +2549,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-pkopen],[data-scrm],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-pkopen],[data-scrm],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2453,6 +2562,7 @@ function onAdminClick(e) {
     const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(k); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.tdopen || ds.tdedit || ds.tdcancel || ds.tdsave || ds.tdgo || ds.tdadd || ds.tddel) { todoAction(ds); return; }
+  if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
   if (ds.teamedit || ds.teamfloor || ds.a === "teamadd") {
@@ -2572,6 +2682,12 @@ function injectStyle() {
 .chtbl{width:100%;border-collapse:collapse;font-size:12.5px}
 .chtbl th,.chtbl td{border:1px solid var(--line);padding:4px 8px;vertical-align:top;text-align:left;white-space:pre-wrap;word-break:break-word}
 .chtbl td:nth-child(2){background:rgba(226,61,99,.06)}.chtbl td:nth-child(3){background:rgba(15,158,99,.07)}
+.tsrow{border-top:1px solid var(--line);padding:7px 0}.tsrow:first-of-type{border-top:0}
+.tshead{display:flex;gap:6px 12px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:13.5px}
+.tscnt{display:flex;gap:6px;align-items:center;font-size:12px;font-weight:700;flex-wrap:wrap}.tscnt>span{padding:1px 7px;border-radius:9px;background:var(--panel2)}
+.tscnt .ok{color:var(--good)}.tscnt .ng{color:#d97a00}.tscnt .na{color:var(--muted)}
+.tstbl td{background:none!important;white-space:nowrap}
+.tsans{margin:4px 0 0;font-size:13px;white-space:pre-wrap}
 .fblist{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
 .fbcard{background:var(--panel);box-shadow:var(--shadow);padding:12px 14px;border-left:4px solid var(--bad);display:flex;flex-direction:column;gap:6px}
 .fbcard.st-doing{border-left-color:#e08a00}.fbcard.st-done{border-left-color:var(--good);opacity:.8}.fbcard.st-hold{border-left-color:var(--muted)}

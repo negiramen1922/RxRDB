@@ -974,6 +974,8 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 function blank(){return{tiers:{},notes:{},curType:null,curFloor:null};}
 function load(){try{const r=localStorage.getItem(KEY);if(r){const s=JSON.parse(r);if(s&&s.tiers)return Object.assign(blank(),s);}}catch(e){}return blank();}
 let SAVEHOOK=null,LOGGEDIN=false;try{LOGGEDIN=localStorage.getItem("rxr-login")==="1";}catch(_){}
+// テスターモード（?tester=1 で開いた端末だけ。?tester=0 で終わる）。js/tester.js のチェックリストを出す
+let TESTER=false,TESTLIST=null;try{const q=new URLSearchParams(location.search).get("tester");if(q!=null){if(q==="0")localStorage.removeItem("rxr-tester");else localStorage.setItem("rxr-tester","1");}TESTER=localStorage.getItem("rxr-tester")==="1";}catch(_){}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function save(){saveLocal();if(SAVEHOOK)SAVEHOOK();}
 let S=load();
@@ -2416,6 +2418,7 @@ async function loadSite(){
     part("options").then(setOptions).catch(()=>{}),
     part("news").catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
     part("guide").catch(()=>get("data/guide.json")).then(v=>{setDocs(v);}).catch(()=>{}),
+    TESTER?part("testlist").catch(()=>get("data/testlist.json")).then(v=>{TESTLIST=v;}).catch(()=>{}):null,
     part("tiers").catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_ORD=v.orders||{};OFFICIAL_NOTES=v.notes||{};OFFICIAL_AT=v.at||0;}}).catch(()=>{})
   ]));
   Object.entries(st).forEach(([k,v])=>{if(v)LIVE[k]={headers:v.headers,rows:v.rows};});
@@ -2426,6 +2429,7 @@ async function loadSite(){
   SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();runOpenLink();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
   if(location.hash==="#admin")openAdminModule();
+  else if(TESTER)import("./js/tester.js?v=1").then(m=>m.init()).catch(e=>console.warn("tester",e));
 }
 /* 管理画面の「選択肢」（public/options）を絞り込みボタンなどに反映 */
 function setOptions(o){if(!o)return;const put=(arr,v)=>{if(Array.isArray(v)&&v.length)arr.splice(0,arr.length,...v);};put(ATTRS,o["属性"]);put(ROLES,o["ロール"]);put(RANKS,o["階級"]);put(ORDERS,o["騎士団"]);if(Array.isArray(o["効果キーワード"])&&o["効果キーワード"].length){KEYWORDS.splice(0,KEYWORDS.length,...o["効果キーワード"]);KWRE=null;}}
@@ -2855,7 +2859,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=53");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=54");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -2897,6 +2901,7 @@ if(LOGGEDIN&&FBC)setTimeout(()=>loadUser().catch(()=>{}),300);
 
 /* ================= bridge for admin module ================= */
 window.RXR={
+  get testlist(){return TESTLIST;},SITE_URL,
   encU,get CFS(){return CFS;},cfBar,cfMatch,qbarChars,sfBar,scFiltered,PKSF,setPickRerender,sortList,get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
   KEYWORDS,tagCats,autoTagsOf,applyTagEdits,effCols,get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
   IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,SEAL,SEALF,KN,KNF,BASE,ATTRS,ROLES,RANKS,ORDERS,
