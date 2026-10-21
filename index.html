@@ -1345,7 +1345,7 @@ function cfCtx(k){CFK=CFS[k]?k:"chars";CF=CFS[CFK];}
 const cfBase=()=>[["ロール","role",ROLES.map(x=>[x,ic(x)])],["攻撃属性","attr",ATTRS.map(x=>[x,ic(x)])],["騎士団","order",ORDERS.map(x=>[x,ic(x,"ord")])],["階級","rank",RANKS.map(x=>[x,ic(x)])],
   ["攻撃種","dtype",[["物理",""],["特殊",""],["その他",""]]],["レアリティ","rar",[["SSR",""],["SR",""],["R",""]]],["限定","limit",[["限定",""],["周年限定",""],["通常",""]]],["バベル","babel",[["アナザー",""],["リビルド",""]]],["実装","rel",[["実装済み",""],["未実装",""]]],["所持","own",[["持っている",""],["持っていない",""]]]];
 /* アナザーバベル・バベルリビルドで使える騎士団（その騎士団のキャラしか出せない縛り） */
-const BABELGRP={"アナザー":["ブレイドライン","第六起源魔術教会","リンドブルム","千紫"],"リビルド":["ORANGE","アクシオンゲート","オッター貿易","Mazlab"]};
+const BABELGRP={"アナザー":["ブレイドライン","第六起源魔術教会","リンドブルム","千紫","ほしゆめ"],"リビルド":["ORANGE","アクシオンゲート","オッター貿易","Mazlab"]};
 const babelKind=c=>BABELGRP["アナザー"].includes(c.order)?"アナザー":BABELGRP["リビルド"].includes(c.order)?"リビルド":"";
 const unrelBadge=(c,cls)=>c.unrel?`<span class="limb unrel ${cls||""}">未実装</span>`:"";
 function cfMatch(c,st){st=st||CFS.chars;
