@@ -1033,10 +1033,12 @@
  },
  "sealfull": {
   "「黒き夜のランクランカ」": "images/seals/「黒き夜のランクランカ」.webp",
-  "咲き誇るリタ": "images/seals/咲き誇るリタ.webp"
+  "咲き誇るリタ": "images/seals/咲き誇るリタ.webp",
+  "冥王コーミルオン": "images/seals/冥王コーミルオン.webp"
  },
  "seals": {
   "「黒き夜のランクランカ」": "images/seals/thumb/「黒き夜のランクランカ」.webp",
-  "咲き誇るリタ": "images/seals/thumb/咲き誇るリタ.webp"
+  "咲き誇るリタ": "images/seals/thumb/咲き誇るリタ.webp",
+  "冥王コーミルオン": "images/seals/thumb/冥王コーミルオン.webp"
  }
 }
