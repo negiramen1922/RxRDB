@@ -1356,6 +1356,8 @@ async function saveRow(force) {
   if (dup === "empty") { toast(k === "chars" ? "キャラとスタイルを選んでください" : `「${KEYCOLS[k].join("」「")}」を入力してください`, 4000); return; }
   if (dup) { toast(k === "chars" ? `このキャラとスタイルの組み合わせ（${cells["ID"]}）はすでに「${dup}」としてあります` : `「${KEYCOLS[k].join("・")}」が「${dup}」と同じです。別の値にしてください`, 6000); return; }
   const creating = ED.isNew || ED.gone;
+  // 画像は名前（識別子）で images.json に登録してあるので、名前を変えたら画像も新しい名前に付け替える
+  const io = IMGOF[k], oldName = !creating && io && k !== "chars" ? String(ED.base[io[1]] || "").trim() : "", newName = io ? String(cells[io[1]] || "").trim() : "";
   const id = creating ? (ED.id && ED.gone ? ED.id : "r" + rid()) : ED.id;
   const ref = F.doc(F.db, "tables", k, "rows", id);
   const rev = rid();
@@ -1387,6 +1389,7 @@ async function saveRow(force) {
     setPresence();
     toast(creating ? "追加しました。公開サイトには数分で反映されます" : "保存しました。公開サイトには数分で反映されます");
     renderForm();
+    if (oldName && newName && oldName !== newName && IMG_SECS[io[0]].some(sec => (R.BASE[MEDIA_MAP[sec]] || {})[oldName])) renameImage(io[0], oldName, newName);
   } catch (e) {
     ED.saving = false;
     if (e && e.code === "conflict") {
@@ -1802,6 +1805,39 @@ async function ghRemove(kind, key) {
     try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return c; }
     catch (e) { if (e.status === 422 && attempt < GH_TRY - 1) { await ghWait(attempt); continue; } throw e; }
   }
+}
+/* ---- 名前を変えたときの画像の付け替え: images.json のキーを新しい名前に移す（ファイルはそのまま）。切り抜き位置も移す ---- */
+async function ghRenameKey(kind, from, to) {
+  const br = GH.branch || "main";
+  for (let attempt = 0; attempt < GH_TRY; attempt++) {
+    const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
+    const commit = await gh(`/git/commits/${base}`);
+    const json = JSON.parse(unb64((await gh(`/contents/data/images.json?ref=${base}`)).content));
+    let n = 0; IMG_SECS[kind].forEach(sec => { const m = json[sec]; if (m && m[from] != null) { if (m[to] == null) m[to] = m[from]; delete m[from]; n++; } });
+    if (!n) return null;
+    const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree: [{ path: "data/images.json", mode: "100644", type: "blob", content: JSON.stringify(json, null, 1) + "\n" }] }) });
+    const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: `画像の名前を付け替え：${from} → ${to}\n\n管理画面から ${meName()}`, tree: t.sha, parents: [base] }) });
+    try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return c; }
+    catch (e) { if (e.status === 422 && attempt < GH_TRY - 1) { await ghWait(attempt); continue; } throw e; }
+  }
+}
+async function renameImage(kind, from, to) {
+  if (!GH) { toast(`画像は前の名前「${from}」のままです。GitHub 連携を設定してから、画像を入れ直してください`, 8000); return; }
+  startProg(kind, to, "画像を新しい名前に付け替えています…", 40);
+  try {
+    const c = await ghRenameKey(kind, from, to);
+    IMG_SECS[kind].forEach(sec => { const m = R.BASE[MEDIA_MAP[sec]]; if (m && m[from]) { if (!m[to]) m[to] = m[from]; delete m[from]; } });
+    const oid = "c_" + kind + "_" + R.hashId(from), nid = "c_" + kind + "_" + R.hashId(to);
+    if (R.CROPS[oid]) await F.runTransaction(F.db, async tx => {
+      const ref = F.doc(F.db, "public", "crops"); const s = await tx.get(ref);
+      let m = {}; try { m = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
+      if (m[oid]) { if (!m[nid]) m[nid] = Object.assign({}, m[oid], { key: to }); delete m[oid]; tx.set(ref, { json: JSON.stringify(m), at: now(), count: Object.keys(m).length }); }
+    });
+    await F.setDoc(F.doc(F.db, "log", rid()), logDoc({ act: "image", k: "", label: `画像の名前を付け替え：${from} → ${to}`, commit: c && c.sha }));
+    R.applyMedia(); R.rebuild();
+    toast("画像も新しい名前に付け替えました。公開サイトには1〜2分で反映されます", 5000);
+  } catch (e) { toast(e && e.status ? ghErr(e) : "画像を付け替えられませんでした：" + (e && e.message || ""), 8000); }
+  endProg();
 }
 async function removeImage(kind, key) {
   if (!GH || !key) return;

@@ -59,5 +59,6 @@
 ## 更新の流れ
 - データ入力は公開サイトの管理画面（`/#admin`）で行う。管理画面にはすぐ、公開サイトには数分で反映される（data/all.json の自動コミット。急ぐときは「今すぐ公開」）。
 - `data/*.json` は予備（Firestore が読めないときのフォールバック）。管理画面「読み込み・書き出し」→「data/*.json を書き出す」で出して、ときどき上書き push する。
+- 画像は images.json に名前（識別子）で登録してあるので、管理画面でスクリプト・封印戦・騎士・ボス・イベントの名前を変えて保存すると、images.json のキーと切り抜き位置（public/crops）を新しい名前に付け替える（ファイル名は前の名前のまま。admin.js の `renameImage`/`ghRenameKey`。GitHub 連携が必要）。
 - 画像を足すときは images/ に webp で置き、data/images.json にキーとパスを追記する（管理画面「画像」で画像を入れると、変換済みの images/ と新しい data/images.json を ZIP で出せる）。スクリプト名とファイル名の表記ゆれに注意（IMAGE_REPORT.md 参照）。
 - ローカル確認: `python3 -m http.server` で開く（file:// では data/*.json を読めない）。
