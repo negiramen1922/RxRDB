@@ -1032,9 +1032,11 @@
   "儒羽": "images/knights/thumb/儒羽.webp"
  },
  "sealfull": {
-  "「黒き夜のランクランカ」": "images/seals/「黒き夜のランクランカ」.webp"
+  "「黒き夜のランクランカ」": "images/seals/「黒き夜のランクランカ」.webp",
+  "咲き誇るリタ": "images/seals/咲き誇るリタ.webp"
  },
  "seals": {
-  "「黒き夜のランクランカ」": "images/seals/thumb/「黒き夜のランクランカ」.webp"
+  "「黒き夜のランクランカ」": "images/seals/thumb/「黒き夜のランクランカ」.webp",
+  "咲き誇るリタ": "images/seals/thumb/咲き誇るリタ.webp"
  }
 }
