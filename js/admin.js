@@ -2356,6 +2356,15 @@ function gdAction(ds) {
   if (ds.gddelyes !== undefined) { list.splice(+ds.gddelyes, 1); GD.confirm = null; touch(); return; }
 }
 
+/* 長い文（ご意見・テストの報告）は最初の数行だけ出して、押すと全部（開いた状態は描き直しても残す） */
+const TXTOPEN = new Set();
+function longText(t, key) {
+  t = String(t || ""); const lines = t.split("\n");
+  if (t.length <= 120 && lines.length <= 4) return `<p class="fbtext">${esc(t)}</p>`;
+  const short = lines.slice(0, 3).join("\n").slice(0, 80);
+  return `<details class="fbmore" data-ot="${esc(key)}" ${TXTOPEN.has(key) ? "open" : ""}><summary><p class="fbtext fbclip">${esc(short)}…</p><span class="fbmorel"><i class="o">▼ 続きを読む（全${t.length}文字）</i><i class="c">▲ 閉じる</i></span></summary><p class="fbtext">${esc(t)}</p></details>`;
+}
+AM.addEventListener("toggle", e => { const d = e.target; if (d.dataset && d.dataset.ot) { if (d.open) TXTOPEN.add(d.dataset.ot); else TXTOPEN.delete(d.dataset.ot); } }, true);
 /* ================= feedback ================= */
 const FB = { st: "open", confirm: null };
 const FKIND = { bug: "不具合", request: "ご要望", other: "その他" };
@@ -2367,7 +2376,7 @@ function renderFb() {
   h += `<p class="hint" style="margin:-4px 0 12px">サイト下の「不具合・ご要望を送る」から届いた内容です（最新200件）。</p>`;
   h += `<div class="fblist">${list.map(f => `<article class="fbcard st-${esc(f.status)}"><header><span class="fk k-${esc(f.kind)}">${esc(FKIND[f.kind] || f.kind)}</span><span class="count">${esc(fmtTime(f.at))}</span>${f.page ? `<span class="count">${esc(f.page)}</span>` : ""}<span style="flex:1"></span>
     <select data-fbset="${esc(f.id)}">${Object.entries(FSTAT).map(([k, l]) => `<option value="${k}" ${f.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></header>
-    <p class="fbtext">${esc(f.text)}</p>${f.contact ? `<p class="count">連絡先：${esc(f.contact)}</p>` : ""}${f.note ? `<p class="count">メモ：${esc(f.note)}${f.noteBy ? `（${esc(shortName(f.noteBy))}）` : ""}</p>` : ""}
+    ${longText(f.text, "fb:" + f.id)}${f.contact ? `<p class="count">連絡先：${esc(f.contact)}</p>` : ""}${f.note ? `<p class="count">メモ：${esc(f.note)}${f.noteBy ? `（${esc(shortName(f.noteBy))}）` : ""}</p>` : ""}
     <footer><small class="count ua" title="${esc(f.ua || "")}">${esc(uaShort(f.ua))}</small><span style="flex:1"></span><button class="btn small" data-fbnote="${esc(f.id)}">メモ</button>${FB.confirm === f.id ? `<span class="danger-q">削除しますか？</span><button class="btn small danger" data-fbdelyes="${esc(f.id)}">削除</button><button class="btn small" data-fbdelno="1">やめる</button>` : `<button class="btn small" data-fbdel="${esc(f.id)}">削除</button>`}</footer></article>`).join("") || '<p class="count">該当するものはありません</p>'}</div>`;
   AM.innerHTML = h;
   AM.querySelectorAll("[data-fbset]").forEach(s => s.addEventListener("change", async () => {
@@ -2418,7 +2427,7 @@ function tsRep(x) {
   const ck = !!x.t.chk[x.key];
   return `<article class="fbcard ${ck ? "st-done" : x.s === "na" ? "st-hold" : x.s === "ng" || !x.item ? "" : "st-doing"}"><header>${x.item ? `<span class="fk ${x.s === "ng" ? "" : "k-other"}">${esc(x.id)} ${esc(TSN[x.s] || "メモ")}</span>` : `<span class="fk k-request">報告</span>`}<b>${esc(x.t.name || "（名前なし）")}</b><span class="count">${esc(fmtTime(x.at))}</span><span style="flex:1"></span>
     <label class="ck2" style="min-height:0"><input type="checkbox" data-tsk="${esc(x.t.id)}|${esc(x.key)}" ${ck ? "checked" : ""}>対応済み</label></header>
-    ${x.item ? `<p class="count" style="margin:0">${esc(x.item.text)}</p>` : ""}${x.text ? `<p class="fbtext">${esc(x.text)}</p>` : ""}
+    ${x.item ? `<p class="count" style="margin:0">${esc(x.item.text)}</p>` : ""}${x.text ? longText(x.text, "ts:" + x.t.id + ":" + x.key) : ""}
     <footer><small class="count">${x.u ? `<a href="${esc(x.u)}" target="_blank" rel="noopener">${esc(x.p || "ページ")}</a>` : esc(x.p || "")}</small><span style="flex:1"></span><small class="count ua">${esc(uaShort(x.t.ua))}</small></footer></article>`;
 }
 function renderTest() {
@@ -2430,7 +2439,7 @@ function renderTest() {
   <div class="astatus">テスターに渡すリンク：<code style="user-select:all">${esc(link)}</code> <button class="btn small" data-tse="copy">コピー</button><br><span class="count">このリンクで開いた端末だけ、画面の右端に「テスト」ボタンが出ます（終わるときはパネルの一番下、または <code>?tester=0</code>）。記録は少したつと自動で送られ、ここに出ます。</span></div>`;
   if (TS.v === "items") {
     h += L.groups.map((g, gi) => `<section class="apanel"><h3 style="margin:0 0 8px">${esc(g.title)}</h3>${g.items.map(it => {
-      if (it.free) { const ans = TESTERS.filter(t => (t.f[it.id] || "").trim()); return `<div class="tsrow"><div><b class="count">${esc(it.id)}</b> ${esc(it.text)}</div>${ans.map(t => `<p class="tsans"><b>${esc(t.name || "（名前なし）")}</b>：${esc(t.f[it.id])}</p>`).join("") || `<p class="count">まだ回答がありません</p>`}</div>`; }
+      if (it.free) { const ans = TESTERS.filter(t => (t.f[it.id] || "").trim()); return `<div class="tsrow"><div><b class="count">${esc(it.id)}</b> ${esc(it.text)}</div>${ans.map(t => `<div class="tsans"><b>${esc(t.name || "（名前なし）")}</b>${longText(t.f[it.id], "fa:" + t.id + ":" + it.id)}</div>`).join("") || `<p class="count">まだ回答がありません</p>`}</div>`; }
       const c = { ok: 0, ng: 0, na: 0 }; TESTERS.forEach(t => { const s = t.r[it.id] && t.r[it.id].s; if (s in c) c[s]++; });
       const notes = reps.filter(x => x.id === it.id && x.item);
       const op = TS.open[it.id];
@@ -2735,13 +2744,16 @@ function injectStyle() {
 .tscnt .ok{color:var(--good)}.tscnt .ng{color:#d97a00}.tscnt .na{color:var(--muted)}
 .tstbl td{background:none!important;white-space:nowrap}
 .tsans{margin:4px 0 0;font-size:13px;white-space:pre-wrap}
-.fblist{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+.fblist{align-items:start;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
 .fbcard{background:var(--panel);box-shadow:var(--shadow);padding:12px 14px;border-left:4px solid var(--bad);display:flex;flex-direction:column;gap:6px}
 .fbcard.st-doing{border-left-color:#e08a00}.fbcard.st-done{border-left-color:var(--good);opacity:.8}.fbcard.st-hold{border-left-color:var(--muted)}
 .fbcard header,.fbcard footer{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .fbcard select{border:1px solid var(--line2);background:var(--field);padding:3px 6px;color:var(--ink)}
 .fk{font-size:12px;font-weight:700;padding:0 8px;color:#fff;background:var(--bad)}.fk.k-request{background:var(--accent)}.fk.k-other{background:var(--muted)}
 .fbtext{margin:0;white-space:pre-wrap;word-break:break-word;font-size:14px}
+.fbmore>summary{list-style:none;cursor:pointer}.fbmore>summary::-webkit-details-marker{display:none}
+.fbmore[open] .fbclip{display:none}.fbmorel{display:inline-block;margin-top:2px;font-size:12.5px;font-weight:700;color:var(--accent-ink)}
+.fbmorel i{font-style:normal}.fbmore .fbmorel .c,.fbmore[open] .fbmorel .o{display:none}.fbmore[open] .fbmorel .c{display:inline}.fbmore[open]>summary{margin-bottom:4px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:14px}
 .kpis div{background:var(--panel);box-shadow:var(--shadow);padding:10px 14px;border-left:4px solid var(--accent)}
 .kpis small{display:block;color:var(--muted);font-size:12px}.kpis b{font-family:var(--display);font-size:30px;font-weight:600;line-height:1.2}.kpis span{display:block;color:var(--muted);font-size:12px}
