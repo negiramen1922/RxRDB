@@ -27,7 +27,7 @@ const SCHEMA = {
     { g: "特性", f: [["特性名称", "text"], ["Lv1 特性効果", "long"], ["Lv3 特性効果", "long"], ["Lv5 特性効果", "long"], ["特性開放 ★4", "long"], ["特性開放 ★5", "long"]] },
   ],
   scripts: [
-    { g: "基本", f: [["名前", "text"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"], ["実装", "sel:未実装"], ["限定", "sel:限定|周年限定"]] },
+    { g: "基本", f: [["名前", "text"], ["ID", "id"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"], ["実装", "sel:未実装"], ["限定", "sel:限定|周年限定"]] },
     { g: "ステータス", note: "スクリプトの Lv200 のステータスは星で変わりません。完凸（限界突破しきった状態）の値は分かるものだけ入れてください。", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
     { g: "スキル1", f: [["スキル1効果", "long"]] },
     { g: "スキル2", f: [["条件2", "cond"], ["スキル2効果", "long"]] },
@@ -44,19 +44,19 @@ const SCHEMA = {
     { g: "コメント", f: [["コメント", "long"]] },
   ],
   people: [
-    { g: "基本", f: [["名前", "text"], ["ふりがな", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["性別", "opt:性別"], ["誕生日", "text"], ["CV", "text"], ["立ち絵", "sel:なし"]] },
+    { g: "基本", f: [["名前", "text"], ["ID", "id"], ["ふりがな", "text"], ["騎士団", "opt:騎士団"], ["階級", "opt:階級"], ["性別", "opt:性別"], ["誕生日", "text"], ["CV", "text"], ["立ち絵", "sel:なし"]] },
     { g: "プロフィール", f: [["プロフィール", "long"]] },
   ],
   seals: [
-    { g: "基本", f: [["封印戦名", "text"], ["キャラ名", "knref"], ["ダメージタイプ", "sel:物理|特殊"]] },
+    { g: "基本", f: [["封印戦名", "text"], ["ID", "id"], ["キャラ名", "knref"], ["ダメージタイプ", "sel:物理|特殊"]] },
     { g: "ステージ効果", note: "1行に1つの効果。「上昇」「低下」などから自動で ▲▼ を判定し、Tier表の未配置キャラの並び（適性順）に使います。", f: [["ステージ効果", "big"]] },
     { g: "過去開催日", note: "開催されるたびに日付を追加してください。", f: [["過去開催日", "datelist"]] },
   ],
   bosses: [
-    { g: "基本", f: [["名前", "text"], ["よみ", "text"], ["説明", "long"]] },
+    { g: "基本", f: [["名前", "text"], ["ID", "id"], ["よみ", "text"], ["説明", "long"]] },
   ],
   events: [
-    { g: "基本", f: [["イベント名", "text"], ["復刻", "sel:復刻|常設"], ["開始日", "date"], ["終了日", "date"]] },
+    { g: "基本", f: [["イベント名", "text"], ["ID", "id"], ["復刻", "sel:復刻|常設"], ["開始日", "date"], ["終了日", "date"]] },
     { g: "説明", f: [["説明", "long"]] },
     { g: "実装キャラ", f: [["実装キャラID", "charpick"]] },
     { g: "登場ボス", f: [["登場ボス", "bosspick"]] },
@@ -299,7 +299,23 @@ function derive(k) {
 }
 const seeded = k => T[k].hdrExists && T[k].rowsReady;
 const allReady = () => TABLES.every(k => T[k].hdrReady && T[k].rowsReady);
+/* ID が空の行に、今の名前を ID として入れる（ID を使い始める前のデータ・読み込んだ行用）。表が落ち着いてから。rev は変えない */
+const IDFILL = {}, IDFT = {};
+function ensureIds(k) { clearTimeout(IDFT[k]); IDFT[k] = setTimeout(() => fillIds(k).catch(e => console.warn("ensureIds", k, e)), 3000); }
+async function fillIds(k) {
+  if (!IDT[k] || !S.role || !seeded(k) || T[k].pending || SEEDING) return;
+  const done = IDFILL[k] || (IDFILL[k] = new Set());
+  const todo = [...T[k].rows.values()].filter(r => !done.has(r.id) && !String((r.c || {})["ID"] || "").trim() && String((r.c || {})[IDT[k]] || "").trim());
+  const needHdr = !T[k].headers.includes("ID");
+  if (!todo.length && !needHdr) return;
+  todo.forEach(r => done.add(r.id));
+  let b = F.writeBatch(F.db), n = 0;
+  if (needHdr) { b.set(F.doc(F.db, "tables", k), { headers: T[k].headers.concat(["ID"]) }, { merge: true }); n++; }
+  for (const r of todo) { b.update(F.doc(F.db, "tables", k, "rows", r.id), { "c.ID": String(r.c[IDT[k]]).trim(), ts: F.serverTimestamp() }); if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; } }
+  if (n) await b.commit();
+}
 function tableChanged(k) {
+  if (IDT[k] && seeded(k)) ensureIds(k);
   if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel" || k === "teams" || k === "seals" || k === "people" || k === "events" || k === "bosses")) { R.setLive(k, publicData(k)); R.rebuild(); }
   // 新しく増えた表（編成例など）は、ほかの表が登録済みなら空の表を自動で作る
   if (T[k].hdrReady && T[k].rowsReady && !T[k].hdrExists && seeded("babel") && !AUTOHDR[k]) { AUTOHDR[k] = true; staticJson(`data/${k}.json`).then(d => F.setDoc(F.doc(F.db, "tables", k), { headers: d.headers, t: now(), by: meId() }, { merge: true })).catch(e => { AUTOHDR[k] = false; console.warn(e); }); }
@@ -360,10 +376,11 @@ const MASTER_COLS = ["騎士団", "階級", "性別"];
 function publicData(k) {
   const d = derive(k);
   if (k !== "chars" || !seeded("people")) return { headers: d.headers, rows: d.rows };
-  const pm = {}; T.people.rows.forEach(r => { const c = r.c || {}; if (c["名前"]) pm[c["名前"]] = c; });
+  const pm = {}; T.people.rows.forEach(r => { const c = r.c || {}; if (c["名前"]) pm[c["名前"]] = c; }); T.people.rows.forEach(r => { const c = r.c || {}; const id = idOf("people", c); if (id) pm[id] = c; });
   const hd = d.headers.slice(); MASTER_COLS.forEach(h => { if (!hd.includes(h)) hd.push(h); });
-  const ci = d.headers.indexOf("キャラ");
-  const rows = d.rows.map(r => { const o = hd.map((h, i) => i < r.length ? r[i] : ""); const m = pm[r[ci]]; if (m) MASTER_COLS.forEach(h => { if (m[h]) o[hd.indexOf(h)] = m[h]; }); return o; });
+  const ci = d.headers.indexOf("キャラ"), ni = d.headers.indexOf("キャラ名");
+  // 騎士の名前を直したら、キャラ名の先頭（作ったときの騎士の名前）も今の名前で出す
+  const rows = d.rows.map(r => { const o = hd.map((h, i) => i < r.length ? r[i] : ""); const ref = String(r[ci] || "").trim(), m = pm[ref]; if (m) { MASTER_COLS.forEach(h => { if (m[h]) o[hd.indexOf(h)] = m[h]; }); const nm = String(m["名前"] || "").trim(); if (ni >= 0 && nm && nm !== ref && String(o[ni] || "").startsWith(ref)) o[ni] = nm + String(o[ni]).slice(ref.length); } return o; });
   return { headers: hd, rows };
 }
 const pubTimers = {};
@@ -574,7 +591,7 @@ function labelOf(k, c) {
 }
 function thumbOf(k, c) {
   if (k === "chars") { const u = R.IMG[c["ID"]]; return u ? `<img src="${esc(u)}" alt="">` : `<span class="noimg"></span>`; }
-  if (k === "scripts") { const u = R.SIMG[c["名前"]]; return u ? `<img src="${esc(u)}" alt="">` : `<span class="noimg"></span>`; }
+  if (k === "scripts") { const u = R.SIMG[idOf("scripts", c)]; return u ? `<img src="${esc(u)}" alt="">` : `<span class="noimg"></span>`; }
   return `<span class="flnum">${esc(c["階層"] || "")}</span>`;
 }
 function loadRow(k, id) {
@@ -669,9 +686,17 @@ function renderEdit(soft) {
 }
 const CL = { q: "" };
 const bnorm = s => String(s || "").normalize("NFKC").replace(/[\s　：:・【】（）()「」『』＝=]/g, "").toLowerCase();
-function floorsOfBoss(name) { const n = bnorm(name); return rowsOf("babel").filter(c => n && bnorm(c["ボス"]) === n); }
+/* スクリプト・ボス・封印戦・騎士・イベントは列「ID」でつながる（作ったときの名前。名前を直しても変わらない）。
+   画像・Tier表・ほかの表からの参照は ID。ID が空の古い行は名前を ID として扱う。参照は ID → 名前の順で探す */
+const IDT = { scripts: "名前", bosses: "名前", seals: "封印戦名", people: "名前", events: "イベント名" };
+const idOf = (k, c) => String((c || {})["ID"] || "").trim() || String((c || {})[IDT[k]] || "").trim();
+const scId = r => { const x = R.scOf(r); return x ? x.id : r; }, scName = r => { const x = R.scOf(r); return x ? x.name : r; };
+const bossId = r => { const x = R.bossOf(r); return x ? x.id : r; }, bossName = r => { const x = R.bossOf(r); return x ? x.name : r; };
+const imgKeyOf = (k, c) => IDT[k] ? idOf(k, c) : String((c || {})[IMGOF[k][1]] || "").trim();   // 画像・切り抜き位置のキー
+const knId = r => { const x = R.personOf(r); return x ? x.id : r; }, knName = r => { const x = R.personOf(r); return x ? x.name : r; };
+function floorsOfBoss(b) { const id = idOf("bosses", b); return rowsOf("babel").filter(c => id && c["ボス"] && bossId(c["ボス"]) === id); }
 const splitList = v => String(v || "").split(/[,、，\n]+/).map(x => x.trim()).filter(Boolean);
-function eventsOfBoss(name) { const n = bnorm(name); return rowsOf("events").filter(c => splitList(c["登場ボス"]).some(b => bnorm(b) === n)); }
+function eventsOfBoss(b) { const id = idOf("bosses", b); return rowsOf("events").filter(c => id && splitList(c["登場ボス"]).some(x => bossId(x) === id)); }
 function eventsOfChar(id) { return rowsOf("events").filter(c => splitList(c["実装キャラID"]).includes(id)); }
 const lastDate = c => Math.max(0, ...splitList((c || {})["過去開催日"]).map(d => { const m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(d); return m ? +m[1] * 1e4 + +m[2] * 100 + +m[3] : 0; }));
 const fmtD = v => { const m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(v || ""); return m ? `${m[1]}/${+m[2]}/${+m[3]}` : (v || ""); };
@@ -679,11 +704,11 @@ function customList(k) {
   if (k === "options") return `<div class="toolbar"><h2><small>OPTIONS</small>選択肢</h2></div><p class="hint" style="margin:-6px 0 12px">入力フォームのプルダウンに出る候補です。新しい騎士団などが出たらここに追加してください。</p>` + renderOptions();
   const q = CL.q.toLowerCase();
   if (k === "people") {
-    const units = {}; T.chars.rows.forEach(r => { const c = r.c || {}; (units[c["キャラ"]] = units[c["キャラ"]] || []).push(c); });
+    const units = {}; T.chars.rows.forEach(r => { const c = r.c || {}; const pid = knId(c["キャラ"]); (units[pid] = units[pid] || []).push(c); });
     const list = [...T.people.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
     return `<div class="toolbar"><h2><small>KNIGHTS</small>騎士</h2><input class="search" id="clq" placeholder="名前・騎士団などで検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.people.rows.size}</span></div>
     <p class="hint" style="margin:-6px 0 12px">スタイルに関係なく、そのキャラ自身の情報です。ここの騎士団・階級・性別が、各スタイルのキャラデータに自動で使われます。</p>
-    <div class="pgrid">${list.map(r => { const c = r.c || {}; const us = units[c["名前"]] || []; const face = R.IMG[`${c["名前"]}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean) || R.KN[c["名前"]];
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const pid = idOf("people", c); const us = units[pid] || []; const face = R.IMG[`${pid}_DEFAULT`] || us.filter(u => u["スタイル"] === "DEFAULT").map(u => R.IMG[u["ID"]]).find(Boolean) || us.map(u => R.IMG[u["ID"]]).find(Boolean) || R.KN[pid];
       const who = othersOn("people", r.id);
       return `<button class="pcard" data-adrow="${esc(r.id)}">${face ? `<img src="${esc(face)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b><small>${esc(c["ふりがな"] || "")}</small>
       <span class="ptags">${c["騎士団"] ? `<span>${R.ic(c["騎士団"], "ord")}${esc(c["騎士団"])}</span>` : '<span class="miss">騎士団未設定</span>'}${c["階級"] ? `<span>${R.ic(c["階級"])}${esc(c["階級"])}</span>` : ""}${c["性別"] ? `<span>${esc(c["性別"])}</span>` : ""}${c["誕生日"] ? `<span>🎂${esc(c["誕生日"])}</span>` : ""}</span>
@@ -692,8 +717,8 @@ function customList(k) {
   if (k === "bosses") {
     const list = [...T.bosses.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
     return `<div class="toolbar"><h2><small>BOSSES</small>ボス</h2><input class="search" id="clq" placeholder="ボス名で検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.bosses.rows.size}</span></div>
-    <p class="hint" style="margin:-6px 0 12px">バベルの「ボス」とイベントの「登場ボス」に同じ名前があると、自動でつながります（空白や記号の違いは無視します）。</p>
-    <div class="pgrid">${list.map(r => { const c = r.c || {}; const fl = floorsOfBoss(c["名前"]); const ev = eventsOfBoss(c["名前"]); const im = R.BOSS[c["名前"]];
+    <p class="hint" style="margin:-6px 0 12px">バベルの「ボス」・イベントの「登場ボス」で選ぶと、自動でつながります。名前を直しても ID は変わらないので、つながりや画像は切れません。</p>
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const fl = floorsOfBoss(c); const ev = eventsOfBoss(c); const im = R.BOSS[idOf("bosses", c)];
       return `<button class="pcard" data-adrow="${esc(r.id)}">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b>${c["よみ"] ? `<small>${esc(c["よみ"])}</small>` : ""}
       <span class="ptags">${fl.map(f => `<span>${esc(String(f["バベル種類"] || "").replace("バベル", ""))} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">バベル未登場</span>'}</span>${ev.length ? `<small class="count">イベント：${esc(ev.map(e => e["イベント名"]).join("、"))}</small>` : ""}</span></button>`; }).join("")}</div>`;
   }
@@ -711,15 +736,15 @@ function customList(k) {
     const list = [...T.seals.rows.values()].filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q))).sort((a, b) => lastDate(b.c) - lastDate(a.c));
     return `<div class="toolbar"><h2><small>SEAL BATTLE</small>封印戦</h2><input class="search" id="clq" placeholder="封印戦名・キャラ名で検索" value="${esc(CL.q)}"><span class="count">${list.length}件</span></div>
     ${list.length ? "" : `<div class="empty"><h2>まだ封印戦がありません</h2><p>右上の「＋ 封印戦を追加」から登録できます。Tier表は「Tier表」タブの「封印戦」で作ります。</p></div>`}
-    <div class="pgrid">${list.map(r => { const c = r.c || {}; const im = R.SEAL[c["封印戦名"]]; const ds = splitList(c["過去開催日"]); const n = Object.keys(R.OFFICIAL["封印戦|" + c["封印戦名"]] || {}).length;
-      return `<button class="pcard" data-adrow="${esc(r.id)}">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["封印戦名"] || "")}</b><small>${esc(c["キャラ名"] || "")}${c["ダメージタイプ"] ? ` ／ ${esc(c["ダメージタイプ"])}` : ""}</small>
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const im = R.SEAL[idOf("seals", c)]; const ds = splitList(c["過去開催日"]); const n = Object.keys(R.OFFICIAL["封印戦|" + idOf("seals", c)] || {}).length;
+      return `<button class="pcard" data-adrow="${esc(r.id)}">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["封印戦名"] || "")}</b><small>${esc(knName(c["キャラ名"] || ""))}${c["ダメージタイプ"] ? ` ／ ${esc(c["ダメージタイプ"])}` : ""}</small>
       <span class="ptags">${ds.slice(-3).map(d => `<span>${esc(fmtD(d))}</span>`).join("")}${ds.length > 3 ? `<span class="count">ほか${ds.length - 3}回</span>` : ""}</span><small class="count">Tier表 ${n ? n + "体配置" : "未作成"}</small></span></button>`; }).join("")}</div>`;
   }
   if (k === "events") {
     const list = [...T.events.rows.values()].map(r => r).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q))).sort((a, b) => String((b.c || {})["開始日"] || "").localeCompare(String((a.c || {})["開始日"] || ""), "ja", { numeric: true }));
     return `<div class="toolbar"><h2><small>EVENTS</small>イベント</h2><input class="search" id="clq" placeholder="イベント名で検索" value="${esc(CL.q)}"><span class="count">${list.length}件</span></div>
     ${list.length ? "" : `<div class="empty"><h2>まだイベントがありません</h2><p>右上の「＋ イベントを追加」から、開始日・テーマイラスト・実装キャラ・登場ボスを登録できます。</p></div>`}
-    <div class="evgrid">${list.map(r => { const c = r.c || {}; const im = R.EVTF[c["イベント名"]] || R.EVT[c["イベント名"]]; const ids = splitList(c["実装キャラID"]); const bs = splitList(c["登場ボス"]);
+    <div class="evgrid">${list.map(r => { const c = r.c || {}; const im = R.EVTF[idOf("events", c)] || R.EVT[idOf("events", c)]; const ids = splitList(c["実装キャラID"]); const bs = splitList(c["登場ボス"]).map(bossName);
       return `<button class="evcard" data-adrow="${esc(r.id)}"><span class="evimg">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg evnoimg">テーマイラスト未登録</span>'}</span><span class="evinfo"><small class="count">${esc(fmtD(c["開始日"]))}${c["終了日"] ? ` 〜 ${esc(fmtD(c["終了日"]))}` : " 〜"}</small><b>${esc(c["イベント名"] || "")}</b>
       <span class="evchars">${ids.map(x => R.IMG[x] ? `<img src="${esc(R.IMG[x])}" alt="" title="${esc(R.CHMAP[x] ? R.CHMAP[x].name : x)}">` : `<span class="tag">${esc(R.CHMAP[x] ? R.CHMAP[x].name : x)}</span>`).join("")}</span>${bs.length ? `<small class="count">ボス：${esc(bs.join("、"))}</small>` : ""}</span></button>`; }).join("")}</div>`;
   }
@@ -771,9 +796,9 @@ function teamCard(r) {
   const c = r.c || {}; const ms = parseTeam(c["メンバー"]);
   return `<button class="pcard teamcard" data-adrow="${esc(r.id)}"><span class="pinfo"><b>${esc(c["編成名"] || "(名前なし)")}</b><span class="tmfaces">${ms.map(m => R.IMG[m.id] ? `<img src="${esc(R.IMG[m.id])}" alt="" title="${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}">` : `<span class="tag">${esc(R.CHMAP[m.id] ? R.CHMAP[m.id].name : m.id)}</span>`).join("")}</span>${c["コメント"] ? `<small class="count">${esc(String(c["コメント"]).slice(0, 60))}</small>` : ""}</span></button>`;
 }
-function floorsList() { return rowsOf("babel").map(b => ({ key: keyOfCells("babel", b), label: `${b["バベル種類"] || ""} ${b["階層"] || ""}F${b["ボス"] ? " " + b["ボス"] : ""}` })).filter(x => x.key.replace("|", "")).concat(seeded("seals") ? rowsOf("seals").filter(x => String(x["封印戦名"] || "").trim()).map(x => ({ key: "封印戦|" + String(x["封印戦名"]).trim(), label: `封印戦 ${x["封印戦名"]}` })) : []); }
+function floorsList() { return rowsOf("babel").map(b => ({ key: keyOfCells("babel", b), label: `${b["バベル種類"] || ""} ${b["階層"] || ""}F${b["ボス"] ? " " + bossName(b["ボス"]) : ""}` })).filter(x => x.key.replace("|", "")).concat(seeded("seals") ? rowsOf("seals").filter(x => String(x["封印戦名"] || "").trim()).map(x => ({ key: "封印戦|" + idOf("seals", x), label: `封印戦 ${x["封印戦名"]}` })) : []); }
 // 編成例の「バベル種類|階層」の表示（封印戦は「封印戦 名前」）
-const teamPlace = (t, f) => t === "封印戦" ? `封印戦 ${f || ""}` : `${t || ""} ${f || ""}F`;
+const teamPlace = (t, f) => { if (t !== "封印戦") return `${t || ""} ${f || ""}F`; const s = R.sealOf(f); return `封印戦 ${s ? s.floor : f || ""}`; };
 function teamField(v) {
   return `<div class="tmslots">${teamSlots(v).map((m, i) => {
     const cr = m.id ? charRow(m.id) : null; const min = cr ? (RARSTAR[cr["レアリティ"]] || 1) : 1;
@@ -783,10 +808,10 @@ function teamField(v) {
       <button class="btn small tmpick" data-pkopen="char|${i}">${name ? esc(name) : "キャラを選ぶ"}</button>
       <select data-tm="${i}|ord" title="出撃順（何番目に出すか）" ${m.id ? "" : "disabled"}><option value="">出撃順</option>${[1, 2, 3, 4, 5, 6].map(n => `<option value="${n}" ${String(n) === m.ord ? "selected" : ""}>${n}番目に出撃</option>`).join("")}</select>
       <select data-tm="${i}|star"><option value="">★</option>${[1, 2, 3, 4, 5].filter(n => n >= min || String(n) === m.star).map(n => `<option value="${n}" ${String(n) === m.star ? "selected" : ""}>★${n}</option>`).join("")}</select>
-      <span class="tmimg">${m.sc && R.SIMG[m.sc] ? `<img src="${esc(R.SIMG[m.sc])}" alt="">` : '<span class="noimg"></span>'}</span>
-      <button class="btn small tmpick" data-pkopen="script|${i}" ${m.id ? "" : "disabled title=\"先にキャラを選んでください\""}>${m.sc ? esc(m.sc) : "スクリプトを選ぶ"}</button>
+      <span class="tmimg">${m.sc && R.SIMG[scId(m.sc)] ? `<img src="${esc(R.SIMG[scId(m.sc)])}" alt="">` : '<span class="noimg"></span>'}</span>
+      <button class="btn small tmpick" data-pkopen="script|${i}" ${m.id ? "" : "disabled title=\"先にキャラを選んでください\""}>${m.sc ? esc(scName(m.sc)) : "スクリプトを選ぶ"}</button>
       ${m.id || m.sc ? `<button class="btn small" data-tmclear="${i}" aria-label="この枠を空にする">✕</button>` : ""}
-      ${m.id && !cr ? '<small class="err">見つからないキャラ</small>' : ""}${m.sc && !R.SC.some(x => x.name === m.sc) ? '<small class="err">見つからないスクリプト</small>' : ""}${m.sc && m.id && !scRoleOk(m.id, m.sc) ? '<small class="err">キャラとロールが違うスクリプトです</small>' : ""}</div>`;
+      ${m.id && !cr ? '<small class="err">見つからないキャラ</small>' : ""}${m.sc && !R.scOf(m.sc) ? '<small class="err">見つからないスクリプト</small>' : ""}${m.sc && m.id && !scRoleOk(m.id, m.sc) ? '<small class="err">キャラとロールが違うスクリプトです</small>' : ""}</div>`;
   }).join("")}</div>`;
 }
 /* ---- 編成例：キャラ・スクリプトを公開サイトと同じカードから選ぶ ----
@@ -795,7 +820,7 @@ const PK = { kind: "char", slot: 0, q: "", role: null, attr: null, all: false, s
 const cpIds = f => String(ED.draft[f] || "").split(/[,、，\s]+/).filter(Boolean);
 // 持ちスク・おすすめスクリプト：スクリプト名を1行に1つ（名前に「、」などが入ることがあるので改行区切り）
 const scNames = v => String(v || "").split(/\n/).map(x => x.trim()).filter(Boolean);
-const scRoleOk = (id, sc) => { const c = R.CHMAP[id], s = R.SC.find(x => x.name === sc); return !c || !s || !s.role || !c.role || s.role === c.role || s.role === "ワイルド"; };
+const scRoleOk = (id, sc) => { const c = R.CHMAP[id], s = R.scOf(sc); return !c || !s || !s.role || !c.role || s.role === c.role || s.role === "ワイルド"; };
 let PKDLG = null;
 // 一覧を開くたびに絞り込みを空にし、絞り込みダイアログを閉じたときにこの一覧を描き直すよう登録
 function pickFilterReset() { R.CFS.pick.sel = {}; Object.assign(R.PKSF, { q: "", rar: null, role: null, limit: null, cattr: null, cond: "", eff: null, own: false }); R.setPickRerender(() => { if (PKDLG && PKDLG.open) { const g = PKDLG.querySelector(".pkgrid"), y = g ? g.scrollTop : 0; pickRender(); const g2 = PKDLG.querySelector(".pkgrid"); if (g2) g2.scrollTop = y; } }); }
@@ -832,19 +857,19 @@ function pickList() {
 }
 /* ボスの「登場イベント」：イベント一覧から選ぶ。押すたびにそのイベントの「登場ボス」に追加／外して、すぐ保存する */
 function evPickRender(body) {
-  const boss = ED.base["名前"] || ""; const q = PK.q.trim().toLowerCase();
+  const boss = idOf("bosses", ED.base), bossNm = ED.base["名前"] || ""; const q = PK.q.trim().toLowerCase();
   const rows = [...T.events.rows.values()].filter(r => r.c).sort((a, b) => String((b.c || {})["開始日"] || "").localeCompare(String((a.c || {})["開始日"] || "")));
   const l = q ? rows.filter(r => String(r.c["イベント名"] || "").toLowerCase().includes(q)) : rows;
-  const on = r => splitList(r.c["登場ボス"]).some(b => bnorm(b) === bnorm(boss));
-  const cards = l.map(r => { const n = r.c["イベント名"] || ""; const img = R.EVTF[n] || R.EVT[n]; const sel = on(r);
+  const on = r => splitList(r.c["登場ボス"]).some(b => bossId(b) === boss);
+  const cards = l.map(r => { const n = r.c["イベント名"] || "", ei = idOf("events", r.c); const img = R.EVTF[ei] || R.EVT[ei]; const sel = on(r);
     return `<button class="ccard scard2 pkcard${sel ? " pkused" : ""}" data-pk="${esc(r.id)}" ${PK.busy ? "disabled" : ""}>${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n || "(名前なし)")}</b><small>${esc(fmtD(r.c["開始日"]))}${r.c["終了日"] ? " 〜 " + esc(fmtD(r.c["終了日"])) : ""}</small></span>${sel ? '<span class="ccbadges"><span class="ccown">登場</span></span>' : ""}</button>`; }).join("");
-  body.innerHTML = `<div class="pkhead"><h2>登場イベントを選ぶ<small class="count">（${esc(boss)}：${rows.filter(on).length}件）</small></h2><input class="search" id="pkQ" placeholder="イベント名で検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
+  body.innerHTML = `<div class="pkhead"><h2>登場イベントを選ぶ<small class="count">（${esc(bossNm)}：${rows.filter(on).length}件）</small></h2><input class="search" id="pkQ" placeholder="イベント名で検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">イベントがありません</p>'}</div></div>
     <div class="formfoot"><span class="count">${PK.busy ? "保存中…" : "カードを押すと、そのイベントの「登場ボス」に追加（もう一度押すと外す）して、すぐ保存します。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
   const qi = document.getElementById("pkQ"); R.liveInput(qi, () => { PK.q = qi.value; const p = qi.selectionStart; pickRender(); const n = document.getElementById("pkQ"); n.focus(); n.setSelectionRange(p, p); });
 }
 async function toggleBossEvent(rowId) {
-  const boss = ED.base["名前"] || ""; if (!boss || PK.busy) return;
+  const boss = idOf("bosses", ED.base); if (!boss || PK.busy) return;
   const ref = F.doc(F.db, "tables", "events", "rows", rowId);
   PK.busy = true; pickRender();
   try {
@@ -852,7 +877,7 @@ async function toggleBossEvent(rowId) {
     await F.runTransaction(F.db, async tx => {
       const s = await tx.get(ref); if (!s.exists()) throw { code: "gone" };
       const cur = s.data(); const c = Object.assign({}, cur.c || {}); name = c["イベント名"] || "";
-      const list = splitList(c["登場ボス"]); const i = list.findIndex(b => bnorm(b) === bnorm(boss));
+      const list = splitList(c["登場ボス"]); const i = list.findIndex(b => bossId(b) === boss);
       if (i >= 0) list.splice(i, 1); else { list.push(boss); added = true; }
       const before = String(c["登場ボス"] || ""); c["登場ボス"] = list.join("、");
       tx.set(ref, Object.assign({}, cur, { c, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }));
@@ -867,11 +892,11 @@ async function toggleBossEvent(rowId) {
 /* ボスを一覧から選ぶ（バベルの「ボス」は1体、イベントの「登場ボス」は複数） */
 function bossPickRender(body) {
   const q = PK.q.trim().toLowerCase(); const curV = String(ED.draft[PK.field] || "");
-  const chosen = PK.multi ? splitList(curV).map(bnorm) : [bnorm(curV)];
+  const chosen = (PK.multi ? splitList(curV) : [curV]).map(bossId);
   const all = rowsOf("bosses").filter(b => b["名前"]);
   const l = q ? all.filter(b => (String(b["名前"]) + String(b["よみ"] || "")).toLowerCase().includes(q)) : all;
-  const cards = l.map(b => { const n = b["名前"]; const img = R.BOSSF[n] || R.BOSS[n]; const sel = chosen.includes(bnorm(n));
-    return `<button class="ccard scard2 pkcard${sel ? (PK.multi ? " pkused" : " pkcur") : ""}" data-pk="${esc(n)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n)}</b>${b["よみ"] ? `<small>${esc(b["よみ"])}</small>` : ""}</span>${sel ? `<span class="ccbadges"><span class="ccown">${PK.multi ? "選択中" : "いまのボス"}</span></span>` : ""}</button>`; }).join("");
+  const cards = l.map(b => { const n = b["名前"], bi = idOf("bosses", b); const img = R.BOSSF[bi] || R.BOSS[bi]; const sel = chosen.includes(bi);
+    return `<button class="ccard scard2 pkcard${sel ? (PK.multi ? " pkused" : " pkcur") : ""}" data-pk="${esc(bi)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="ccname"><b>${esc(n)}</b>${b["よみ"] ? `<small>${esc(b["よみ"])}</small>` : ""}</span>${sel ? `<span class="ccbadges"><span class="ccown">${PK.multi ? "選択中" : "いまのボス"}</span></span>` : ""}</button>`; }).join("");
   body.innerHTML = `<div class="pkhead"><h2>ボスを選ぶ<small class="count">（${esc(PK.field)}）</small></h2><input class="search" id="pkQ" placeholder="名前・よみで検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">ボスが登録されていません（「ボス」で追加できます）</p>'}</div></div>
     <div class="formfoot"><span class="count">${PK.multi ? "カードを押すと追加、もう一度押すと外れます。" : "カードを押すと選ばれます。"}</span><span style="flex:1"></span><button class="btn" data-pkclose="1">閉じる</button></div>`;
@@ -879,10 +904,10 @@ function bossPickRender(body) {
 }
 /* 騎士（キャラ本人）を一覧から1人選ぶ（封印戦のキャラ名） */
 function knPickRender(body) {
-  const q = PK.q.trim().toLowerCase(); const cur = String(ED.draft[PK.field] || "").trim();
+  const q = PK.q.trim().toLowerCase(); const cur = knId(String(ED.draft[PK.field] || "").trim());
   const all = rowsOf("people").filter(p => p["名前"]);
   const l = q ? all.filter(p => (String(p["名前"]) + String(p["ふりがな"] || "") + String(p["騎士団"] || "")).toLowerCase().includes(q)) : all;
-  const cards = l.map(p => { const n = p["名前"]; const img = (R.KNF && R.KNF[n]) || knFaceOf(n); const sel = n === cur;
+  const cards = l.map(p => { const n = idOf("people", p); const img = (R.KNF && R.KNF[n]) || knFaceOf(n); const sel = n === cur;
     return `<button class="ccard pkcard${sel ? " pkcur" : ""}" data-pk="${esc(n)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${p["騎士団"] ? R.ic(p["騎士団"], "ord") : ""}${p["階級"] ? R.ic(p["階級"]) : ""}</span><span class="ccname"><b>${esc(n)}</b>${p["騎士団"] ? `<small>${esc(p["騎士団"])}</small>` : ""}</span>${sel ? '<span class="ccbadges"><span class="ccown">いまのキャラ</span></span>' : ""}</button>`; }).join("");
   body.innerHTML = `<div class="pkhead"><h2>キャラを選ぶ<small class="count">（${esc(PK.field)}）</small></h2><input class="search" id="pkQ" placeholder="名前・ふりがな・騎士団で検索" value="${esc(PK.q)}"><span class="count">${l.length}人</span></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">騎士が登録されていません（「騎士」で追加できます）</p>'}</div></div>
@@ -897,8 +922,8 @@ function pickRender() {
   if (PK.kind === "scm") { scmPickRender(body); return; } const L = pickList(); const isC = PK.kind === "char";
   const cards = isC ? L.items.map(c => { const img = R.BANNER[c.id] || R.IMG[c.id]; const used = L.inTeam.has(c.id) && c.id !== L.cur.id;
       return `<button class="ccard pkcard${c.id === L.cur.id ? " pkcur" : ""}${used ? " pkused" : ""}" data-pk="${esc(c.id)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${R.ic(c.role)}${R.ic(c.attr)}</span><span class="ccname"><b>${esc(c.base || c.name)}</b>${c.style ? `<small>[${esc(c.style)}]</small>` : ""}</span>${used ? `<span class="ccbadges"><span class="ccown">${PK.cp ? "選択中" : PK.syn ? (c.id === ED.draft["ID"] ? "このキャラ" : "追加済み") : "編成中"}</span></span>` : ""}</button>`; }).join("")
-    : L.items.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name];
-      return `<button class="ccard scard2 pkcard${s.name === L.cur.sc ? " pkcur" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span></button>`; }).join("");
+    : L.items.map(s => { const img = R.SFULL[s.id] || R.SIMG[s.id];
+      return `<button class="ccard scard2 pkcard${s.id === scId(L.cur.sc) ? " pkcur" : ""}" data-pk="${esc(s.id)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span></button>`; }).join("");
   const cb = R.cfBar("pick");
   const head = isC ? `<div class="pkrow">${cb.btn}${cb.chips}</div>${R.qbarChars("pick")}`
     : (L.c && L.c.role ? `<span class="count">${esc(L.c.name)} は <b>${R.ic(L.c.role)}${esc(L.c.role)}</b> なので、${esc(L.c.role)}（とワイルド）のスクリプトだけを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : "") + `<div class="pkrow">${R.sfBar("pick")}</div>`;
@@ -910,14 +935,14 @@ function pickRender() {
 }
 /* 持ちスク・おすすめスクリプト：スクリプト一覧から複数選ぶ（最初はこのキャラのロールとワイルドだけ） */
 function scmPickRender(body) {
-  const role = String(ED.draft["ロール"] || "").trim(); const chosen = scNames(ED.draft[PK.field]); const q = PK.q.trim().toLowerCase();
+  const role = String(ED.draft["ロール"] || "").trim(); const chosen = scNames(ED.draft[PK.field]).map(scId); const q = PK.q.trim().toLowerCase();
   let l = R.SC.filter(s => s.name);
   if (role && !PK.all) l = l.filter(s => !s.role || s.role === role || s.role === "ワイルド");
   { const ok = new Set(R.scFiltered(R.PKSF)); l = l.filter(s => ok.has(s)); }
   if (q) l = l.filter(s => s.row.some(x => String(x || "").toLowerCase().includes(q)));
-  l = l.slice().sort((a, b) => (chosen.includes(b.name) ? 1 : 0) - (chosen.includes(a.name) ? 1 : 0) || ({ SSR: 3, SR: 2, R: 1 }[b.rar] || 0) - ({ SSR: 3, SR: 2, R: 1 }[a.rar] || 0) || b.date - a.date);
-  const cards = l.map(s => { const img = R.SFULL[s.name] || R.SIMG[s.name]; const sel = chosen.includes(s.name);
-    return `<button class="ccard scard2 pkcard${sel ? " pkused" : ""}" data-pk="${esc(s.name)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span>${sel ? '<span class="ccbadges"><span class="ccown">選択中</span></span>' : ""}</button>`; }).join("");
+  l = l.slice().sort((a, b) => (chosen.includes(b.id) ? 1 : 0) - (chosen.includes(a.id) ? 1 : 0) || ({ SSR: 3, SR: 2, R: 1 }[b.rar] || 0) - ({ SSR: 3, SR: 2, R: 1 }[a.rar] || 0) || b.date - a.date);
+  const cards = l.map(s => { const img = R.SFULL[s.id] || R.SIMG[s.id]; const sel = chosen.includes(s.id);
+    return `<button class="ccard scard2 pkcard${sel ? " pkused" : ""}" data-pk="${esc(s.id)}">${img ? `<span class="ccimg" style="background-image:url('${R.encU(img)}')"></span>` : '<span class="ccimg none"></span>'}<span class="cctop">${s.rar ? `<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>` : ""}${R.ic(s.role)}</span><span class="ccname"><b>${esc(s.name)}</b>${s.conds.length ? `<small>${esc(s.conds.join(" ／ "))}</small>` : ""}</span>${sel ? '<span class="ccbadges"><span class="ccown">選択中</span></span>' : ""}</button>`; }).join("");
   body.innerHTML = `<div class="pkhead"><h2>スクリプトを選ぶ<small class="count">（${esc(PK.field)}：${chosen.length}件）</small></h2><input class="search" id="pkQ" placeholder="名前・効果・条件で検索" value="${esc(PK.q)}"><span class="count">${l.length}件</span></div>
     <div class="pkfil">${role ? `<span class="count">このキャラは <b>${R.ic(role)}${esc(role)}</b> なので、${esc(role)}（とワイルド）のスクリプトを出しています。</span><button class="chip" data-pkall="1" aria-pressed="${PK.all}">すべてのロールを出す</button>` : '<span class="count">ロールが未入力なので、すべてのスクリプトを出しています。</span>'}<div class="pkrow">${R.sfBar("pick")}</div></div>
     <div class="pkgrid"><div class="ccards">${cards || '<p class="count">該当するスクリプトがありません</p>'}</div></div>
@@ -926,14 +951,14 @@ function scmPickRender(body) {
 }
 function pickApply(v) {
   if (PK.kind === "scm") {
-    const l = scNames(ED.draft[PK.field]); const i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v);
+    const l = scNames(ED.draft[PK.field]).map(scId); const i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v);
     ED.draft[PK.field] = l.join("\n"); ED.dirty = true; ED.leaveOk = false; renderForm();
     const g = PKDLG.querySelector(".pkgrid"), y = g ? g.scrollTop : 0; pickRender(); const g2 = PKDLG.querySelector(".pkgrid"); if (g2) g2.scrollTop = y; return;
   }
   if (PK.kind === "event") { toggleBossEvent(v); return; }
   if (PK.kind === "knight") { ED.draft[PK.field] = v; ED.dirty = true; ED.leaveOk = false; PKDLG.close(); renderForm(); return; }
   if (PK.kind === "boss") {
-    if (PK.multi) { const l = splitList(ED.draft[PK.field]); const i = l.findIndex(b => bnorm(b) === bnorm(v)); if (i >= 0) l.splice(i, 1); else l.push(v); ED.draft[PK.field] = l.join("、"); }
+    if (PK.multi) { const l = splitList(ED.draft[PK.field]).map(bossId); const i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v); ED.draft[PK.field] = l.join("、"); }
     else ED.draft[PK.field] = v;
     ED.dirty = true; ED.leaveOk = false; renderForm();
     if (!PK.multi) { PKDLG.close(); return; }
@@ -1040,7 +1065,7 @@ function renderForm() {
   body.querySelectorAll("[data-syn]").forEach(el => el.addEventListener(el.tagName === "TEXTAREA" ? "input" : "change", () => { synInput(el); if (el.tagName !== "TEXTAREA") renderForm(); }));
   body.querySelectorAll("[data-tm]").forEach(el => el.addEventListener("change", () => { teamInput(el); renderForm(); }));
   body.querySelectorAll("[data-floorsel]").forEach(el => el.addEventListener("change", () => { const i = el.value.indexOf("|"), t = i < 0 ? el.value : el.value.slice(0, i), f = i < 0 ? "" : el.value.slice(i + 1); ED.draft["バベル種類"] = t || ""; ED.draft["階層"] = f || ""; ED.dirty = true; ED.leaveOk = false; renderForm(); }));
-  const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const io = IMGOF[ED.k]; quickUpload(io[0], ED.base[io[1]], f); });
+  const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const io = IMGOF[ED.k]; quickUpload(io[0], imgKeyOf(ED.k, ED.base), f); });
   body.querySelectorAll(".cpin").forEach(cp => cp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); pickAdd(cp.dataset.cpfield); } }));
   applyLock(body);
 }
@@ -1134,7 +1159,7 @@ function renderOptions() {
 function toDate(v) { const m = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(v || ""); return m ? `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : ""; }
 function fromDate(v) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || ""); return m ? `${m[1]}年${+m[2]}月${+m[3]}日` : v; }
 function rowsOf(k) { return seeded(k) ? [...T[k].rows.values()].sort((a, b) => (a.o - b.o) || (a.id < b.id ? -1 : 1)).map(r => r.c || {}) : []; }
-const personRow = n => rowsOf("people").find(c => c["名前"] === n);
+const personRow = n => n ? rowsOf("people").find(c => idOf("people", c) === n) || rowsOf("people").find(c => c["名前"] === n) : null;
 const styleRow = n => rowsOf("styles").find(c => c["スタイル"] === n);
 function maxNo() { let m = 0; T.chars.rows.forEach(r => { const n = parseInt((r.c || {})["No"], 10); if (n > m) m = n; }); return m; }
 function autofillChar() {
@@ -1143,15 +1168,17 @@ function autofillChar() {
   if (ED.isNew) {
     c["ID"] = ch ? `${ch}_${st.replace(/\s/g, "")}` : "";
     if (!c["スタイル"]) c["スタイル"] = "DEFAULT";
-    c["キャラ名"] = ch ? `${ch} ${sty["略称"] || st}` : "";
+    c["キャラ名"] = ch ? `${p["名前"] || ch} ${sty["略称"] || st}` : "";
     c["名前 ひらがな"] = ch ? `${p["ふりがな"] || ""}${sty["よみ"] || ""}` : "";
     if (!c["No"]) c["No"] = String(maxNo() + 1);
   }
   MASTER_COLS.forEach(h => { if (p[h]) c[h] = p[h]; });
 }
+// list は値の配列か [値, 表示] の配列
 function selectHtml(id, name, list, v, ph) {
-  const items = v && !list.includes(v) ? list.concat([v]) : list;
-  return `<select id="${id}" data-field="${esc(name)}"><option value="">${esc(ph || "（選択）")}</option>${items.map(x => `<option value="${esc(x)}" ${x === v ? "selected" : ""}>${esc(x)}${!list.includes(x) ? "（一覧にない値）" : ""}</option>`).join("")}</select>`;
+  const L = list.map(x => Array.isArray(x) ? x : [x, x]), vals = L.map(x => x[0]);
+  const items = v && !vals.includes(v) ? L.concat([[v, v]]) : L;
+  return `<select id="${id}" data-field="${esc(name)}"><option value="">${esc(ph || "（選択）")}</option>${items.map(([x, l]) => `<option value="${esc(x)}" ${x === v ? "selected" : ""}>${esc(l)}${!vals.includes(x) ? "（一覧にない値）" : ""}</option>`).join("")}</select>`;
 }
 function charOptions() { return [...T.chars.rows.values()].map(r => r.c || {}).filter(c => c["ID"]).map(c => ({ id: c["ID"], label: c["キャラ名"] || c["ID"] })); }
 function pickAdd(field) {
@@ -1159,7 +1186,7 @@ function pickAdd(field) {
   const q = (inp.value || "").trim(); if (!q) return; const isC = inp.dataset.cptype === "charpick";
   let val = q;
   if (isC) { const all = charOptions(); const hit = all.find(o => o.id === q || o.label === q) || all.find(o => o.label.includes(q)); if (!hit) { toast("そのキャラが見つかりません"); return; } val = hit.id; }
-  else { const hit = rowsOf("bosses").find(b => bnorm(b["名前"]) === bnorm(q)); if (hit) val = hit["名前"]; }
+  else { const hit = R.bossOf(q); if (hit) val = hit.id; }
   const cur = isC ? String(ED.draft[field] || "").split(/[,、，\s]+/).filter(Boolean) : splitList(ED.draft[field]);
   if (!cur.includes(val)) cur.push(val);
   ED.draft[field] = cur.join(isC ? "," : "、"); ED.dirty = true; renderForm();
@@ -1172,7 +1199,7 @@ function fieldHtml(name, type, i, both) {
   const ph = PH[name] ? ` placeholder="${esc(PH[name])}"` : "";
   if (type === "id") {
     cls += " idf";
-    inner = `<input id="${id}" value="${esc(v)}" readonly tabindex="-1"><small class="count">${ED.isNew ? "キャラとスタイルから自動で付きます" : "Tier配置・画像の紐付けに使うため固定です"}</small>`;
+    inner = `<input id="${id}" value="${esc(v)}" readonly tabindex="-1"><small class="count">${IDT[ED.k] ? (v ? "画像・ほかのデータとのつながりに使うため固定です（名前を直しても変わりません）" : "保存すると今の名前から自動で付きます") : ED.isNew ? "キャラとスタイルから自動で付きます" : "Tier配置・画像の紐付けに使うため固定です"}</small>`;
   } else if (type === "hide") {
     return "";
   } else if (type === "floor") {
@@ -1183,7 +1210,7 @@ function fieldHtml(name, type, i, both) {
     cls += " long"; inner = tagField(v);
   } else if (type === "scpick") {
     cls += " long"; const ns = scNames(v);
-    inner = `<div class="cpchips">${ns.map(n => { const s = R.SC.find(x => x.name === n); return `<span class="cpchip">${R.SIMG[n] ? `<img src="${esc(R.SIMG[n])}" alt="">` : ""}${esc(n)}${!s ? ' <small class="err">見つからない</small>' : ""}<button class="cprm" data-scrm="${esc(name)}|${esc(n)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだありません</span>'}</div>
+    inner = `<div class="cpchips">${ns.map(n => { const s = R.scOf(n); return `<span class="cpchip">${s && R.SIMG[s.id] ? `<img src="${esc(R.SIMG[s.id])}" alt="">` : ""}${esc(s ? s.name : n)}${!s ? ' <small class="err">見つからない</small>' : ""}<button class="cprm" data-scrm="${esc(name)}|${esc(n)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだありません</span>'}</div>
       <div class="addcol"><button class="btn small" data-pkopen="scm|${esc(name)}">スクリプトを選ぶ</button></div>`;
   } else if (type === "synergy") {
     cls += " long"; inner = synField(name, v);
@@ -1193,7 +1220,7 @@ function fieldHtml(name, type, i, both) {
     cls += " idf";
     inner = `<input id="${id}" value="${esc(v)}" readonly tabindex="-1"><small class="count">${ED.isNew ? (name === "No" ? "連番で自動で付きます" : "キャラとスタイルから自動で付きます") : "自動で付いた値です（編集できません）"}</small>`;
   } else if (type === "people") {
-    inner = selectHtml(id, name, rowsOf("people").map(c => c["名前"]).filter(Boolean), v, "（キャラクターを選択）");
+    inner = selectHtml(id, name, rowsOf("people").filter(c => c["名前"]).map(c => [idOf("people", c), c["名前"]]), knId(v), "（キャラクターを選択）");
   } else if (type === "style") {
     inner = selectHtml(id, name, rowsOf("styles").map(c => c["スタイル"]).filter(Boolean), v, "（スタイルを選択）");
   } else if (type.startsWith("opt:")) {
@@ -1215,15 +1242,15 @@ function fieldHtml(name, type, i, both) {
     inner = `<div class="cpchips">${ds.map(d => `<span class="cpchip datechip">${esc(fmtD(d))}<button data-dlrm="${esc(name)}|${esc(d)}" aria-label="外す">✕</button></span>`).join("") || '<span class="count">まだありません</span>'}</div>
       <div class="addcol"><input type="date" class="dlin" data-dlfield="${esc(name)}"><button class="btn small" data-dladd="${esc(name)}">日付を追加</button></div>`;
   } else if (type === "knref") {
-    const face = knFaceOf(v);
-    inner = `<div class="addcol">${face ? `<img class="linkimg" src="${esc(face)}" alt="">` : ""}<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_kn" placeholder="キャラ名（一覧から選ぶか入力）"><datalist id="dl_kn">${rowsOf("people").map(p => `<option value="${esc(p["名前"] || "")}">`).join("")}</datalist><button class="btn small primary" data-pkopen="kn1|${esc(name)}">一覧から選ぶ</button></div>`;
+    const face = knFaceOf(knId(v)); const kp = R.personOf(v);
+    inner = `<div class="addcol">${face ? `<img class="linkimg" src="${esc(face)}" alt="">` : ""}${kp ? `<b class="refname">${esc(kp.name)}</b>` : `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_kn" placeholder="キャラ名（一覧から選ぶか入力）">`}<datalist id="dl_kn">${rowsOf("people").map(p => `<option value="${esc(p["名前"] || "")}">`).join("")}</datalist><button class="btn small primary" data-pkopen="kn1|${esc(name)}">一覧から選ぶ</button></div>`;
   } else if (type === "bossref") {
-    const bi = R.BOSS[v] ? v : (rowsOf("bosses").find(b => bnorm(b["名前"]) === bnorm(v)) || {})["名前"];
-    inner = `<div class="addcol">${v && R.BOSS[bi] ? `<img class="linkimg" src="${esc(R.BOSS[bi])}" alt="">` : ""}<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_boss" placeholder="ボス名（一覧から選ぶか入力）"><button class="btn small primary" data-pkopen="boss1|${esc(name)}">一覧から選ぶ</button></div>`;
+    const bm = R.bossOf(v), bi = bm ? bm.id : v;
+    inner = `<div class="addcol">${v && R.BOSS[bi] ? `<img class="linkimg" src="${esc(R.BOSS[bi])}" alt="">` : ""}${bm ? `<b class="refname">${esc(bm.name)}</b><button class="btn small" data-bossclr="${esc(name)}">外す</button>` : `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_boss" placeholder="ボス名（一覧から選ぶか入力）">`}<button class="btn small primary" data-pkopen="boss1|${esc(name)}">一覧から選ぶ</button></div>`;
   } else if (type === "charpick" || type === "bosspick") {
     cls += " long"; const isC = type === "charpick";
     const ids = isC ? v.split(/[,、，\s]+/).filter(Boolean) : splitList(v);
-    inner = `<div class="cpchips">${ids.map(x => { const c = isC ? R.CHMAP[x] : null; const img = isC ? R.IMG[x] : R.BOSS[x]; const ok = isC ? !!c : rowsOf("bosses").some(b => bnorm(b["名前"]) === bnorm(x)); return `<span class="cpchip">${img ? `<img src="${esc(img)}" alt="">` : ""}${esc(c ? c.name : x)}${ok ? "" : ` <small class="err">（${isC ? "見つからないID" : "ボス一覧にない"}）</small>`}<button data-cprm="${esc(name)}|${esc(x)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだいません</span>'}</div>
+    inner = `<div class="cpchips">${ids.map(x => { const c = isC ? R.CHMAP[x] : null; const bm = isC ? null : R.bossOf(x); const img = isC ? R.IMG[x] : bm && R.BOSS[bm.id]; const ok = isC ? !!c : !!bm; return `<span class="cpchip">${img ? `<img src="${esc(img)}" alt="">` : ""}${esc(c ? c.name : bm ? bm.name : x)}${ok ? "" : ` <small class="err">（${isC ? "見つからないID" : "ボス一覧にない"}）</small>`}<button data-cprm="${esc(name)}|${esc(x)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだいません</span>'}</div>
       <div class="addcol"><input class="cpin" data-cpfield="${esc(name)}" data-cptype="${type}" list="${isC ? "dl_chars" : "dl_boss"}" placeholder="${isC ? "キャラ名" : "ボス名"}を入力して追加"><button class="btn small" data-cpadd="${esc(name)}">追加</button><button class="btn small primary" data-pkopen="${isC ? "cp" : "bossn"}|${esc(name)}">一覧から選ぶ</button></div>`;
   } else if (type === "long" || type === "big") {
     cls += " long";
@@ -1243,20 +1270,20 @@ function linkInfo() {
   if (ED.isNew) return "";
   const box = (t, inner) => `<section class="fgroup linkbox"><h3 class="fgh">${t}</h3>${inner}</section>`;
   if (ED.k === "bosses") {
-    const fl = floorsOfBoss(ED.base["名前"]), ev = eventsOfBoss(ED.base["名前"]);
-    return box("つながっているデータ（自動）", `<p class="hint fgnote">バベルの「ボス」・イベントの「登場ボス」に同じ名前があるものです。</p><div class="linkrow"><b>バベル</b>${fl.map(f => `<span class="tag">${esc(f["バベル種類"])} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">なし</span>'}</div><div class="linkrow"><b>イベント</b>${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("") || '<span class="count">なし</span>'}${seeded("events") && ED.base["名前"] ? `<button class="btn small primary" data-pkopen="bossev|0">一覧から選ぶ</button>` : ""}</div>`);
+    const fl = floorsOfBoss(ED.base), ev = eventsOfBoss(ED.base);
+    return box("つながっているデータ（自動）", `<p class="hint fgnote">バベルの「ボス」・イベントの「登場ボス」でこのボスを選んでいるものです。</p><div class="linkrow"><b>バベル</b>${fl.map(f => `<span class="tag">${esc(f["バベル種類"])} ${esc(f["階層"])}F</span>`).join("") || '<span class="count">なし</span>'}</div><div class="linkrow"><b>イベント</b>${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("") || '<span class="count">なし</span>'}${seeded("events") && ED.base["名前"] ? `<button class="btn small primary" data-pkopen="bossev|0">一覧から選ぶ</button>` : ""}</div>`);
   }
   const tierBox = (fk, what) => { const n = Object.keys(R.OFFICIAL[fk] || {}).length; return box("運営Tier表", `<div class="linkrow"><span>${n ? `${n}体を配置済み` : "まだ配置していません"}</span><button class="btn small primary" data-a="${ED.k === "seals" ? "sealtier" : "babeltier"}">この${what}のTier表を作る・編集する</button></div>`); };
   const teamsBox = (fk, what) => { const ts = seeded("teams") ? [...T.teams.rows.values()].filter(r => keyOfCells("babel", r.c || {}) === fk).sort((a, b) => a.o - b.o) : [];
     return box("編成例", `<div class="pgrid">${ts.map(r => teamCard(r).replace('data-adrow=', 'data-teamedit=')).join("") || '<span class="count">まだありません</span>'}</div><div class="row2"><button class="btn small primary" data-a="teamadd">＋ この${what}の編成例を追加</button></div>`); };
-  if (ED.k === "seals") { const fk = "封印戦|" + String(ED.base["封印戦名"] || "").trim(); return teamsBox(fk, "封印戦") + tierBox(fk, "封印戦"); }
+  if (ED.k === "seals") { const fk = "封印戦|" + idOf("seals", ED.base); return teamsBox(fk, "封印戦") + tierBox(fk, "封印戦"); }
   if (ED.k === "chars") { const ev = eventsOfChar(ED.base["ID"]); return ev.length ? box("実装イベント（自動）", `<div class="linkrow">${ev.map(e => `<span class="tag">${esc(e["イベント名"])}（${esc(fmtD(e["開始日"]))}）</span>`).join("")}</div>`) : ""; }
   if (ED.k === "teams") { const fk = keyOfCells("babel", ED.base); const sealT = ED.base["バベル種類"] === "封印戦";
-    const b = sealT ? (seeded("seals") ? [...T.seals.rows.values()].find(r => String((r.c || {})["封印戦名"] || "").trim() === String(ED.base["階層"] || "").trim()) : null) : [...T.babel.rows.values()].find(r => keyOfCells("babel", r.c || {}) === fk);
+    const b = sealT ? (seeded("seals") ? ([...T.seals.rows.values()].find(r => idOf("seals", r.c) === String(ED.base["階層"] || "").trim()) || [...T.seals.rows.values()].find(r => String((r.c || {})["封印戦名"] || "").trim() === String(ED.base["階層"] || "").trim())) : null) : [...T.babel.rows.values()].find(r => keyOfCells("babel", r.c || {}) === fk);
     return b ? box(sealT ? "封印戦" : "バベルの階層", `<div class="linkrow"><span>${esc(teamPlace(ED.base["バベル種類"], ED.base["階層"]))}</span><button class="btn small" data-teamfloor="${sealT ? "seals" : "babel"}|${esc(b.id)}">この${sealT ? "封印戦" : "階層"}の編集に戻る</button></div>`) : ""; }
   if (ED.k === "babel") { const fk = keyOfCells("babel", ED.base);
     const tb = teamsBox(fk, "階層") + tierBox(fk, "階層");
-    const b = rowsOf("bosses").find(c => bnorm(c["名前"]) === bnorm(ED.base["ボス"])); return tb + box("ボス（自動）", b ? `<div class="linkrow">${R.BOSS[b["名前"]] ? `<img class="linkimg" src="${esc(R.BOSS[b["名前"]])}" alt="">` : ""}<b>${esc(b["名前"])}</b><span class="count">ボスの画像・説明は「ボス」で編集できます</span></div>` : `<p class="hint fgnote">「ボス」の一覧にこの名前がありません。ボスに追加すると画像などがつながります。</p>`); }
+    const b = R.bossOf(ED.base["ボス"]); return tb + box("ボス（自動）", b ? `<div class="linkrow">${R.BOSS[b.id] ? `<img class="linkimg" src="${esc(R.BOSS[b.id])}" alt="">` : ""}<b>${esc(b.name)}</b><span class="count">ボスの画像・説明は「ボス」で編集できます</span></div>` : `<p class="hint fgnote">「ボス」の一覧にこの名前がありません。ボスに追加すると画像などがつながります。</p>`); }
   return "";
 }
 function formFields(both) {
@@ -1303,8 +1330,8 @@ function editForm() {
   const r = T[ED.k].rows.get(ED.id);
   const both = ED.conflict ? ED.conflict.both : [];
   const io = IMGOF[ED.k]; const ik = io ? io[0] : null;
-  const ikey = io ? (ED.base[io[1]] || "") : "";
-  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : ik === "boss" ? R.BOSS[ikey] : ik === "event" ? R.EVT[ikey] : ik === "knight" ? R.KN[ikey] : null;
+  const ikey = io && !ED.isNew ? imgKeyOf(ED.k, ED.base) : "";
+  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : ik === "boss" ? R.BOSS[ikey] : ik === "event" ? R.EVT[ikey] : ik === "knight" ? R.KN[ikey] : ik === "seal" ? R.SEAL[ikey] : null;
   const full = ik && ikey ? R.cropSrc(ik, ikey) : null;
   const adj = ik && ikey && R.CROPS["c_" + ik + "_" + R.hashId(ikey)];
   let h = `<div class="edhead"><h2>${ED.isNew ? `${TLABEL[ED.k]}を追加` : esc(labelOf(ED.k, ED.draft))}</h2><span class="count">${TLABEL[ED.k]}</span></div><div id="edbanner">${bannerHtml()}</div>`;
@@ -1341,11 +1368,26 @@ function dupKey(k, cells, selfId) {
   return null;
 }
 function logDoc(o) { return Object.assign({ at: now(), by: meId(), name: meName() }, o); }
+/* ほかの表を指す欄は ID で保存する（名前で入っていても、見つかれば ID に直す） */
+function normRefs(k, D) {
+  const has = f => String(D[f] || "").trim() !== "";
+  if (k === "chars") { ["持ちスク", "おすすめスクリプト"].forEach(f => { if (has(f)) D[f] = scNames(D[f]).map(scId).join("\n"); }); if (has("キャラ")) D["キャラ"] = knId(String(D["キャラ"]).trim()); }
+  if (k === "babel" && has("ボス")) D["ボス"] = bossId(String(D["ボス"]).trim());
+  if (k === "events" && has("登場ボス")) D["登場ボス"] = splitList(D["登場ボス"]).map(bossId).join("、");
+  if (k === "seals" && has("キャラ名")) D["キャラ名"] = knId(String(D["キャラ名"]).trim());
+  if (k === "teams" && has("メンバー")) D["メンバー"] = String(D["メンバー"]).split("\n").map(l => { const a = l.split("|"); if (a[2] && a[2].trim()) a[2] = scId(a[2].trim()); return a.join("|"); }).join("\n");
+}
 async function saveRow(force) {
   const k = ED.k;
   if (k === "chars") { autofillChar(); if ("おすすめセット" in ED.draft) ED.draft["おすすめセット"] = synStr(synRows(ED.draft["おすすめセット"]).filter(x => x.id && x.id !== "?")); }
   // 自動で付く項目（ID・キャラ名・ひらがな・No など）は、既存の行では元の値のまま保存する
   if (!ED.isNew && !ED.gone) (SCHEMA[k] || []).forEach(g => g.f.forEach(([n, t]) => { if (t === "id" || t === "auto") ED.draft[n] = ED.base[n] == null ? "" : ED.base[n]; }));
+  normRefs(k, ED.draft);
+  if (IDT[k]) {   // ID：空なら（新しい行は今の名前、古い行は前の名前）で付ける。新しい行はほかと重ならないように
+    const D = ED.draft; let v = String(D["ID"] || "").trim() || (!ED.isNew && !ED.gone ? String(ED.base[IDT[k]] || "").trim() : "") || String(D[IDT[k]] || "").trim();
+    if (v && (ED.isNew || ED.gone || !String(ED.base["ID"] || "").trim())) { const taken = new Set([...T[k].rows.values()].filter(r => r.id !== ED.id).map(r => idOf(k, r.c))); let n = 2; const b0 = v; while (taken.has(v)) v = b0 + "_" + n++; }
+    D["ID"] = v;
+  }
   const rn = RENAMES[k] || {};   // 編集中に列名が付け替わったときは、新しい列名で保存する
   Object.keys(rn).forEach(o => { if (o in ED.draft && !T[k].headers.includes(o)) { if (!String(ED.draft[rn[o]] || "")) ED.draft[rn[o]] = ED.draft[o]; delete ED.draft[o]; } });
   const extra = Object.keys(ED.draft).filter(h => !T[k].headers.includes(h) && String(ED.draft[h] || "") !== "");
@@ -1356,8 +1398,6 @@ async function saveRow(force) {
   if (dup === "empty") { toast(k === "chars" ? "キャラとスタイルを選んでください" : `「${KEYCOLS[k].join("」「")}」を入力してください`, 4000); return; }
   if (dup) { toast(k === "chars" ? `このキャラとスタイルの組み合わせ（${cells["ID"]}）はすでに「${dup}」としてあります` : `「${KEYCOLS[k].join("・")}」が「${dup}」と同じです。別の値にしてください`, 6000); return; }
   const creating = ED.isNew || ED.gone;
-  // 画像は名前（識別子）で images.json に登録してあるので、名前を変えたら画像も新しい名前に付け替える
-  const io = IMGOF[k], oldName = !creating && io && k !== "chars" ? String(ED.base[io[1]] || "").trim() : "", newName = io ? String(cells[io[1]] || "").trim() : "";
   const id = creating ? (ED.id && ED.gone ? ED.id : "r" + rid()) : ED.id;
   const ref = F.doc(F.db, "tables", k, "rows", id);
   const rev = rid();
@@ -1389,7 +1429,6 @@ async function saveRow(force) {
     setPresence();
     toast(creating ? "追加しました。公開サイトには数分で反映されます" : "保存しました。公開サイトには数分で反映されます");
     renderForm();
-    if (oldName && newName && oldName !== newName && IMG_SECS[io[0]].some(sec => (R.BASE[MEDIA_MAP[sec]] || {})[oldName])) renameImage(io[0], oldName, newName);
   } catch (e) {
     ED.saving = false;
     if (e && e.code === "conflict") {
@@ -1486,6 +1525,7 @@ async function applyTable(k, inc, mode, act) {
   inc = renameHeaders(k, inc);
   const cur = curData(k);
   const hd = mode === "replace" ? inc.headers.slice() : cur.headers.concat(inc.headers.filter(h => !cur.headers.includes(h)));
+  if (IDT[k] && !hd.includes("ID")) hd.push("ID");
   const curByKey = new Map(); cur.rows.forEach((r, i) => { const key = keyOf(k, cur.headers, r); if (key.replace(/\|/g, "") && !curByKey.has(key)) curByKey.set(key, { id: cur.ids[i], row: r }); });
   const ops = []; let maxO = Math.max(0, ...[...T[k].rows.values()].map(r => r.o || 0));
   const used = new Set(); let added = 0, changed = 0, removed = 0;
@@ -1498,6 +1538,7 @@ async function applyTable(k, inc, mode, act) {
       const old = T[k].rows.get(hit.id);
       const base = mode === "replace" ? {} : (old.c || {});
       const c = cellsFrom(inc.headers, r, base);
+      if (IDT[k] && !String(c["ID"] || "").trim() && String((old.c || {})["ID"] || "").trim()) c["ID"] = old.c["ID"];   // 読み込むデータに ID が無くても、今の ID は残す
       if (diffCells(old.c || {}, c, hd).length) { ops.push(["set", hit.id, { c, o: mode === "replace" ? i + 1 : old.o, t: now(), by: meId(), rev: rid() }]); changed++; }
       else if (mode === "replace" && old.o !== i + 1) ops.push(["set", hit.id, Object.assign({}, old, { o: i + 1, id: undefined })]);
     } else {
@@ -1613,12 +1654,14 @@ const IM = { k: "char", files: [], busy: false, cq: "" };
 const IKIND = { char: "キャラ", script: "スクリプト", knight: "騎士（立ち絵）", seal: "封印戦", boss: "ボス", event: "イベント", icon: "アイコン", hero: "ヘッダー背景" };
 const ICON_ALIAS = { "アタッカー": ["attacker", "attaker", "atk"], "シューター": ["shooter"], "ブレイカー": ["breaker"], "ヒーラー": ["healer"], "トリックスター": ["trickster", "trickstar"], "サポーター": ["supporter", "support"], "ブレイドライン": ["bladeline"], "千紫": ["colors", "senshi"], "Mazlab": ["maze", "mazlab", "mazelab"], "第六起源魔術教会": ["sixth"], "リンドブルム": ["lindwurm", "lindblum"], "オッター貿易": ["otter"], "アクシオンゲート": ["axiongate", "axion"], "ORANGE": ["orange"] };
 function targets(k) {
-  if (k === "char") return R.CH.map(c => ({ key: c.id, label: c.name, alts: [c.id, c.name, c.base + (c.style || "")] }));
-  if (k === "script") { const seen = new Set(); return R.SC.filter(s => s.name && !seen.has(s.name) && seen.add(s.name)).map(s => ({ key: s.name, label: s.name, alts: [s.name] })); }
-  if (k === "knight") return rowsOf("people").filter(c => c["名前"]).map(c => ({ key: c["名前"], label: c["名前"], alts: [c["名前"], c["ふりがな"] || ""].filter(Boolean) }));
-  if (k === "seal") return rowsOf("seals").map(c => ({ key: c["封印戦名"], label: c["封印戦名"], alts: [c["封印戦名"], c["キャラ名"] || ""].filter(Boolean) }));
-  if (k === "boss") return rowsOf("bosses").map(c => ({ key: c["名前"], label: c["名前"], alts: [c["名前"], c["よみ"] || ""].filter(Boolean) }));
-  if (k === "event") return rowsOf("events").map(c => ({ key: c["イベント名"], label: c["イベント名"], alts: [c["イベント名"]] }));
+  if (k === "char") return R.CH.map(c => ({ key: c.id, label: c.name, alts: [c.id, c.name, (c.bname || c.base) + (c.style || "")] }));
+  // 画像のキーは ID（名前を直しても変わらない）。ファイル名は今の名前とも ID とも照らし合わせる
+  const L = (rows, k2, alts) => { const seen = new Set(); return rows.filter(c => idOf(k2, c) && !seen.has(idOf(k2, c)) && seen.add(idOf(k2, c))).map(c => ({ key: idOf(k2, c), label: c[IDT[k2]] || idOf(k2, c), alts: [c[IDT[k2]], idOf(k2, c)].concat(alts(c)).filter(Boolean) })); };
+  if (k === "script") return L(rowsOf("scripts"), "scripts", () => []);
+  if (k === "knight") return L(rowsOf("people"), "people", c => [c["ふりがな"]]);
+  if (k === "seal") return L(rowsOf("seals"), "seals", c => [knName(c["キャラ名"] || "")]);
+  if (k === "boss") return L(rowsOf("bosses"), "bosses", c => [c["よみ"]]);
+  if (k === "event") return L(rowsOf("events"), "events", () => []);
   if (k === "icon") return uniq(opts("属性"), opts("ロール"), opts("階級"), opts("騎士団")).map(x => ({ key: x, label: x, alts: [x, ...(ICON_ALIAS[x] || [])] }));
   return [{ key: "main", label: "ヘッダー背景", alts: ["main", "header", "hero"] }];
 }
@@ -1655,7 +1698,7 @@ function matchAll() {
 }
 function renderImg() {
   // 画像あり／なしの数には、未実装のキャラ・スクリプトを入れない（画像の割り当て先には出す）
-  const unrel = new Set(IM.k === "char" ? rowsOf("chars").filter(c => c["実装"] === "未実装").map(c => c["ID"]) : IM.k === "script" ? rowsOf("scripts").filter(c => c["実装"] === "未実装").map(c => c["名前"]) : IM.k === "knight" ? rowsOf("people").filter(c => c["立ち絵"] === "なし").map(c => c["名前"]) : []);
+  const unrel = new Set(IM.k === "char" ? rowsOf("chars").filter(c => c["実装"] === "未実装").map(c => c["ID"]) : IM.k === "script" ? rowsOf("scripts").filter(c => c["実装"] === "未実装").map(c => idOf("scripts", c)) : IM.k === "knight" ? rowsOf("people").filter(c => c["立ち絵"] === "なし").map(c => idOf("people", c)) : []);
   const tg = targets(IM.k); const tgc = tg.filter(t => !unrel.has(t.key)); const has = tgc.filter(t => hasImage(IM.k, t.key)); const miss = tgc.filter(t => !hasImage(IM.k, t.key));
   let h = userBar() + `<div class="toolbar"><h2><small>IMAGES</small>画像</h2><div class="seg">${Object.keys(IKIND).map(k => `<button data-imk="${k}" aria-pressed="${IM.k === k}">${IKIND[k]}</button>`).join("")}</div>${tg.length > 1 ? `<span class="count">画像あり ${has.length} / ${tgc.length}${unrel.size ? `（${IM.k === "knight" ? "立ち絵なし" : "未実装"}の${unrel.size}件は除く）` : ""}</span>` : ""}</div>`;
   let tail = "";
@@ -1806,39 +1849,6 @@ async function ghRemove(kind, key) {
     catch (e) { if (e.status === 422 && attempt < GH_TRY - 1) { await ghWait(attempt); continue; } throw e; }
   }
 }
-/* ---- 名前を変えたときの画像の付け替え: images.json のキーを新しい名前に移す（ファイルはそのまま）。切り抜き位置も移す ---- */
-async function ghRenameKey(kind, from, to) {
-  const br = GH.branch || "main";
-  for (let attempt = 0; attempt < GH_TRY; attempt++) {
-    const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
-    const commit = await gh(`/git/commits/${base}`);
-    const json = JSON.parse(unb64((await gh(`/contents/data/images.json?ref=${base}`)).content));
-    let n = 0; IMG_SECS[kind].forEach(sec => { const m = json[sec]; if (m && m[from] != null) { if (m[to] == null) m[to] = m[from]; delete m[from]; n++; } });
-    if (!n) return null;
-    const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree: [{ path: "data/images.json", mode: "100644", type: "blob", content: JSON.stringify(json, null, 1) + "\n" }] }) });
-    const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: `画像の名前を付け替え：${from} → ${to}\n\n管理画面から ${meName()}`, tree: t.sha, parents: [base] }) });
-    try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); return c; }
-    catch (e) { if (e.status === 422 && attempt < GH_TRY - 1) { await ghWait(attempt); continue; } throw e; }
-  }
-}
-async function renameImage(kind, from, to) {
-  if (!GH) { toast(`画像は前の名前「${from}」のままです。GitHub 連携を設定してから、画像を入れ直してください`, 8000); return; }
-  startProg(kind, to, "画像を新しい名前に付け替えています…", 40);
-  try {
-    const c = await ghRenameKey(kind, from, to);
-    IMG_SECS[kind].forEach(sec => { const m = R.BASE[MEDIA_MAP[sec]]; if (m && m[from]) { if (!m[to]) m[to] = m[from]; delete m[from]; } });
-    const oid = "c_" + kind + "_" + R.hashId(from), nid = "c_" + kind + "_" + R.hashId(to);
-    if (R.CROPS[oid]) await F.runTransaction(F.db, async tx => {
-      const ref = F.doc(F.db, "public", "crops"); const s = await tx.get(ref);
-      let m = {}; try { m = s.exists() && s.data().json ? JSON.parse(s.data().json) : {}; } catch (e) { }
-      if (m[oid]) { if (!m[nid]) m[nid] = Object.assign({}, m[oid], { key: to }); delete m[oid]; tx.set(ref, { json: JSON.stringify(m), at: now(), count: Object.keys(m).length }); }
-    });
-    await F.setDoc(F.doc(F.db, "log", rid()), logDoc({ act: "image", k: "", label: `画像の名前を付け替え：${from} → ${to}`, commit: c && c.sha }));
-    R.applyMedia(); R.rebuild();
-    toast("画像も新しい名前に付け替えました。公開サイトには1〜2分で反映されます", 5000);
-  } catch (e) { toast(e && e.status ? ghErr(e) : "画像を付け替えられませんでした：" + (e && e.message || ""), 8000); }
-  endProg();
-}
 async function removeImage(kind, key) {
   if (!GH || !key) return;
   IMGDEL_BUSY = true; IMGDEL = null; startProg(kind, key, "GitHub から画像を削除しています…", 40);
@@ -1970,10 +1980,10 @@ async function bakeCrops(list, btn) {
   });
   return items.length;
 }
-function openCrop(kind, key) {
+function openCrop(kind, key, lbl) {
   const src = R.cropSrc(kind, key); if (!src) { toast("元の画像がないため調整できません"); return; }
   const id = "c_" + kind + "_" + R.hashId(key); const cur = R.CROPS[id];
-  const label = kind === "char" ? (R.CHMAP[key] ? R.CHMAP[key].name : key) : key;
+  const label = lbl || (kind === "char" ? (R.CHMAP[key] ? R.CHMAP[key].name : key) : key);
   Object.assign(CR, { kind, key, id, label, c: null });
   document.getElementById("cropBody").innerHTML = `<h2>${esc(label)}</h2><p class="hint" style="margin:0 0 10px">四角をドラッグして顔の位置に合わせ、スライダーで大きさを変えてください。</p>
   <div class="cropwrap" id="cropWrap"><img id="cropImg" src="${esc(src)}" alt="" draggable="false"><div id="cropBox"></div></div>
@@ -2051,7 +2061,7 @@ function applyOfficial(at) {
   TIERPEND.forEach(([fk, id, t, ol, nt]) => { if (nt != null) { const m = nts[fk] || (nts[fk] = {}); if (nt) m[id] = nt; else delete m[id]; return; } if (ol) { ord[fk] = ol; return; } const P = o[fk] || (o[fk] = {}); if (t) P[id] = t; else delete P[id]; });
   R.setOfficial(o, at, ord, nts);
 }
-function floorLabel(fk) { const [t, f] = String(fk).split("|"); return t === "全体" ? "キャラクター全体Tier" : t === "封印戦" ? `封印戦 ${f}` : `${t} ${f}F`; }
+function floorLabel(fk) { const [t, f] = String(fk).split("|"); return t === "全体" ? "キャラクター全体Tier" : t === "封印戦" ? `封印戦 ${(R.sealOf(f) || { floor: f }).floor}` : `${t} ${f}F`; }
 const TIERQ = { busy: false, q: [] };
 // ol があれば並び順の変更（その階層のキーの配列）
 // nt（文字列）があれば、そのキャラ（キー）の運用メモの変更
@@ -2126,7 +2136,7 @@ async function tierAdd() {
 function tierEdit() {
   const f = R.curFloor; if (!f) return; const k = f.seal ? "seals" : "babel";
   let id = null;
-  T[k].rows.forEach(r => { const c = r.c || {}; if (f.seal ? c["封印戦名"] === f.floor : keyOfCells("babel", c) === f.key) id = r.id; });
+  T[k].rows.forEach(r => { const c = r.c || {}; if (f.seal ? idOf("seals", c) === f.sid : keyOfCells("babel", c) === f.key) id = r.id; });
   if (!id) { toast("元のデータが見つかりません"); return; }
   openEditor(k, id);
 }
@@ -2215,7 +2225,7 @@ function todoItems() {
   const teamKeys = new Set([...T.teams.rows.values()].map(r => keyOfCells("babel", r.c || {})));
   return [
     { id: "cimg", g: "公開まで", t: "キャラ画像のインポート", note: "サムネイルと覚醒イラストの両方", r: () => rowsCheck("chars", null, c => R.IMG[c["ID"]] && R.BANNER[c["ID"]], c => c["キャラ名"] || c["ID"]), lackNote: c => [!R.IMG[c["ID"]] && "サムネイル", !R.BANNER[c["ID"]] && "覚醒イラスト"].filter(Boolean) },
-    { id: "simg", g: "公開まで", t: "スクリプト画像のインポート", note: "サムネイルとイラストの両方", r: () => rowsCheck("scripts", null, c => R.SIMG[c["名前"]] && R.SFULL[c["名前"]]) },
+    { id: "simg", g: "公開まで", t: "スクリプト画像のインポート", note: "サムネイルとイラストの両方", r: () => rowsCheck("scripts", null, c => R.SIMG[idOf("scripts", c)] && R.SFULL[idOf("scripts", c)]) },
     { id: "cdata", g: "公開まで", t: "キャラデータの入力", note: "完凸時の HP・攻撃力、防御、攻撃速度などの基本ステータス", r: () => rowsCheck("chars", ["完凸 HP", "完凸 攻撃力", "物理防御", "特殊防御", "攻撃速度", "抵抗値"]) },
     { id: "sdata", g: "公開まで", t: "スクリプトデータの入力", note: "Lv200 の HP・攻撃力と、各スキルの条件・効果", r: () => rowsCheck("scripts", ["Lv200 HP", "Lv200 攻撃力", "スキル1効果", "スキル2効果", "スキル3効果"]) },
     { id: "beff", g: "公開まで", t: "全バベルのステージ効果", note: "解析データ（ステージ効果）", r: () => rowsCheck("babel", ["解析データ"]) },
@@ -2223,9 +2233,9 @@ function todoItems() {
       midCheck("Tier表", c => Object.keys(R.OFFICIAL[keyOfCells("babel", c)] || {}).length > 0),
       midCheck("おすすめ編成", c => teamKeys.has(keyOfCells("babel", c))),
       midCheck("攻略のコツ", c => nonEmpty(c["攻略のコツ"]))] },
-    { id: "seal", g: "公開まで", t: "各封印戦の画像と特性", note: "テーマイラストとステージ効果", r: () => rowsCheck("seals", ["ステージ効果"], c => R.SEAL[c["封印戦名"]] || R.SEALF[c["封印戦名"]]) },
+    { id: "seal", g: "公開まで", t: "各封印戦の画像と特性", note: "テーマイラストとステージ効果", r: () => rowsCheck("seals", ["ステージ効果"], c => R.SEAL[idOf("seals", c)] || R.SEALF[idOf("seals", c)]) },
     { id: "kreg", g: "公開まで", t: "騎士の登録", note: `騎士団ごとに${KN_PER}人（騎士団 ${knOrders().length} × ${KN_PER}人）`, multi: () => knOrders().map(o => { const n = rowsOf("people").filter(c => String(c["騎士団"] || "").trim() === o).length; return { sub: o, done: Math.min(n, KN_PER), total: KN_PER, missing: [] }; }) },
-    { id: "kimg", g: "公開まで", t: "騎士の画像（立ち絵）のインポート", note: "「立ち絵」を「なし」にした騎士は数えません", r: () => rowsCheck("people", null, c => c["立ち絵"] === "なし" || R.KN[c["名前"]] || R.KNF[c["名前"]], c => c["名前"]) },
+    { id: "kimg", g: "公開まで", t: "騎士の画像（立ち絵）のインポート", note: "「立ち絵」を「なし」にした騎士は数えません", r: () => rowsCheck("people", null, c => c["立ち絵"] === "なし" || R.KN[idOf("people", c)] || R.KNF[idOf("people", c)], c => c["名前"]) },
     { id: "csw", g: "追加", t: "各キャラの強いところ・弱いところの入力", note: "キャラ詳細の上の方に出る説明", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
     { id: "cmochi", g: "追加", t: "各キャラの持ちスク・おすすめスクリプトの設定", note: "どちらか1つでも入っていれば設定済み", r: () => rowsCheck("chars", null, c => nonEmpty(c["持ちスク"]) || nonEmpty(c["おすすめスクリプト"]), c => c["キャラ名"] || c["ID"]) },
     { id: "misc", g: "追加", t: "もろもろの各データ", note: "進捗は手動で更新してください", manual: true },
@@ -2585,7 +2595,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-pkopen],[data-scrm],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2606,9 +2616,10 @@ function onAdminClick(e) {
     if (ds.teamedit) { openEditor("teams", ds.teamedit); return; }
     if (ds.teamfloor) { const i = ds.teamfloor.indexOf("|"); openEditor(ds.teamfloor.slice(0, i), ds.teamfloor.slice(i + 1)); return; }
     if (!seeded("teams")) { toast("編成例の表を準備しています。数秒後にもう一度押してください"); seedAll(); return; }
-    const sealT = ED.k === "seals"; const t = sealT ? "封印戦" : ED.base["バベル種類"], f = sealT ? String(ED.base["封印戦名"] || "").trim() : ED.base["階層"]; ED.k = "teams"; resetEd(); edAction("new"); ED.draft["バベル種類"] = t; ED.draft["階層"] = f; renderForm(); return;
+    const sealT = ED.k === "seals"; const t = sealT ? "封印戦" : ED.base["バベル種類"], f = sealT ? idOf("seals", ED.base) : ED.base["階層"]; ED.k = "teams"; resetEd(); edAction("new"); ED.draft["バベル種類"] = t; ED.draft["階層"] = f; renderForm(); return;
   }
   if (ds.pkopen) { const [k, i] = ds.pkopen.split("|"); openPick(k, i); return; }
+  if (ds.bossclr) { ED.draft[ds.bossclr] = ""; ED.dirty = true; ED.leaveOk = false; renderForm(); return; }
   if (ds.scrm) { const i = ds.scrm.indexOf("|"), f = ds.scrm.slice(0, i), n = ds.scrm.slice(i + 1); ED.draft[f] = scNames(ED.draft[f]).filter(x => x !== n).join("\n"); ED.dirty = true; ED.leaveOk = false; renderForm(); return; }
   if (ds.synadd) { const rows = synRows(ED.draft["おすすめセット"]); rows.push({ id: "?", t: "" }); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); const ins = document.querySelectorAll('#edBody [data-syn$="|id"]'); if (ins.length) { ins[ins.length - 1].value = ""; ins[ins.length - 1].focus(); } return; }
   if (ds.synrm !== undefined) { const rows = synRows(ED.draft["おすすめセット"]); rows.splice(+ds.synrm, 1); ED.draft["おすすめセット"] = rows.map(x => x.id + "|" + (x.t || "")).join("\n"); ED.dirty = true; renderForm(); return; }
@@ -2616,7 +2627,7 @@ function onAdminClick(e) {
   if (ds.cpadd) { pickAdd(ds.cpadd); return; }
   if (ds.dladd) { const inp = document.querySelector(`#edBody .dlin[data-dlfield="${CSS.escape(ds.dladd)}"]`); const v = inp && fromDate(inp.value); if (!v) { toast("日付を選んでください"); return; } const cur = splitList(ED.draft[ds.dladd]); if (!cur.includes(v)) cur.push(v); cur.sort((a, b) => toDate(a).localeCompare(toDate(b))); ED.draft[ds.dladd] = cur.join("、"); ED.dirty = true; renderForm(); return; }
   if (ds.dlrm) { const [f, x] = ds.dlrm.split("|"); ED.draft[f] = splitList(ED.draft[f]).filter(y => y !== x).join("、"); ED.dirty = true; renderForm(); return; }
-  if (ds.a === "sealtier") { const name = ED.base["封印戦名"]; if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("seal"); R.setCurSeal("封印戦|" + name); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
+  if (ds.a === "sealtier") { const name = idOf("seals", ED.base); if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("seal"); R.setCurSeal("封印戦|" + name); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
   if (ds.a === "babeltier") { const fk = keyOfCells("babel", ED.base); if (ED.dirty) { toast("先に保存してください"); return; } if (DLG) DLG.close(); R.setTierCtx("babel"); R.setCurFloor(fk); S.tab = "tier"; renderAll(); window.scrollTo(0, 0); return; }
   if (ds.a === "tieradd") { tierAdd(); return; }
   if (ds.a === "ghpubnow") {
@@ -2651,10 +2662,10 @@ function onAdminClick(e) {
   if (ds.a === "ghdel") { IM.ghconfirm = true; renderImg(); return; }
   if (ds.a === "ghdelno") { IM.ghconfirm = false; renderImg(); return; }
   if (ds.a === "ghdelyes") { IM.ghconfirm = false; delGhToken(); return; }
-  if (ds.a === "edimgdel") { const io = IMGOF[ED.k]; IMGDEL = io[0] + "|" + ED.base[io[1]]; renderForm(); return; }
+  if (ds.a === "edimgdel") { const io = IMGOF[ED.k]; IMGDEL = io[0] + "|" + imgKeyOf(ED.k, ED.base); renderForm(); return; }
   if (ds.a === "edimgdelno") { IMGDEL = null; renderForm(); return; }
-  if (ds.a === "edimgdelyes") { const io = IMGOF[ED.k]; removeImage(io[0], ED.base[io[1]]); return; }
-  if (ds.a === "edcrop") { const io = IMGOF[ED.k]; openCrop(io[0], ED.base[io[1]]); return; }
+  if (ds.a === "edimgdelyes") { const io = IMGOF[ED.k]; removeImage(io[0], imgKeyOf(ED.k, ED.base)); return; }
+  if (ds.a === "edcrop") { const io = IMGOF[ED.k]; openCrop(io[0], imgKeyOf(ED.k, ED.base), labelOf(ED.k, ED.base)); return; }
   if (ds.edk) { ED.k = ds.edk; resetEd(); CL.q = ""; renderEdit(false); return; }
   if (ds.ed) { edAction(ds.ed); return; }
   if (ds.iok) { IO.k = ds.iok; IO.confirm = null; renderIO(); return; }
