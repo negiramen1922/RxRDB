@@ -371,7 +371,8 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .ocard.on .oimg img{filter:none;opacity:1}
 .ock{position:absolute;right:-4px;top:-4px;width:20px;height:20px;border-radius:50%;background:var(--good);color:#fff;font-size:12px;font-weight:900;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .onm{font-size:11.5px;font-weight:700;text-align:center;line-height:1.25;min-height:2.5em}
-.ostars{display:flex}
+.fbok{background:var(--panel2);border-left:4px solid var(--good);padding:10px 14px;margin:6px 0 10px}.fbok p{margin:6px 0 0}.fbq{white-space:pre-wrap;font-size:13.5px;color:var(--muted)}.fbhist{margin-top:10px;font-size:13px}.fbhist summary{cursor:pointer;color:var(--accent-ink);font-weight:700}.fbh{border-top:1px solid var(--line);padding:6px 0}.fbh p{margin:2px 0 0;white-space:pre-wrap}
+.ostars{display:flex}.olb{font:inherit;font-size:12px;padding:1px 2px;border:1px solid var(--line2);background:var(--field);color:var(--ink);border-radius:4px;max-width:100%}
 .ostars button{border:0;background:none;padding:0 1px;font-size:14px;color:var(--line2);cursor:pointer;line-height:1}
 .ostars button.on{color:#f0b400}.ostars button.omin{cursor:default;opacity:.55}
 .ownbtn[aria-pressed="true"]{background:var(--good);color:#fff;border-color:transparent}
@@ -934,6 +935,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 </div></dialog>
 <dialog id="dlgFeedback"><div class="dlg">
   <h2>不具合・ご要望</h2>
+  <div id="fbDone" hidden></div><div id="fbForm">
   <p class="hint" style="margin:0 0 6px">表示のおかしいところ、データの間違い、ほしい機能などを送ってください。いただいた内容は管理メンバーだけが見られます。</p>
   <div class="fbkinds"><label><input type="radio" name="fbKind" value="bug" checked> 不具合・データの間違い</label><label><input type="radio" name="fbKind" value="request"> ご要望</label><label><input type="radio" name="fbKind" value="other"> その他</label></div>
   <label for="fbText">内容</label>
@@ -942,8 +944,9 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
   <input id="fbContact" class="fbin" maxlength="200" placeholder="返信がほしい場合のみ：Discord ID や X アカウントなど">
   <p class="hint" style="margin-top:6px">送信元のページ：<span id="fbPage"></span></p>
   <p class="err" id="fbErr"></p>
+  <div id="fbHist"></div>
   <div class="foot"><button class="btn" data-close>閉じる</button><button class="btn primary" id="fbSend">送信する</button></div>
-</div></dialog>
+</div></div></dialog>
 
 <script type="application/json" id="seed">{}</script>
 <script type="application/json" id="assets">{}</script>
@@ -1349,7 +1352,7 @@ function autoTagsOf(text){const ss=String(text||"").split(/[。\n]/).filter(Bool
 function applyTagEdits(auto,edits){const set=new Set(auto);String(edits||"").split(/[,、，\n]/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(x[0]==="-")set.delete(x.slice(1));else set.add(x[0]==="+"?x.slice(1):x);});return [...set];}
 /* キャラ一覧のフィルター（ゲーム内と同じタブ）。同じ欄の中は「どれか」、欄どうしは「すべて」。効果タグはどれか／すべてを切り替え */
 /* 同じ絞り込みを キャラ一覧(chars)・Tier表(tier)・ランキング(rank) で使う。設定はそれぞれ別に持つ */
-const CFS={chars:{tab:"基本",sel:{},tagAll:false},tier:{tab:"基本",sel:{},tagAll:false},pool:{tab:"基本",sel:{},tagAll:false},rank:{tab:"基本",sel:{},tagAll:false},pick:{tab:"基本",sel:{},tagAll:false},sov:{tab:"基本",sel:{},tagAll:false}};
+const CFS={chars:{tab:"基本",sel:{},tagAll:false},tier:{tab:"基本",sel:{},tagAll:false},pool:{tab:"基本",sel:{},tagAll:false},rank:{tab:"基本",sel:{},tagAll:false},pick:{tab:"基本",sel:{},tagAll:false},sov:{tab:"基本",sel:{},tagAll:false},tb:{tab:"基本",sel:{},tagAll:false}};
 /* キャラ・スクリプトを選ぶ一覧（比較の相性・管理画面の紐付けなど）の絞り込み。描き直しは開いている一覧が登録する */
 let PICKRR=null;const setPickRerender=fn=>{PICKRR=fn||null;};
 let CFK="chars",CF=CFS.chars;
@@ -1378,7 +1381,7 @@ function cfBar(k){const st=CFS[k],n=cfCount(st);
    Tier表の未配置・ピッカーのものは常に出す。スマホでは折り返して2段にする */
 let QBOPEN=false;try{QBOPEN=localStorage.getItem("rxr-qbar")==="1";}catch(_){}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-qbtog]");if(!b)return;QBOPEN=!QBOPEN;try{localStorage.setItem("rxr-qbar",QBOPEN?"1":"0");}catch(_){}if(b.dataset.qbtog==="sov")openSharedOwn();else render();});
-function qbarChars(ctx){ctx=ctx||"chars";if((ctx==="chars"||ctx==="sov")&&!QBOPEN)return `<button class="qbtog" data-qbtog="${ctx}">▸ アイコンで絞り込み</button>`;const s=CFS[ctx].sel,on=(k,v)=>(s[k]||[]).includes(v);const pl=ctx==="pool",g=pl?floorGrp(curFloor()):"";
+function qbarChars(ctx){ctx=ctx||"chars";if((ctx==="chars"||ctx==="sov")&&!QBOPEN)return `<button class="qbtog" data-qbtog="${ctx}">▸ アイコンで絞り込み</button>`;const s=CFS[ctx].sel,on=(k,v)=>(s[k]||[]).includes(v);const pl=ctx==="pool"||ctx==="tb",g=ctx==="pool"?floorGrp(curFloor()):ctx==="tb"?floorGrp(floorObj(TB.floor)):"";
   const b=(k,v,inner,cls)=>`<button class="qb ${cls||""}" data-qf="${ctx}|${esc(k)}|${esc(v)}" aria-pressed="${on(k,v)}" title="${esc(v)}${k==="babel"?"（"+BABELGRP[v].join("・")+"）":""}">${inner}</button>`;
   return `<div class="qbar">${ROLES.filter(r=>r!=="ワイルド").map(r=>b("role",r,ic(r)||esc(ROLE_SHORT[r]||r))).join("")}${pl?`<i class="qsep"></i>${ATTRS.map(a=>b("attr",a,ic(a)||esc(a),ic(a)?"":"qtxt")).join("")}`:""}<i class="qsep"></i>${ORDERS.filter(o=>!g||BABELGRP[g].includes(o)).map(o=>b("order",o,ic(o,"ord")||esc(o.slice(0,2)))).join("")}${pl?"":`<i class="qsep"></i>${["アナザー","リビルド"].map(v=>b("babel",v,esc(v),"qtxt")).join("")}`}${ctx==="chars"||ctx==="sov"?`<button class="qbtog qbclose" data-qbtog="${ctx}" title="アイコンの絞り込みを隠す">▴ 隠す</button>`:""}</div>`;}
 function qbarScripts(){const st=tstate.scripts;const rs=[...new Set(ROLES.concat(SC.some(x=>x.role==="ワイルド")?["ワイルド"]:[]))];
@@ -1387,7 +1390,7 @@ document.addEventListener("click",e=>{const g=e.target.closest("[data-goctier]")
 document.addEventListener("click",e=>{const b=e.target.closest("[data-qf],[data-qsrole]");if(!b)return;const ds=b.dataset;
   if(ds.qf){const [x,k,...r]=ds.qf.split("|"),v=r.join("|");const a=CFS[x].sel[k]||(CFS[x].sel[k]=[]);const j=a.indexOf(v);if(j>=0)a.splice(j,1);else{if(k==="babel")a.length=0;a.push(v);}cfRerender(x);return;}
   if(ds.qsrole){tstate.scripts.role=tstate.scripts.role===ds.qsrole?null:ds.qsrole;renderScripts();}});
-function cfRerender(k){if(k==="pick"){if(PICKRR)PICKRR();return;}if(k==="sov"){openSharedOwn();return;}if(k==="tier"||k==="pool")renderTier();else if(k==="rank")renderRank();else renderChars();}
+function cfRerender(k){if(k==="pick"){if(PICKRR)PICKRR();return;}if(k==="tb"){tbRender();return;}if(k==="sov"){openSharedOwn();return;}if(k==="tier"||k==="pool")renderTier();else if(k==="rank")renderRank();else renderChars();}
 function cfToggle(k,v){const a=CF.sel[k]||(CF.sel[k]=[]);const i=a.indexOf(v);if(i>=0)a.splice(i,1);else a.push(v);}
 function cfDialogHtml(){
   const n=CH.filter(c=>cfMatch(c,CF)).length;const tabs=["基本","スタイル",...tagCats().map(([c])=>c)];
@@ -1582,7 +1585,7 @@ function renderCharPicker(){const dl=document.getElementById("dlgPickC");if(!dl)
   let l=CH.filter(c=>!c.unrel&&cfMatch(c,CFS.pick));if(q){const hi=data("chars").headers.indexOf("名前 ひらがな");l=l.filter(c=>(c.name+c.id+(hi>=0?c.row[hi]||"":"")).toLowerCase().includes(q));}l=sortList("chars",l);
   const b=cfBar("pick");const body=document.getElementById("pickCBody");const gr=body.querySelector(".pkgrid"),y=gr?gr.scrollTop:0;
   body.innerHTML=`<div class="pkhead"><h2>${esc(CPK.title)}</h2><input class="search" id="pickCQ" placeholder="名前で検索" value="${esc(CPK.q)}"><span class="count">${l.length}人</span></div>
-  <div class="pkfil">${b.btn}${b.chips}${qbarChars("pick")}</div>
+  <div class="pkfil">${b.btn}${qbarChars("pick")}${b.chips}</div>
   <div class="pkgrid"><div class="ccards">${l.map(c=>{const img=BANNER[c.id]||IMG[c.id];return `<button class="ccard${c.id===CPK.cur?" pkcur":""}" data-pickc="${esc(c.id)}">${img?`<span class="ccimg" data-lbg="${encU(img)}"></span>`:'<span class="ccimg none"></span>'}<span class="cctop">${ic(c.role)}${ic(c.attr)}</span><span class="ccname"><b>${esc(c.bname||c.base||c.name)}</b>${c.style?`<small>[${esc(c.style)}]</small>`:""}</span></button>`;}).join("")||'<p class="count">該当するキャラがいません</p>'}</div></div>
   <div class="foot"><span class="count">カードを押すと選ばれます。</span><span style="flex:1"></span><button class="btn" data-pickcclose="1">閉じる</button></div>`;
   const g2=body.querySelector(".pkgrid");if(g2)g2.scrollTop=y;
@@ -1744,7 +1747,7 @@ function renderTier(){
   h+=`<div class="pool"><div class="poolhead"><h3>未配置 <span class="count">${list.length}</span></h3>
     <input class="search" id="poolQ" placeholder="キャラ名で絞り込み" value="${esc(pool.q)}">
     <div class="seg"><button data-psort="fit" aria-pressed="${pool.sort==="fit"}">適性順</button><button data-psort="new" aria-pressed="${pool.sort==="new"}">新しい順</button><button data-psort="name" aria-pressed="${pool.sort==="name"}">名前順</button></div>
-    ${pcf.btn}${pcf.chips}${qbarChars("pool")}
+    ${pcf.btn}${qbarChars("pool")}${pcf.chips}
   </div><div class="zone${sel?" armed":""}" data-zone="" style="min-height:70px">${list.map(c=>ptile(c)).join("")||'<span class="count">ここに表示するキャラはいません</span>'}</div></div>
   <p class="hint">未配置のキャラは、解析データと推奨属性から出した「環境適性」の高い順に並んでいます（▲▼の数字は配置後のタイルに表示）。タップで選んで下のバーからTierを選択、PCはドラッグでも動かせます。Tierの中の左右の並びは、バーの◀▶か、タイルの間にドラッグして変えられます。ダブルクリックで詳細。</p>
   </section></div>`;
@@ -1835,8 +1838,8 @@ function renderChars(){
   let h=`<div class="toolbar"><h2><small>CHARACTERS</small>キャラデータ</h2><input class="search" id="tq" placeholder="スキル効果なども含めて検索" value="${esc(st.q)}"><span class="count">${list.length} / ${CH.length}</span>
   <span class="tbright">${sortBar("chars")}<button class="btn small" data-sortopen="chars">⇅ 並び替え</button>${cfb.btn}
   <span class="viewsw"><button data-cview="card" aria-pressed="${card}">カード</button><button data-cview="table" aria-pressed="${!card}">表</button></span></span>
-  ${cfb.chips}
   ${qbarChars()}
+  ${cfb.chips}
   ${card?"":`<button class="btn small" data-act="allcols">${st.all?"主要な列だけ表示":"全部の列を表示"}</button>`}</div>`;
   if(card){main.innerHTML=h+(list.length?`<div class="ccards">${list.map(charCard).join("")}</div>`:'<div class="empty"><h2>該当するキャラがいません</h2></div>')+`<p class="hint">カードをタップすると詳細が見られます。「表」に切り替えると、ステータスなどを一覧で比べられます。</p>`;
     const tq=document.getElementById("tq");liveInput(tq,()=>{st.q=tq.value;const p=tq.selectionStart;renderChars();const n=document.getElementById("tq");n.focus();n.setSelectionRange(p,p);});return;}
@@ -1872,8 +1875,8 @@ function renderScripts(){
   let h=`<div class="toolbar"><h2><small>SCRIPTS</small>スクリプト</h2><input class="search" id="sq" placeholder="名前・効果・条件で検索" value="${esc(st.q)}"><span class="count">${list.length} / ${SC.length}</span>
   <span class="tbright">${sortBar("scripts")}<button class="btn small" data-sortopen="scripts">⇅ 並び替え</button><button class="btn primary small cfbtn" data-sfopen>▼ 絞り込み${sfActive().length?` <b>${sfActive().length}</b>`:""}</button>
   <span class="viewsw"><button data-sview="card" aria-pressed="${st.view!=="table"}">カード</button><button data-sview="table" aria-pressed="${st.view==="table"}">表</button></span></span>
-  ${sfActive().length?`<div class="chips cfactive">${sfActive().map(([k,v])=>`<button class="chip" data-sfrm="${k}" aria-pressed="true">${esc(v)} ✕</button>`).join("")}</div>`:""}
-  ${qbarScripts()}</div>
+  ${qbarScripts()}
+  ${sfActive().length?`<div class="chips cfactive">${sfActive().map(([k,v])=>`<button class="chip" data-sfrm="${k}" aria-pressed="true">${esc(v)} ✕</button>`).join("")}</div>`:""}</div>
 `;
   if(st.view!=="table"){main.innerHTML=h+(list.length?`<div class="ccards">${list.map(scriptCard).join("")}</div>`:'<div class="empty"><h2>該当するスクリプトがありません</h2></div>')+`<p class="hint">カードをタップすると、詳細と条件に合うキャラが見られます。「表」に切り替えると、ステータスや効果を一覧で比べられます。</p>`;
     const sq=document.getElementById("sq");liveInput(sq,()=>{st.q=sq.value;const p=sq.selectionStart;renderScripts();const n=document.getElementById("sq");n.focus();n.setSelectionRange(p,p);});return;}
@@ -1961,19 +1964,20 @@ function tbOpen(o){Object.assign(TB,{pool:null,spool:null,sonly:true,owner:"",fl
   let dl=document.getElementById("dlgTB");if(!dl){dl=document.createElement("dialog");dl.id="dlgTB";dl.className="wide";dl.innerHTML=`<div class="dlg" id="tbBody"></div>`;document.body.appendChild(dl);}
   tbRender();if(!dl.open)dl.showModal();}
 function tbPoolList(){const f=floorObj(TB.floor);const q=TB.q.trim().toLowerCase();
-  return CH.filter(c=>!c.unrel&&(!TB.pool||TB.pool[c.id])&&(!f||grpOk(c,f))&&(!q||(c.name+c.id+(c.bname||"")+(c.kana||"")).toLowerCase().includes(q)));}
+  return CH.filter(c=>!c.unrel&&(!TB.pool||TB.pool[c.id])&&(!f||grpOk(c,f))&&cfMatch(c,CFS.tb)&&(!q||(c.name+c.id+(c.bname||"")+(c.kana||"")).toLowerCase().includes(q)));}
 function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById("tbBody");if(!body)return;const m=TB.ms[TB.sel]||{};const c=CHMAP[m.id];
   const who=TB.pool?(TB.owner?`${esc(TB.owner)} さんの所持キャラ`:TB.pool===S.own?"あなたの所持キャラ":"共有された所持キャラ"):"すべてのキャラ";
   const g=floorGrp(floorObj(TB.floor));
   let pick="";
   if(TB.pick==="c"){const L=sortList("chars",tbPoolList().slice());
-    pick=`<div class="tbpk"><input class="search" id="tbQ" placeholder="キャラ名で絞り込み" value="${esc(TB.q)}"><span class="count">${L.length}人</span></div>
+    const tcf=cfBar("tb");
+    pick=`<div class="tbpk"><input class="search" id="tbQ" placeholder="キャラ名で絞り込み" value="${esc(TB.q)}">${tcf.btn}<span class="count">${L.length}人</span></div>${qbarChars("tb")}${tcf.chips}
     <div class="tbgrid">${L.map(x=>{const st=TB.pool?+TB.pool[x.id]||0:0;const u=tbUsedChar(x);return `<button class="tbch${x.id===m.id?" on":""}${u>=0?" tbused":""}" data-tbpick="${esc(x.id)}" ${u>=0?"disabled":""} title="${esc(x.name)}${u>=0?`（枠${u+1}で使用中）`:""}">${cth(x)}<span>${esc(x.name)}</span>${st?`<i>★${st}</i>`:""}${u>=0?`<em>枠${u+1}</em>`:""}</button>`;}).join("")||'<p class="count">使えるキャラがいません</p>'}</div>`;}
   else if(c){const q=TB.q.trim().toLowerCase();const sp=TB.spool;
     // 所持スクリプトの記録があれば、所持だけ（切り替えで全部・未所持はグレー）。持っているものを先に
     const L=SC.filter(x=>x.name&&!x.unrel&&(!x.role||!c.role||x.role===c.role||x.role==="ワイルド")&&(!q||x.name.toLowerCase().includes(q))&&(!sp||!TB.sonly||sp[x.id])).sort((a,b)=>(sp?(sp[b.id]?1:0)-(sp[a.id]?1:0):0)||(RAR[b.rar]||0)-(RAR[a.rar]||0)||b.date-a.date);
     pick=`<div class="tbpk"><input class="search" id="tbQ" placeholder="スクリプト名で絞り込み" value="${esc(TB.q)}"><span class="count">${esc(c.role||"")}・ワイルドのスクリプト ${L.length}枚</span>${sp?`<span class="viewsw"><button data-tbsonly="1" aria-pressed="${TB.sonly}">所持だけ</button><button data-tbsonly="0" aria-pressed="${!TB.sonly}">すべて</button></span>`:`<span class="count">（スクリプトの所持の記録なし）</span>`}${m.sc?`<button class="btn small" data-tbsc="">スクリプトを外す</button>`:""}</div>
-    <div class="tbgrid">${L.map(x=>{const v=sp?+sp[x.id]||0:0;const u=TB.ms.findIndex((y,j)=>j!==TB.sel&&y.sc===x.id);return `<button class="tbch${x.id===m.sc?" on":""}${sp&&!v?" tmnot":""}${u>=0?" tbused":""}" data-tbsc="${esc(x.id)}" ${u>=0?"disabled":""} title="${esc(x.name)}${u>=0?`（枠${u+1}で使用中）`:""}">${sth(x)}<span>${esc(x.name)}</span>${v?`<i>★${v}</i>`:""}${u>=0?`<em>枠${u+1}</em>`:""}</button>`;}).join("")||'<p class="count">該当するスクリプトがありません</p>'}</div>`;}
+    <div class="tbgrid">${L.map(x=>{const v=sp?+sp[x.id]||0:0;const u=TB.ms.findIndex((y,j)=>j!==TB.sel&&y.sc===x.id);return `<button class="tbch${x.id===m.sc?" on":""}${sp&&!v?" tmnot":""}${u>=0?" tbused":""}" data-tbsc="${esc(x.id)}" ${u>=0?"disabled":""} title="${esc(x.name)}${u>=0?`（枠${u+1}で使用中）`:""}">${sth(x)}<span>${esc(x.name)}</span>${v?`<i>${lbLabel(v)}</i>`:""}${u>=0?`<em>枠${u+1}</em>`:""}</button>`;}).join("")||'<p class="count">該当するスクリプトがありません</p>'}</div>`;}
   const min=rarMin(c);
   const ed=c?`<div class="tbed"><b>枠${TB.sel+1}：${esc(c.name)}</b>
     <label>星 <select data-tbf="star">${[1,2,3,4,5].filter(n=>n>=min).map(n=>`<option value="${n}" ${String(n)===String(m.star)?"selected":""}>★${n}</option>`).join("")}</select></label>
@@ -2432,7 +2436,14 @@ async function sendFeedback(o){
   const sv=v=>({stringValue:String(v||"")});
   await fsCommit([{update:{name:fsDoc("feedback/"+id),fields:{kind:sv(o.kind),text:sv(o.text),contact:sv(o.contact),page:sv(o.page),ua:sv(o.ua),status:sv("new")}},
     updateTransforms:[{fieldPath:"at",setToServerValue:"REQUEST_TIME"}],currentDocument:{exists:false}}]);
+  return id;
 }
+/* 送ったご意見はこの端末に覚えておき（最新20件）、送信後の画面と「これまでに送ったもの」に出す。受付番号＝ID の末尾6文字（管理画面のご意見にも同じ番号） */
+const fbNo=id=>String(id||"").slice(-6).toUpperCase();
+const FBKL={bug:"不具合・データの間違い",request:"ご要望",other:"その他"};
+function fbSent(){try{return JSON.parse(localStorage.getItem("fb-sent")||"[]");}catch(_){return [];}}
+function fbHistHtml(){const l=fbSent();if(!l.length)return "";const d=t=>{const x=new Date(t);return `${x.getMonth()+1}/${x.getDate()} ${x.getHours()}:${String(x.getMinutes()).padStart(2,"0")}`;};
+  return `<details class="fbhist"><summary>これまでに送ったもの（${l.length}件）</summary>${l.map(x=>`<div class="fbh"><small>${d(x.at)}・${esc(FBKL[x.kind]||"")}・受付番号 ${esc(fbNo(x.id))}</small><p>${esc(x.text)}</p></div>`).join("")}</details>`;}
 async function loadSite(){
   const get=p=>fetch(p,{cache:"no-cache"}).then(r=>{if(!r.ok)throw new Error(p);return r.json();});
   const imP=get("data/images.json").catch(()=>null);
@@ -2637,6 +2648,9 @@ document.addEventListener("click",e=>{
 /* ================= 所持率チェッカー（キャラ＝own／スクリプト＝sown） ================= */
 const OWNF={q:"",attr:null,role:null,show:"all",sort:"date"},SOWNF={q:"",attr:null,role:null,show:"all",sort:"date"};
 const OWN=()=>S.own||(S.own={}),SOWN=()=>S.sown||(S.sown={});
+document.addEventListener("change",e=>{const el=e.target.closest&&e.target.closest("[data-ownlb]");if(!el||tab!=="sown")return;const o=SOWN();if(el.value)o[el.dataset.ownlb]=+el.value;else delete o[el.dataset.ownlb];save();renderOwn();});
+/* スクリプトの所持は★ではなく限界突破：値 1〜4＝0〜3凸、5〜13＝3凸のあと +1〜+9（ゲームと同じ）。前に★1〜5で記録したものは 0凸〜+1 として読む */
+const SLB_MAX=13,lbLabel=v=>{v=+v||0;return !v?"":v<=4?`${v-1}凸`:`+${v-4}`;};
 // 所持率のグラフ（開いた状態を覚える）
 let OWNHEADOPEN=false;
 document.addEventListener("toggle",e=>{const d=e.target;if(d instanceof HTMLDetailsElement&&d.classList.contains("ownheadbox"))OWNHEADOPEN=d.open;},true);
@@ -2663,7 +2677,7 @@ function renderOwn(){
   if(F.attr)list=list.filter(c=>(K==="s"?c.rar:c.attr)===F.attr);if(F.role)list=list.filter(c=>c.role===F.role);
   if(F.show==="own")list=list.filter(c=>o[c.id]);else if(F.show==="not")list=list.filter(c=>!o[c.id]);
   if(F.sort==="date")list.sort((a,b)=>b.date-a.date);else if(F.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));else list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
-  const attrs=K==="s"?["SSR","SR","R"].filter(a=>items.some(c=>c.rar===a)):ATTRS.filter(a=>items.some(c=>c.attr===a)),roles=ROLES.concat(K==="s"?["ワイルド"]:[]).filter(a=>items.some(c=>c.role===a)),ords=K==="s"?[]:ORDERS.filter(a=>items.some(c=>c.order===a));
+  const attrs=K==="s"?["SSR","SR","R"].filter(a=>items.some(c=>c.rar===a)):ATTRS.filter(a=>items.some(c=>c.attr===a)),roles=[...new Set(ROLES.concat(K==="s"?["ワイルド"]:[]))].filter(a=>items.some(c=>c.role===a)),ords=K==="s"?[]:ORDERS.filter(a=>items.some(c=>c.order===a));
   const by=(a)=>items.filter(c=>(K==="s"?c.rar:c.attr)===a);
   let sub="";if(K==="c"){const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;sub=`<span>キャラクター ${bOwned} / ${bases.length}</span>`;const un=CH.filter(c=>c.unrel).length;if(un)sub+=`<span>未実装の${un}スタイルは数えません</span>`;}
   let h=`${OSH.ret!=null?`<div class="oshback">${K==="s"?"スクリプト":"キャラ"}の所持を設定したら → <button class="btn small primary" data-ownret="1">編成を組んでもらうに戻る</button>${K==="c"?`<button class="aclink2" data-owngo="sown">スクリプトの所持も設定する</button>`:`<button class="aclink2" data-owngo="own">キャラの所持を設定する</button>`}</div>`:""}<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span>${K==="c"?`<button class="btn small primary" data-act="ownlink">🔗 所持キャラを共有</button><button class="btn small" data-tbopen="own">🛠 所持キャラで編成を組む</button>`:""}<button class="btn small" data-act="ownshare">画像で共有</button></div>
@@ -2671,19 +2685,19 @@ function renderOwn(){
   <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}</span>${sub}</div>
   <div class="ownstars">${stars.map((n,i)=>`<div><span class="st">${"★".repeat(i+1)}</span><b>${n}</b></div>`).reverse().join("")}</div>
   <div class="ownbars"><div>${attrs.map(a=>bar(a,ownStats(by(a),o),K==="s"?"":ic(a))).join("")}</div><div>${roles.map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div>${ords.length?`<div>${ords.map(a=>bar(a,ownStats(items.filter(c=>c.order===a),o),ic(a,"ord"))).join("")}</div>`:""}</div></div></details>
-  <p class="hint" style="margin:0 0 10px">${W}の画像を押すと「持っている／持っていない」が切り替わります。★を押すと凸数（星の数）を記録できます。${LOGGEDIN?"記録はアカウントにも保存されます（ほかの端末でも同じアカウントでログインすると同じ記録になります）。":`記録はこのブラウザに保存されます。<button class="aclink2" data-account>ログイン</button>するとアカウントにも保存でき、機種変更しても消えません。`}</p>
+  <p class="hint" style="margin:0 0 10px">${W}の画像を押すと「持っている／持っていない」が切り替わります。${K==="s"?"下の欄で限界突破（0〜3凸、そのあと +1〜+9）を記録できます。":"★を押すと凸数（星の数）を記録できます。"}${LOGGEDIN?"記録はアカウントにも保存されます（ほかの端末でも同じアカウントでログインすると同じ記録になります）。":`記録はこのブラウザに保存されます。<button class="aclink2" data-account>ログイン</button>するとアカウントにも保存でき、機種変更しても消えません。`}</p>
   <div class="ownctl"><input class="search" id="ownQ" placeholder="${W}名で絞り込み" value="${esc(F.q)}">
    <div class="seg"><button data-ownshow="all" aria-pressed="${F.show==="all"}">すべて</button><button data-ownshow="own" aria-pressed="${F.show==="own"}">所持</button><button data-ownshow="not" aria-pressed="${F.show==="not"}">未所持</button></div>
-   <div class="seg"><button data-ownsort="date" aria-pressed="${F.sort==="date"}">新しい順</button><button data-ownsort="name" aria-pressed="${F.sort==="name"}">名前順</button><button data-ownsort="star" aria-pressed="${F.sort==="star"}">★順</button></div>
+   <div class="seg"><button data-ownsort="date" aria-pressed="${F.sort==="date"}">新しい順</button><button data-ownsort="name" aria-pressed="${F.sort==="name"}">名前順</button><button data-ownsort="star" aria-pressed="${F.sort==="star"}">${K==="s"?"凸順":"★順"}</button></div>
    <div class="chips">${attrs.map(a=>`<button class="chip" data-ownattr="${a}" aria-pressed="${F.attr===a}">${K==="s"?"":ic(a)}${a}</button>`).join("")}</div>
    <div class="chips">${roles.map(a=>`<button class="chip" data-ownrole="${a}" aria-pressed="${F.role===a}">${ic(a)}${a}</button>`).join("")}</div>
    <span style="flex:1"></span><button class="btn small" data-act="ownall">表示中をすべて所持に</button><button class="btn small" data-act="ownreset">リセット</button></div>
-  <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${c.col}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${c.img?`<img src="${c.img}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span><span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}${n<ownMin(K,c.id)?" omin":""}" aria-label="★${n}">★</button>`).join("")}</span></div>`;}).join("")||`<p class="count">該当する${W}がありません</p>`}</div>`;
+  <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${c.col}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${c.img?`<img src="${c.img}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span>${K==="s"?`<select class="olb" data-ownlb="${esc(c.id)}" aria-label="限界突破"><option value="">未所持</option>${Array.from({length:SLB_MAX},(_,i)=>i+1).map(n=>`<option value="${n}" ${+st===n?"selected":""}>${lbLabel(n)}</option>`).join("")}</select>`:`<span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}${n<ownMin(K,c.id)?" omin":""}" aria-label="★${n}">★</button>`).join("")}</span>`}</div>`;}).join("")||`<p class="count">該当する${W}がありません</p>`}</div>`;
   main.innerHTML=h;
   const qi=document.getElementById("ownQ");liveInput(qi,()=>{F.q=qi.value;const p=qi.selectionStart;renderOwn();const n=document.getElementById("ownQ");n.focus();n.setSelectionRange(p,p);});
 }
 main.addEventListener("click",e=>{
-  if(tab!=="own"&&tab!=="sown")return;const t=e.target.closest("[data-owntoggle],[data-ownstar],[data-ownshow],[data-ownsort],[data-ownattr],[data-ownrole]");if(!t)return;const ds=t.dataset;const K=OKIND(),o=K==="s"?SOWN():OWN(),F=K==="s"?SOWNF:OWNF;
+  if(tab!=="own"&&tab!=="sown")return;if(e.target.closest("[data-ownlb]"))return;const t=e.target.closest("[data-owntoggle],[data-ownstar],[data-ownshow],[data-ownsort],[data-ownattr],[data-ownrole]");if(!t)return;const ds=t.dataset;const K=OKIND(),o=K==="s"?SOWN():OWN(),F=K==="s"?SOWNF:OWNF;
   // ID に「|」が入ることはないが、スクリプト名は念のため最後の「|」で分ける
   if(ds.owntoggle){if(o[ds.owntoggle])delete o[ds.owntoggle];else o[ds.owntoggle]=ownMin(K,ds.owntoggle);save();renderOwn();return;}
   if(ds.ownstar){const i=ds.ownstar.lastIndexOf("|"),id=ds.ownstar.slice(0,i);o[id]=Math.max(+ds.ownstar.slice(i+1),ownMin(K,id));save();renderOwn();return;}
@@ -2705,11 +2719,11 @@ async function makeOwnImage(){
   c.fillStyle="#fff";c.font=`900 34px ${JP}`;c.fillText(K==="s"?"スクリプト所持率":"キャラ所持率",PAD,82);
   c.font=`700 84px ${EN}`;c.fillText(`${all.p}%`,PAD,170);const pw=c.measureText(`${all.p}%`).width;
   c.font=`700 24px ${JP}`;c.fillStyle="#e6f0ff";c.fillText(`${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}`,PAD+pw+24,140);
-  const stars=[5,4,3,2,1].map(n=>[n,list.filter(ch=>o[ch.id]===n).length]);c.font=`700 20px ${JP}`;let sx=PAD+pw+24;stars.forEach(([n,k])=>{const t=`★${n}×${k}`;c.fillStyle="#ffd84a";c.fillText(t,sx,172);sx+=c.measureText(t).width+18;});
+  const stars=K==="s"?[["+1以上",v=>v>=5],["3凸",v=>v===4],["2凸",v=>v===3],["1凸",v=>v===2],["0凸",v=>v===1]].map(([l,f])=>[l,list.filter(ch=>f(+o[ch.id]||0)).length]):[5,4,3,2,1].map(n=>["★"+n,list.filter(ch=>o[ch.id]===n).length]);c.font=`700 20px ${JP}`;let sx=PAD+pw+24;stars.forEach(([n,k])=>{const t=`${n}×${k}`;c.fillStyle="#ffd84a";c.fillText(t,sx,172);sx+=c.measureText(t).width+18;});
   const imgs={};await Promise.all(list.map(async ch=>{imgs[ch.id]=await loadImgEl(ch.img);}));
   list.forEach((ch,i)=>{const x=PAD+(i%per)*(TS+GAP),y=HEAD+10+Math.floor(i/per)*(TS+14+GAP);const st=o[ch.id]||0;
     c.save();rrect(x,c,y,TS,TS,5);c.clip();c.fillStyle=st?"#dff1ff":"#3d4f6e";c.fillRect(x,y,TS,TS);const im=imgs[ch.id];if(im){if(!st)c.filter="grayscale(1) brightness(.55)";const sc=Math.max(TS/im.width,TS/im.height);c.drawImage(im,x+(TS-im.width*sc)/2,y+(TS-im.height*sc)/2,im.width*sc,im.height*sc);c.filter="none";}else{c.fillStyle=st?"#0d2346":"#9fb3d1";c.font=`700 10px ${JP}`;const parts=ch.name.split(/\s+/);parts.slice(0,2).forEach((t,k)=>{let tt=t;while(c.measureText(tt).width>TS-6&&tt.length>1)tt=tt.slice(0,-1);c.fillText(tt,x+(TS-c.measureText(tt).width)/2,y+TS/2+(k-0.5*(Math.min(parts.length,2)-1))*13+4);});}c.restore();
-    if(st){c.fillStyle="#ffd84a";c.font=`700 11px ${JP}`;const t="★".repeat(st);c.fillText(t,x+(TS-c.measureText(t).width)/2,y+TS+12);}});
+    if(st){c.fillStyle="#ffd84a";c.font=`700 11px ${JP}`;const t=K==="s"?lbLabel(st):"★".repeat(st);c.fillText(t,x+(TS-c.measureText(t).width)/2,y+TS+12);}});
   const fy=H-FOOT;g=c.createLinearGradient(0,fy,0,H);g.addColorStop(0,"rgba(5,20,55,0)");g.addColorStop(.35,"rgba(5,20,55,.85)");g.addColorStop(1,"rgba(5,20,55,.95)");c.fillStyle=g;c.fillRect(0,fy,W,FOOT);
   c.fillStyle="#fff";c.font=`900 22px ${JP}`;c.fillText("RxRwiki｜リバリバ 所持率チェッカー",PAD,H-38);c.fillStyle="#9fd2ff";c.font=`600 20px ${EN}`;c.fillText(SITE_URL.replace(/^https?:\/\//,""),PAD,H-12);
   const d=new Date();const ds=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;c.fillStyle="#cfe3ff";c.font=`500 15px ${JP}`;c.fillText(ds,W-PAD-c.measureText(ds).width,H-14);
@@ -2743,11 +2757,13 @@ function charNo(c){const i=data("chars").headers.indexOf("No");const n=i>=0?pars
 function ownEncode(o){const by={};CH.forEach(c=>{const n=charNo(c);if(n&&o[c.id])by[n]=Math.max(1,Math.min(5,+o[c.id]||1));});
   const max=Math.max(0,...Object.keys(by).map(Number));let s="";for(let n=1;n<=max;n+=2)s+=B64[(by[n]||0)*8+(by[n+1]||0)];
   const z=(s.match(/^A*/)||[""])[0].length;return z>3?z.toString(36)+"."+s.slice(z):s;}   // 先頭の未所持の続きは「個数.」に縮める
-// 所持スクリプト：名前のハッシュ（27bit）＋★（3bit）を base64url 5文字ずつ（スクリプトが増えても読める）
+// 所持スクリプト：先頭「~」＋ ID のハッシュ（26bit）＋限界突破（4bit。1〜13）を base64url 5文字ずつ（スクリプトが増えても読める）。
+// 「~」が無い古いリンクは ハッシュ27bit＋★3bit（★は 1〜5 をそのまま限界突破の値として読む）
 const fnv=t=>{let h=0x811c9dc5;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,0x01000193);}return h>>>0;};
-function sownEncode(o){return Object.keys(o).filter(n=>o[n]&&SC.some(x=>x.id===n&&!x.unrel)).map(n=>((fnv(n)&0x7FFFFFF)*8+Math.max(1,Math.min(5,+o[n]||1)))).sort((a,b)=>a-b).map(v=>{let c="";for(let k=0;k<5;k++){c=B64[v%64]+c;v=Math.floor(v/64);}return c;}).join("");}
-function sownDecode(code){const by={};SC.forEach(x=>{if(x.id)by[fnv(x.id)&0x7FFFFFF]=x.id;});const o={};code=String(code||"");
-  for(let i=0;i+5<=code.length;i+=5){let v=0;for(let k=0;k<5;k++){const d=B64.indexOf(code[i+k]);if(d<0){v=-1;break;}v=v*64+d;}if(v<0)continue;const n=by[Math.floor(v/8)];if(n)o[n]=v%8||1;}return o;}
+function sownEncode(o){return "~"+Object.keys(o).filter(n=>o[n]&&SC.some(x=>x.id===n&&!x.unrel)).map(n=>((fnv(n)&0x3FFFFFF)*16+Math.max(1,Math.min(SLB_MAX,+o[n]||1)))).sort((a,b)=>a-b).map(v=>{let c="";for(let k=0;k<5;k++){c=B64[v%64]+c;v=Math.floor(v/64);}return c;}).join("");}
+function sownDecode(code){code=String(code||"");const v2=code[0]==="~";if(v2)code=code.slice(1);const M=v2?0x3FFFFFF:0x7FFFFFF,D=v2?16:8;
+  const by={};SC.forEach(x=>{if(x.id)by[fnv(x.id)&M]=x.id;});const o={};
+  for(let i=0;i+5<=code.length;i+=5){let v=0;for(let k=0;k<5;k++){const d=B64.indexOf(code[i+k]);if(d<0){v=-1;break;}v=v*64+d;}if(v<0)continue;const n=by[Math.floor(v/D)];if(n)o[n]=Math.min(SLB_MAX,v%D||1);}return o;}
 function ownDecode(code){code=String(code||"");const dot=code.indexOf(".");if(dot>0)code="A".repeat(Math.min(5000,parseInt(code.slice(0,dot),36)||0))+code.slice(dot+1);const byNo={};CH.forEach(c=>{const n=charNo(c);if(n)byNo[n]=c.id;});const o={};
   String(code||"").split("").forEach((ch,i)=>{const v=B64.indexOf(ch);if(v<0)return;const a=v>>3,b=v&7,n=i*2+1;if(a&&byNo[n])o[byNo[n]]=Math.min(5,a);if(b&&byNo[n+1])o[byNo[n+1]]=Math.min(5,b);});return o;}
 /* 所持キャラを共有するダイアログ：名前・困っている階層（任意）・ひとこと（任意）。階層を入れると、組む側の編成ビルダーはその階層で固定 */
@@ -2894,7 +2910,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=57");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=58");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -2910,7 +2926,7 @@ function track(name,params){try{if(window.gtag)gtag("event",name,params||{});}ca
 const dlgF=document.getElementById("dlgFeedback");
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-feedback]");if(!b)return;ev.preventDefault();
   document.getElementById("fbText").value="";document.getElementById("fbContact").value="";document.getElementById("fbErr").textContent="";
-  document.getElementById("fbPage").textContent=feedbackPage();dlgF.showModal();});
+  document.getElementById("fbPage").textContent=feedbackPage();document.getElementById("fbDone").hidden=true;document.getElementById("fbForm").hidden=false;document.getElementById("fbHist").innerHTML=fbHistHtml();dlgF.showModal();});
 function feedbackPage(){const f=curFloor();const t={home:"ホーム",guide:"使い方ガイド",faq:"Q&A",tier:"バベル攻略",seal:"封印戦",sum:"全階層まとめ",chars:"キャラ一覧",babel:"階層一覧",scripts:"スクリプト",rank:"ランキング",ctier:"全体Tier",knights:"騎士",events:"イベント",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー"}[tab]||tab;return t+(tab==="tier"&&f?`（${f.type} ${f.floor}F）`:"");}
 document.getElementById("fbSend").addEventListener("click",async e=>{
   const text=document.getElementById("fbText").value.trim(),contact=document.getElementById("fbContact").value.trim(),kind=document.querySelector('input[name="fbKind"]:checked').value;
@@ -2919,13 +2935,17 @@ document.getElementById("fbSend").addEventListener("click",async e=>{
   if(text.length>2000){err.textContent="2000文字以内で入力してください";return;}
   try{const last=+localStorage.getItem("fb-last")||0;if(Date.now()-last<60000){err.textContent="続けて送信できません。1分ほど待ってからもう一度送ってください";return;}}catch(_){}
   e.target.disabled=true;e.target.textContent="送信中…";
-  try{await sendFeedback({kind,text,contact,page:feedbackPage(),ua:navigator.userAgent.slice(0,180)});
-    try{localStorage.setItem("fb-last",String(Date.now()));}catch(_){}
-    dlgF.close();toast("送信しました。ご協力ありがとうございます");}
+  try{const id=await sendFeedback({kind,text,contact,page:feedbackPage(),ua:navigator.userAgent.slice(0,180)});
+    try{localStorage.setItem("fb-last",String(Date.now()));localStorage.setItem("fb-sent",JSON.stringify([{id,at:Date.now(),kind,text:text.slice(0,300)}].concat(fbSent()).slice(0,20)));}catch(_){}
+    const dn=document.getElementById("fbDone");dn.innerHTML=`<div class="fbok"><b>✅ 送信しました。運営に届いています</b><p>受付番号：<b>${esc(fbNo(id))}</b>（${esc(FBKL[kind]||"")}）</p><p class="fbq">${esc(text.length>200?text.slice(0,200)+"…":text)}</p>
+      <p class="hint">いただいた内容は管理メンバーが確認します。${contact?"返信が必要な内容は、書いていただいた連絡先にご連絡することがあります。":"返信はしていません（返信がほしいときは連絡先を書いて送ってください）。"}</p></div>
+      <div class="foot"><button class="btn" data-fbagain="1">続けて送る</button><button class="btn primary" data-close>閉じる</button></div>`;
+    dn.hidden=false;document.getElementById("fbForm").hidden=true;track("feedback_sent",{kind});}
   catch(x){err.textContent="送信できませんでした。時間をおいてもう一度お試しください";}
   e.target.disabled=false;e.target.textContent="送信する";
 });
 
+document.addEventListener("click",e=>{if(!e.target.closest("[data-fbagain]"))return;document.getElementById("fbText").value="";document.getElementById("fbErr").textContent="";document.getElementById("fbHist").innerHTML=fbHistHtml();document.getElementById("fbDone").hidden=true;document.getElementById("fbForm").hidden=false;});
 /* ================= ユーザーのログイン（js/user.js。ログインしたことがある端末か、ログインを押したときだけ読み込む） ================= */
 let USERMOD=null;
 function loadUser(){if(!USERMOD)USERMOD=import("./js/user.js?v=1").then(m=>{m.init();return m;}).catch(e=>{USERMOD=null;toast("ログインの準備ができませんでした。通信を確認してください");throw e;});return USERMOD;}
