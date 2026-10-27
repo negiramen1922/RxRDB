@@ -300,7 +300,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .flinfos{display:flex;flex-direction:column;gap:6px;margin:8px 0}.flinfos .flinfo{margin:0}.flinfo{margin:8px 0;border:1px solid var(--line);background:var(--panel)}.flinfo>summary{cursor:pointer;padding:8px 12px;font-weight:700;font-size:13px;color:var(--accent-ink);list-style:none}.flinfo>summary::-webkit-details-marker{display:none}.flinfo>summary::after{content:" ▼";font-size:10px}.flinfo[open]>summary::after{content:" ▲"}
 .flbody{padding:0 12px 10px;max-height:50vh;overflow:auto}.flboss{display:flex;align-items:center;gap:8px;margin:0 0 8px}.flboss img{width:40px;height:40px;object-fit:cover;border-radius:4px}
 .fltier>div{display:flex;gap:6px;align-items:flex-start;margin:3px 0}.fltier b{min-width:2.6em;text-align:center;font-size:12px;padding:2px 4px;background:var(--soft)}.fltier>div>span{display:flex;flex-wrap:wrap;gap:3px}
-.fltc{position:relative;display:block}.fltc img,.fltc .noth{width:34px;height:34px;border-radius:4px;object-fit:cover;display:grid;place-items:center}.fltc i{position:absolute;right:-2px;bottom:-2px;font-style:normal;font-size:9px;font-weight:900;color:#e0a400;background:#fff;padding:0 2px;border-radius:3px}
+.fltc{position:relative;display:block}.shtier .fltc{border:0;background:none;padding:0;cursor:pointer}.shtier .fltc img,.shtier .fltc .noth{width:44px;height:44px}.fltc img,.fltc .noth{width:34px;height:34px;border-radius:4px;object-fit:cover;display:grid;place-items:center}.fltc i{position:absolute;right:-2px;bottom:-2px;font-style:normal;font-size:9px;font-weight:900;color:#e0a400;background:#fff;padding:0 2px;border-radius:3px}
 .tbfloor{font-weight:700;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .tmsr{font-size:10px;font-weight:900;color:#ffd84a;text-shadow:0 0 2px #000}
 .tmcs .tmn{font-size:11.5px}
@@ -489,7 +489,8 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .faqa p{margin:0 0 6px}.faqa ul,.faqa ol{margin:4px 0;padding-left:1.4em}
 @media (max-width:820px){.hgrid,.hgrid2{grid-template-columns:1fr}.hcimg{height:100px}}
 /* ===== tables ===== */
-.tscroll{overflow:auto;max-height:75vh}
+/* 表の箱はぼかし（backdrop-filter）を使わない：iPhone の Safari で、横に固定した列（アイコン・名前）が描かれずに消えることがあるため。固定列は独立した層にする */
+.tscroll{overflow:auto;max-height:75vh;backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--stick)}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:top}
 td.wrap{white-space:normal;min-width:16em;max-width:28em}
@@ -498,7 +499,7 @@ tbody tr{cursor:pointer}
 tbody tr:nth-child(even){background:rgba(26,134,255,.035)}
 tbody tr:hover{background:rgba(26,134,255,.1)}
 /* 左端の固定列: アイコン(.first.thc)と名前(.nm)。背景は不透明にして、横スクロールした列が透けないようにする */
-td.first,th.first,td.nm,th.nm{position:sticky;left:0;z-index:1}
+td.first,th.first,td.nm,th.nm{position:sticky;left:0;z-index:1;-webkit-transform:translateZ(0);transform:translateZ(0)}
 td.nm,th.nm{left:calc(10px + var(--thw,26px))}
 td.first,td.nm{background:var(--stick)}
 tbody tr:hover td.first,tbody tr:hover td.nm{background:linear-gradient(rgba(26,134,255,.1),rgba(26,134,255,.1)),var(--stick)}
@@ -588,6 +589,8 @@ dialog{overflow:auto;overscroll-behavior:contain}
 .qb{flex:none;display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 4px;border:1px solid var(--line2);background:var(--panel);border-radius:4px;cursor:pointer;color:var(--accent-ink);font:inherit;font-weight:900;font-size:12.5px}
 .qb .ic{width:24px;height:24px}.qb.qtxt{padding:0 10px}.qb[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 0 0 2px rgba(26,134,255,.25)}
 .qsep{flex:none;width:1px;height:22px;background:var(--line2);margin:0 4px}
+.qbtog{flex:none;border:0;background:none;color:var(--accent-ink);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 2px;text-decoration:underline;text-underline-offset:3px}.qbar .qbclose{margin-left:6px}
+@media (max-width:820px){.qbar{flex-wrap:wrap;overflow:visible;gap:4px 3px}.qbar .qsep{display:none}.qbar .qb{min-width:30px;height:30px;padding:0 2px}.qbar .qb .ic{width:22px;height:22px}.qbar .qb.qtxt{padding:0 6px;font-size:11.5px}}
 .cmpbtn{position:absolute;right:6px;bottom:6px;z-index:2;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.92);color:var(--accent-ink);font-weight:900;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer}
 .cmpbtn.on{background:var(--accent);color:#fff}.ostars.ro i{font-style:normal;color:var(--line2)}.ostars.ro i.on{color:var(--gold)}.ownhead.sown{margin:8px 0}.chip.ownq[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}.linkbtn2{white-space:nowrap}.cdlinks{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.cdlinks .knlink{margin:0}.cmpdbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .cmpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;gap:8px;align-items:center;padding:8px 12px;background:linear-gradient(100deg,rgba(6,30,86,.96),rgba(14,70,170,.96));color:#fff;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100% - 20px)}
@@ -1140,7 +1143,7 @@ function reorder(key,tier,before){const f=curFloor();if(!f)return;const P=place(
   const i=before?row.indexOf(before):-1;row.splice(i<0?row.length:i,0,key);
   const all=[];TIERS.forEach(t=>{if(t===tier)all.push(...row);else all.push(...rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k));});setOrder(f.key,all);}
 function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(!t)return;const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);const row=rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k);const i=row.indexOf(key),j=i+d;if(i<0||j<0||j>=row.length)return;reorder(key,t,d<0?row[j]:row[j+1]);}
-function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">画像で共有</button>`:""}${MINE()?"":pageLinkBtn()}${(tab==="tier"||tab==="seal")&&!ALLCTX()&&curFloor()?`<button class="btn small helpbtn" data-ownhelp="1">所持キャラで編成を組んでもらう</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
+function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">📷 画像で共有</button>`:""}${MINE()?(tab==="tier"||tab==="seal"||ALLCTX()?`<button class="btn small linkbtn2" data-act="mylink">🔗 自分のTier表をリンクで共有</button>`:""):pageLinkBtn()}${(tab==="tier"||tab==="seal")&&!ALLCTX()&&curFloor()?`<button class="btn small helpbtn" data-ownhelp="1">所持キャラで編成を組んでもらう</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
 const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
@@ -1352,7 +1355,7 @@ let PICKRR=null;const setPickRerender=fn=>{PICKRR=fn||null;};
 let CFK="chars",CF=CFS.chars;
 function cfCtx(k){CFK=CFS[k]?k:"chars";CF=CFS[CFK];}
 const cfBase=()=>[["ロール","role",ROLES.map(x=>[x,ic(x)])],["攻撃属性","attr",ATTRS.map(x=>[x,ic(x)])],["騎士団","order",ORDERS.map(x=>[x,ic(x,"ord")])],["階級","rank",RANKS.map(x=>[x,ic(x)])],
-  ["攻撃種","dtype",[["物理",""],["特殊",""],["その他",""]]],["レアリティ","rar",[["SSR",""],["SR",""],["R",""]]],["限定","limit",[["限定",""],["周年限定",""],["通常",""]]],["バベル","babel",[["アナザー",""],["リビルド",""]]],["実装","rel",[["実装済み",""],["未実装",""]]],["所持","own",[["持っている",""],["持っていない",""]]]];
+  ["攻撃種","dtype",[["物理",""],["特殊",""],["その他",""]]],["レアリティ","rar",[["★★★",""],["★★",""],["★",""]]],["限定","limit",[["限定",""],["周年限定",""],["通常",""]]],["バベル","babel",[["アナザー",""],["リビルド",""]]],["実装","rel",[["実装済み",""],["未実装",""]]],["所持","own",[["持っている",""],["持っていない",""]]]];
 /* アナザーバベル・バベルリビルドで使える騎士団（その騎士団のキャラしか出せない縛り） */
 const BABELGRP={"アナザー":["ブレイドライン","第六起源魔術教会","リンドブルム","千紫","ほしゆめ"],"リビルド":["ORANGE","アクシオンゲート","オッター貿易","Mazlab"]};
 const babelKind=c=>BABELGRP["アナザー"].includes(c.order)?"アナザー":BABELGRP["リビルド"].includes(c.order)?"リビルド":"";
@@ -1360,8 +1363,8 @@ const unrelBadge=(c,cls)=>c.unrel?`<span class="limb unrel ${cls||""}">未実装
 function cfMatch(c,st){st=st||CFS.chars;
   for(const [k,vals] of Object.entries(st.sel)){if(!vals.length)continue;
     if(k==="tags"){const hit=vals.filter(t=>c.tags.includes(t)).length;if(st.tagAll?hit<vals.length:!hit)return false;continue;}
-    const v=k==="limit"?(c.limit||"通常"):k==="dtype"?(c.dtype==="物理"||c.dtype==="特殊"?c.dtype:"その他"):k==="own"?((st.ownMap||OWN())[c.id]?"持っている":"持っていない"):k==="babel"?babelKind(c):k==="rel"?(c.unrel?"未実装":"実装済み"):c[k];
-    if(!vals.includes(v))return false;}
+    const v=k==="limit"?(c.limit||"通常"):k==="dtype"?(c.dtype==="物理"||c.dtype==="特殊"?c.dtype:"その他"):k==="own"?((st.ownMap||OWN())[c.id]?"持っている":"持っていない"):k==="babel"?babelKind(c):k==="rel"?(c.unrel?"未実装":"実装済み"):k==="rar"?(RAR[c.rar]?"★".repeat(RAR[c.rar]):c.rar):c[k];
+    if(!vals.includes(v)&&!(k==="rar"&&vals.includes(c.rar)))return false;}
   return true;
 }
 const cfCount=st=>Object.values((st||CFS.chars).sel).reduce((a,v)=>a+v.length,0);
@@ -1371,9 +1374,13 @@ function cfBar(k){const st=CFS[k],n=cfCount(st);
     chips:n?`<div class="chips cfactive">${Object.entries(st.sel).flatMap(([kk,vs])=>vs.map(v=>`<button class="chip" data-cfrm="${k}|${esc(kk)}|${esc(v)}" aria-pressed="true">${esc(v)} ✕</button>`)).join("")}<button class="chip" data-cfact="resetlist" data-cfctx="${k}">すべて解除</button></div>`:""};}
 /* 一覧の上のワンタップ絞り込み（アイコンだけ1行。スマホは横にスクロール）。押すと絞り込みダイアログと同じ条件が付く */
 /* ctx：chars（キャラ一覧）／pool（Tier表の未配置。属性も出し、騎士団はそのバベルで使えるものだけ・アナザー／リビルドは出さない） */
-function qbarChars(ctx){ctx=ctx||"chars";const s=CFS[ctx].sel,on=(k,v)=>(s[k]||[]).includes(v);const pl=ctx==="pool",g=pl?floorGrp(curFloor()):"";
+/* キャラ一覧・共有された所持キャラのアイコン1行は、横に長いので最初は閉じておく（「アイコンで絞り込み」で開く。ブラウザに保存）。
+   Tier表の未配置・ピッカーのものは常に出す。スマホでは折り返して2段にする */
+let QBOPEN=false;try{QBOPEN=localStorage.getItem("rxr-qbar")==="1";}catch(_){}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-qbtog]");if(!b)return;QBOPEN=!QBOPEN;try{localStorage.setItem("rxr-qbar",QBOPEN?"1":"0");}catch(_){}if(b.dataset.qbtog==="sov")openSharedOwn();else render();});
+function qbarChars(ctx){ctx=ctx||"chars";if((ctx==="chars"||ctx==="sov")&&!QBOPEN)return `<button class="qbtog" data-qbtog="${ctx}">▸ アイコンで絞り込み</button>`;const s=CFS[ctx].sel,on=(k,v)=>(s[k]||[]).includes(v);const pl=ctx==="pool",g=pl?floorGrp(curFloor()):"";
   const b=(k,v,inner,cls)=>`<button class="qb ${cls||""}" data-qf="${ctx}|${esc(k)}|${esc(v)}" aria-pressed="${on(k,v)}" title="${esc(v)}${k==="babel"?"（"+BABELGRP[v].join("・")+"）":""}">${inner}</button>`;
-  return `<div class="qbar">${ROLES.filter(r=>r!=="ワイルド").map(r=>b("role",r,ic(r)||esc(ROLE_SHORT[r]||r))).join("")}${pl?`<i class="qsep"></i>${ATTRS.map(a=>b("attr",a,ic(a)||esc(a),ic(a)?"":"qtxt")).join("")}`:""}<i class="qsep"></i>${ORDERS.filter(o=>!g||BABELGRP[g].includes(o)).map(o=>b("order",o,ic(o,"ord")||esc(o.slice(0,2)))).join("")}${pl?"":`<i class="qsep"></i>${["アナザー","リビルド"].map(v=>b("babel",v,esc(v),"qtxt")).join("")}`}</div>`;}
+  return `<div class="qbar">${ROLES.filter(r=>r!=="ワイルド").map(r=>b("role",r,ic(r)||esc(ROLE_SHORT[r]||r))).join("")}${pl?`<i class="qsep"></i>${ATTRS.map(a=>b("attr",a,ic(a)||esc(a),ic(a)?"":"qtxt")).join("")}`:""}<i class="qsep"></i>${ORDERS.filter(o=>!g||BABELGRP[g].includes(o)).map(o=>b("order",o,ic(o,"ord")||esc(o.slice(0,2)))).join("")}${pl?"":`<i class="qsep"></i>${["アナザー","リビルド"].map(v=>b("babel",v,esc(v),"qtxt")).join("")}`}${ctx==="chars"||ctx==="sov"?`<button class="qbtog qbclose" data-qbtog="${ctx}" title="アイコンの絞り込みを隠す">▴ 隠す</button>`:""}</div>`;}
 function qbarScripts(){const st=tstate.scripts;const rs=[...new Set(ROLES.concat(SC.some(x=>x.role==="ワイルド")?["ワイルド"]:[]))];
   return `<div class="qbar">${rs.map(r=>`<button class="qb${ic(r)?"":" qtxt"}" data-qsrole="${esc(r)}" aria-pressed="${st.role===r}" title="${esc(r)}">${ic(r)||esc(r)}</button>`).join("")}</div>`;}
 document.addEventListener("click",e=>{const g=e.target.closest("[data-goctier]");if(g){const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();goSub("ctier");}});
@@ -1478,12 +1485,12 @@ document.addEventListener("click",e=>{
 function limBadge(v,cls){if(!v)return "";return ICON[v]?`<img class="limimg ${cls||""}" src="${ICON[v]}" alt="${esc(v)}" title="${esc(v)}">`:`<span class="limb ${v==="周年限定"?"anv":""} ${cls||""}">${esc(v)}</span>`;}
 /* キャラのカード表示（ゲーム内のキャラ一覧に近い形） */
 function charCard(c){const img=BANNER[c.id]||IMG[c.id];const st=RAR[c.rar]||0;
-  return `<button class="ccard" data-detail="${esc(c.id)}">${img?`<span class="ccimg" data-lbg="${encU(img)}"></span>`:'<span class="ccimg none"></span>'}
+  return `<button class="ccard" data-detail="${esc(c.id)}">${lbgTag("ccimg",img,IMG[c.id])}
   <span class="cctop">${ic(c.role)}${ic(c.attr)}${st?`<span class="ccstar">${"★".repeat(st)}</span>`:""}</span>
   <span class="ccname"><b>${esc(c.bname||c.base||c.name)}</b>${c.style?`<small>[${esc(c.style)}]</small>`:""}</span><span class="ccbadges">${OWN()[c.id]?'<span class="ccown">所持</span>':""}${limBadge(c.limit)}${unrelBadge(c)}</span>${MODE==="admin"?"":cmpBtn("c",c.id)}</button>`;}
 /* スクリプトのカード表示 */
 function scriptCard(s){const img=SFULL[s.id]||SIMG[s.id];
-  return `<button class="ccard scard2" data-sdetail="${s.i}">${img?`<span class="ccimg" data-lbg="${encU(img)}"></span>`:'<span class="ccimg none"></span>'}
+  return `<button class="ccard scard2" data-sdetail="${s.i}">${lbgTag("ccimg",img,SIMG[s.id])}
   <span class="cctop">${s.rar?`<span class="rar ${esc(s.rar)}">${esc(s.rar)}</span>`:""}${ic(s.role)}</span>${s.limit||s.unrel?`<span class="ccbadges">${limBadge(s.limit)}${unrelBadge(s)}</span>`:""}
   <span class="ccname"><b>${esc(s.name)}</b>${s.conds.length?`<small class="sccond">${s.conds.map(x=>`${ic(ALIAS[x]||x,ORDERS.includes(x)?"ord":"")}${esc(x)}`).join(" ／ ")}</small>`:""}</span>${MODE==="admin"?"":cmpBtn("s",s.id)}</button>`;}
 
@@ -2044,6 +2051,21 @@ function floorInfoHtml(key,pool,label){const f=floorObj(key);if(!f)return "";con
   +box("teams",`🧩 クリア編成例 <small class="count">（${ts.length}件）</small>`,ts.length?ts.map(t=>teamOneHtml(t,false,"fi|"+key+"|"+t.name)).join(""):`<p class="count">この${W}の編成例はまだありません</p>`)
   +box("tier",`📊 運営Tier表${pool&&rows.length?` <small class="count">（グレー＝持っていない）</small>`:""}`,rows.length?`<div class="fltier">${rows.map(([t,ks])=>`<div><b class="t-${esc(t)}">${esc(t)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<span class="fltc${pool&&!pool[c.id]?" tmnot":""}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</span>`;}).join("")}</span></div>`).join("")}</div>`:`<p class="count">この${W}の運営Tier表はまだありません</p>`)
   +`</div>`;}
+/* ---------- 自分のTier表をリンクで共有：?tl=コード（{v,f:階層キー,r:[[Tier,[キー…]]…]} を JSON→base64url。並びは見えている順）。
+   スマホの共有メニューは押した直後でないと開けないので、圧縮せずにその場で作る ---------- */
+function myTierUrl(f){const P=place(f.key);const r=TIERS.map(t=>[t,rowSort(f.key,entries(P).filter(e=>e.t===t&&grpOk(e.c,f))).map(e=>e.k)]).filter(([,ks])=>ks.length);
+  if(!r.length)return "";return `${SITE_URL}?tl=j${b64uEnc(new TextEncoder().encode(JSON.stringify({v:1,f:f.key,r})))}`;}
+async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e){t=null;}
+  if(!t||!Array.isArray(t.r)){toast("Tier表のリンクを読めませんでした（途中で切れているかもしれません）",6000);return;}
+  const f=t.f===ALLF.key?ALLF:floorObj(t.f);const nm=f?(f.all?"キャラクター全体Tier":f.seal?"封印戦 "+f.floor:`${f.type} ${f.floor}F`):"";
+  const ho=hasOwn(),own=OWN();
+  const rows=t.r.filter(x=>Array.isArray(x)&&TIERS.includes(x[0])&&Array.isArray(x[1]));
+  const h=`<h2>共有された Tier表</h2>${f?`<p class="tbfloor">${esc(nm)}${f.boss?" "+esc(f.boss):""} ${f.all?"":`<button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ（運営Tier表）</button>`}</p>`:""}
+  <p class="hint">ほかの人が作った「自分のTier表」です${ho?"（グレー＝あなたが持っていないキャラ）":""}。キャラを押すと詳細が見られます。</p>
+  <div class="fltier shtier">${rows.map(([tr,ks])=>`<div><b class="t-${esc(tr)}">${esc(tr)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<button class="fltc${ho&&!own[c.id]?" tmnot":""}" data-detail="${esc(c.id)}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</button>`;}).join("")}</span></div>`).join("")||'<p class="count">配置がありません</p>'}</div>
+  ${f&&!f.all?floorInfoHtml(f.key,ho?own:null,"この"+(f.seal?"封印戦":"階層")+"の情報"):""}
+  <div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
+  document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
 /* 共有された編成を開く */
 let TBSHARED=null;
 async function openSharedTeam(code){let t;try{t=await teamDecode(code);}catch(e){toast("編成のリンクを読めませんでした（途中で切れているかもしれません）",6000);return;}
@@ -2055,8 +2077,11 @@ async function openSharedTeam(code){let t;try{t=await teamDecode(code);}catch(e)
   <div class="foot"><button class="btn" data-tbedit="1">この編成をもとに組み直す</button><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
 /* 一覧のカードの大きな絵（覚醒イラスト・イベント画像）は、画面に近づいてから読み込む（data-lbg＝画像のURL） */
-const LBG="IntersectionObserver" in window?new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;const el=e.target;LBG.unobserve(el);if(el.dataset.lbg){el.style.backgroundImage=`url('${el.dataset.lbg}')`;el.removeAttribute("data-lbg");}}),{rootMargin:"400px 0px"}):null;
-let LBGT=0;new MutationObserver(()=>{if(LBGT)return;LBGT=requestAnimationFrame(()=>{LBGT=0;document.querySelectorAll("[data-lbg]").forEach(el=>{if(el._lbg)return;el._lbg=1;if(LBG)LBG.observe(el);else{el.style.backgroundImage=`url('${el.dataset.lbg}')`;el.removeAttribute("data-lbg");}});});}).observe(document.documentElement,{childList:true,subtree:true});
+// data-lbf＝先に出しておく小さな画像（サムネイル）。大きな絵はその上に重ねるので、読み込み中や通信が遅いときも空にならない
+const lbgSet=el=>{const f=el.dataset.lbf;el.style.backgroundImage=`url('${el.dataset.lbg}')`+(f?`,url('${f}')`:"");el.removeAttribute("data-lbg");};
+const lbgTag=(cls,big,small)=>big?`<span class="${cls}" data-lbg="${encU(big)}"${small&&small!==big?` data-lbf="${encU(small)}" style="background-image:url('${encU(small)}')"`:""}></span>`:`<span class="${cls} none"></span>`;
+const LBG="IntersectionObserver" in window?new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;const el=e.target;LBG.unobserve(el);if(el.dataset.lbg)lbgSet(el);}),{rootMargin:"400px 0px"}):null;
+let LBGT=0;new MutationObserver(()=>{if(LBGT)return;LBGT=requestAnimationFrame(()=>{LBGT=0;document.querySelectorAll("[data-lbg]").forEach(el=>{if(el._lbg)return;el._lbg=1;if(LBG)LBG.observe(el);else lbgSet(el);});});}).observe(document.documentElement,{childList:true,subtree:true});
 function cth(c){return IMG[c.id]?`<img src="${IMG[c.id]}" alt="">`:`<span class="noth" title="画像未登録">${esc([...(c.name||"")][0]||"")}</span>`;}
 function sth(s){return SIMG[s.id]?`<img src="${SIMG[s.id]}" alt="" class="rowth">`:`<span class="rowth sph ${esc(s.rar)}" title="画像未登録">${esc((s.rar||"").slice(0,3))}</span>`;}
 const RKDEF={chars:[["完凸 HP","HP（完凸）","desc"],["完凸 攻撃力","攻撃力（完凸）","desc"],["Lv200 HP","HP（Lv200）","desc"],["Lv200 攻撃力","攻撃力（Lv200）","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"],["攻撃速度","攻撃速度","desc"],["抵抗値","抵抗値","desc"],["初期コスト","出撃コスト","asc"],["育成後コスト","育成後コスト","asc"],["再出撃時間(S)","再出撃時間","asc"],["スキルクールタイム","スキルCT","asc"],["BLADEゲージ","BLADEゲージ","asc"],["HP初期値","HP初期値","desc"],["攻撃力初期値","攻撃力初期値","desc"]],
@@ -2250,12 +2275,12 @@ document.addEventListener("click",e=>{
   else if(a==="ownon"||a==="ownoff"){S.ownOff=a==="ownoff";save();render();}
   else if(a==="nolim"){S.noLim=!S.noLim;save();render();}
   else if(a==="tfclear"){pool.attr=null;pool.role=null;S.onlyOwn=false;S.noLim=false;save();render();}
+  else if(a==="mylink"){const f=curFloor();const u=f&&myTierUrl(f);if(!u){toast("まだ配置がありません。キャラを配置してから共有してください");return;}shareUrl(u,`${f.all?"キャラクター全体Tier":f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F"} の自分のTier表 | RxRwiki`);track("share_mytier",{floor:f.key});}
   else if(a==="mytext"){const f=curFloor();const tx=f&&floorText(f);if(!tx){toast("まだ配置がありません");return;}navigator.clipboard.writeText(tx).then(()=>toast("テキストをコピーしました。SNSなどに貼り付けられます"),()=>toast("コピーできませんでした"));}
   else if(a==="allcols"){tstate.chars.all=!tstate.chars.all;renderChars();}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sel){sel=null;render();}});
 document.addEventListener("toggle",e=>{if(e.target.classList&&e.target.classList.contains("tcrit")){S.critOpen=e.target.open;save();}},true);
-document.addEventListener("dblclick",e=>{const t=e.target.closest(".tile");if(t)openChar(t.dataset.id);});
 
 /* ---------- import ---------- */
 function parseDelimited(text){
@@ -2497,7 +2522,7 @@ async function makeTierImage(f,P,mine){
 async function openShare(){
   const f=curFloor();if(!f)return;const mine=MINE();const P=place(f.key);
   if(!Object.keys(P).length){toast(mine?"まだ配置がありません。キャラを配置してから共有してください":"この階層の運営Tier表はまだありません");return;}
-  showShare(()=>makeTierImage(f,P,mine),f.all?`【リバリバ】キャラクター全体Tier（${mine?"自分の":"運営"}評価）\n#リバリバ #RxRwiki`:`【リバリバ ${f.seal?"封印戦":"バベル"}】${f.seal?f.floor:`${f.type} ${f.floor}F`} ${f.boss||""} の${mine?"自分の":"運営"}Tier表\n#リバリバ #リバリババベル #RxRwiki`,f.all?`${SITE_URL}?tab=ctier`:`${SITE_URL}?floor=${encodeURIComponent(f.key)}`,f.all?"character-tier.png":f.seal?`seal-tier.png`:`babel-tier-${f.floor}F.png`,"画像で共有");
+  showShare(()=>makeTierImage(f,P,mine),f.all?`【リバリバ】キャラクター全体Tier（${mine?"自分の":"運営"}評価）\n#リバリバ #RxRwiki`:`【リバリバ ${f.seal?"封印戦":"バベル"}】${f.seal?f.floor:`${f.type} ${f.floor}F`} ${f.boss||""} の${mine?"自分の":"運営"}Tier表\n#リバリバ #リバリババベル #RxRwiki`,mine?myTierUrl(f):f.all?`${SITE_URL}?tab=ctier`:`${SITE_URL}?floor=${encodeURIComponent(f.key)}`,f.all?"character-tier.png":f.seal?`seal-tier.png`:`babel-tier-${f.floor}F.png`,"画像で共有");
   track("share_open",{floor:f.key,view:mine?"mine":"official"});
 }
 async function showShare(make,text,link,name,title){
@@ -2794,6 +2819,7 @@ function applyLinkParam(){try{const q=new URLSearchParams(location.search);let h
   const en=q.get("event");if(en){const x=eventOf(en);if(x){tab="events";OPENLINK=()=>openEvent(x.i);hit=true;}}
   const kn=q.get("knight");if(kn&&personOf(kn)){tab="knights";OPENLINK=()=>openKnight(kn);hit=true;}
   const tm=q.get("team");if(tm){OPENLINK=()=>openSharedTeam(tm);hit=true;}
+  const tl=q.get("tl");if(tl){OPENLINK=()=>openSharedTier(tl);hit=true;}
   const ow=q.get("own");if(ow){SOV.o=ownDecode(ow);SOV.name=(q.get("n")||"").slice(0,20);SOV.floor=q.get("f")||"";SOV.so=q.get("s")?sownDecode(q.get("s")):null;SOV.msg=(q.get("m")||"").slice(0,80);SOV.show="own";tab="own";OPENLINK=()=>openSharedOwn();hit=true;}
   if(hit)history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 function runOpenLink(){if(OPENLINK){const f=OPENLINK;OPENLINK=null;try{f();}catch(e){}}}
