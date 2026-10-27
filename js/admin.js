@@ -36,6 +36,7 @@ const SCHEMA = {
   babel: [
     { g: "基本", f: [["バベル種類", "opt:バベル種類"], ["階層", "num"], ["ボス", "bossref"], ["推奨属性", "opt:属性"]] },
     { g: "解析データ", note: "1行に1つの効果。【特性】【味方】【敵】などの見出し行で区切ります。「上昇」「低下」などから自動で ▲▼ を判定します。", f: [["解析データ", "big"]] },
+    { g: "WAVE情報", note: "ウェーブ数を選ぶと、その数だけ入力欄が出ます。各 wave の特徴（出てくる敵・敵の行動・注意点）と立ち回りのコツを書いてください。公開サイトの階層ページに WAVE 1 から順に表示されます。", f: [["WAVE", "waves"]] },
     { g: "攻略のコツ・コメント", f: [["おすすめキャラID", "hide"], ["攻略のコツ", "long"], ["コメント", "long"]] },
   ],
   teams: [
@@ -50,6 +51,7 @@ const SCHEMA = {
   seals: [
     { g: "基本", f: [["封印戦名", "text"], ["ID", "id"], ["キャラ名", "knref"], ["ダメージタイプ", "sel:物理|特殊"]] },
     { g: "ステージ効果", note: "1行に1つの効果。「上昇」「低下」などから自動で ▲▼ を判定し、Tier表の未配置キャラの並び（適性順）に使います。", f: [["ステージ効果", "big"]] },
+    { g: "WAVE情報", note: "ウェーブ数を選ぶと、その数だけ入力欄が出ます。各 wave の特徴（出てくる敵・敵の行動・注意点）と立ち回りのコツを書いてください。公開サイトの階層ページに WAVE 1 から順に表示されます。", f: [["WAVE", "waves"]] },
     { g: "過去開催日", note: "開催されるたびに日付を追加してください。", f: [["過去開催日", "datelist"]] },
   ],
   bosses: [
@@ -1063,6 +1065,17 @@ function renderForm() {
   const nc = document.getElementById("ednewcol"); if (nc) nc.addEventListener("input", () => { ED.newCol = nc.value; });
   body.querySelectorAll("[data-tagck]").forEach(el => el.addEventListener("change", () => { tagInput(); renderForm(); }));
   body.querySelectorAll("[data-syn]").forEach(el => el.addEventListener(el.tagName === "TEXTAREA" ? "input" : "change", () => { synInput(el); if (el.tagName !== "TEXTAREA") renderForm(); }));
+  body.querySelectorAll("[data-wvn]").forEach(el => el.addEventListener("change", () => {
+    const ws = wavesOf(ED.draft["WAVE"]), n = +el.value;
+    if (n < ws.length && ws.slice(n).some(x => x.f.trim() || x.t.trim()) && !confirm(`WAVE ${n + 1} 以降に書いた内容が消えます。よろしいですか？`)) { el.value = String(ws.length); return; }
+    while (ws.length < n) ws.push({ f: "", t: "" }); ws.length = n;
+    ED.draft["WAVE"] = wavesStr(ws); ED.dirty = true; ED.leaveOk = false; renderForm();
+  }));
+  body.querySelectorAll("[data-wv]").forEach(el => el.addEventListener("input", () => {
+    const ws = wavesOf(ED.draft["WAVE"]); const [i, k] = el.dataset.wv.split("|"); if (!ws[+i]) return;
+    ws[+i][k] = el.value; ED.draft["WAVE"] = JSON.stringify(ws); ED.dirty = true; ED.leaveOk = false;
+    const sb = document.getElementById("edsave"); if (sb) sb.disabled = false;
+  }));
   body.querySelectorAll("[data-tm]").forEach(el => el.addEventListener("change", () => { teamInput(el); renderForm(); }));
   body.querySelectorAll("[data-floorsel]").forEach(el => el.addEventListener("change", () => { const i = el.value.indexOf("|"), t = i < 0 ? el.value : el.value.slice(0, i), f = i < 0 ? "" : el.value.slice(i + 1); ED.draft["バベル種類"] = t || ""; ED.draft["階層"] = f || ""; ED.dirty = true; ED.leaveOk = false; renderForm(); }));
   const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const io = IMGOF[ED.k]; quickUpload(io[0], imgKeyOf(ED.k, ED.base), f); });
@@ -1212,6 +1225,10 @@ function fieldHtml(name, type, i, both) {
     cls += " long"; const ns = scNames(v);
     inner = `<div class="cpchips">${ns.map(n => { const s = R.scOf(n); return `<span class="cpchip">${s && R.SIMG[s.id] ? `<img src="${esc(R.SIMG[s.id])}" alt="">` : ""}${esc(s ? s.name : n)}${!s ? ' <small class="err">見つからない</small>' : ""}<button class="cprm" data-scrm="${esc(name)}|${esc(n)}" aria-label="外す">✕</button></span>`; }).join("") || '<span class="count">まだありません</span>'}</div>
       <div class="addcol"><button class="btn small" data-pkopen="scm|${esc(name)}">スクリプトを選ぶ</button></div>`;
+  } else if (type === "waves") {
+    cls += " long"; const ws = wavesOf(v); label = "各 wave の情報";
+    inner = `<div class="wvhead"><label>ウェーブ数 <select data-wvn="1">${Array.from({ length: 21 }, (_, n) => `<option value="${n}" ${n === ws.length ? "selected" : ""}>${n ? n + " wave" : "なし"}</option>`).join("")}</select></label></div>
+      <div class="wvedit">${ws.length ? `<div class="wvrow wvlab"><span></span><small>特徴（出てくる敵・敵の行動・注意点）</small><small>立ち回りのコツ</small></div>` : ""}${ws.map((x, i) => `<div class="wvrow"><b class="wvno">WAVE ${i + 1}</b><textarea data-wv="${i}|f" rows="3" maxlength="2000" placeholder="特徴（出てくる敵・敵の行動・注意点など）">${esc(x.f)}</textarea><textarea data-wv="${i}|t" rows="3" maxlength="2000" placeholder="立ち回りのコツ">${esc(x.t)}</textarea></div>`).join("")}</div>`;
   } else if (type === "synergy") {
     cls += " long"; inner = synField(name, v);
   } else if (type === "team") {
@@ -1368,6 +1385,9 @@ function dupKey(k, cells, selfId) {
   return null;
 }
 function logDoc(o) { return Object.assign({ at: now(), by: meId(), name: meName() }, o); }
+/* WAVE情報：[{f:特徴,t:立ち回りのコツ}…] の JSON（配列の長さ＝ウェーブ数） */
+function wavesOf(v) { try { const a = JSON.parse(v || "[]"); return Array.isArray(a) ? a.map(x => ({ f: String((x && x.f) || ""), t: String((x && x.t) || "") })) : []; } catch (e) { return []; } }
+const wavesStr = ws => ws.length ? JSON.stringify(ws.map(x => ({ f: x.f.trim(), t: x.t.trim() }))) : "";
 /* ほかの表を指す欄は ID で保存する（名前で入っていても、見つかれば ID に直す） */
 function normRefs(k, D) {
   const has = f => String(D[f] || "").trim() !== "";
@@ -1383,6 +1403,7 @@ async function saveRow(force) {
   // 自動で付く項目（ID・キャラ名・ひらがな・No など）は、既存の行では元の値のまま保存する
   if (!ED.isNew && !ED.gone) (SCHEMA[k] || []).forEach(g => g.f.forEach(([n, t]) => { if (t === "id" || t === "auto") ED.draft[n] = ED.base[n] == null ? "" : ED.base[n]; }));
   normRefs(k, ED.draft);
+  if ("WAVE" in ED.draft) ED.draft["WAVE"] = wavesStr(wavesOf(ED.draft["WAVE"]));
   if (IDT[k]) {   // ID：空なら（新しい行は今の名前、古い行は前の名前）で付ける。新しい行はほかと重ならないように
     const D = ED.draft; let v = String(D["ID"] || "").trim() || (!ED.isNew && !ED.gone ? String(ED.base[IDT[k]] || "").trim() : "") || String(D[IDT[k]] || "").trim();
     if (v && (ED.isNew || ED.gone || !String(ED.base["ID"] || "").trim())) { const taken = new Set([...T[k].rows.values()].filter(r => r.id !== ED.id).map(r => idOf(k, r.c))); let n = 2; const b0 = v; while (taken.has(v)) v = b0 + "_" + n++; }
@@ -2750,6 +2771,10 @@ function injectStyle() {
 .fbcard header,.fbcard footer{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .fbcard select{border:1px solid var(--line2);background:var(--field);padding:3px 6px;color:var(--ink)}
 .fk{font-size:12px;font-weight:700;padding:0 8px;color:#fff;background:var(--bad)}.fk.k-request{background:var(--accent)}.fk.k-other{background:var(--muted)}
+.wvhead{margin-bottom:6px}.wvhead select{font:inherit;padding:3px 6px;border:1px solid var(--line2);background:var(--field);color:var(--ink)}
+.wvedit{display:flex;flex-direction:column;gap:8px}.wvrow{display:grid;grid-template-columns:5.5em 1fr 1fr;gap:6px;align-items:start}
+.wvno{font-size:12.5px;font-weight:900;color:#fff;background:linear-gradient(100deg,#0d3b8c,#1a86ff);padding:4px 6px;text-align:center}
+.wvrow textarea{width:100%;box-sizing:border-box}.wvlab small{font-weight:700;color:var(--muted)}@media (max-width:700px){.wvlab{display:none}}@media (max-width:700px){.wvrow{grid-template-columns:1fr}.wvno{justify-self:start}}
 .fbtext{margin:0;white-space:pre-wrap;word-break:break-word;font-size:14px}
 .fbmore>summary{list-style:none;cursor:pointer}.fbmore>summary::-webkit-details-marker{display:none}
 .fbmore[open] .fbclip{display:none}.fbmorel{display:inline-block;margin-top:2px;font-size:12.5px;font-weight:700;color:var(--accent-ink)}

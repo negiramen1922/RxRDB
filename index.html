@@ -149,6 +149,11 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h{font-size:11.5px;font-weight:700;color:var(--accent-ink);letter-spacing:.12em;margin:0 0 3px;display:flex;align-items:center;gap:6px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
+.wavecard{padding:14px 16px;margin-bottom:12px}.wvlist{display:flex;flex-direction:column;gap:8px}
+.wv{display:grid;grid-template-columns:5.2em 1fr;gap:10px;border-top:1px solid var(--line);padding-top:8px}.wv:first-child{border-top:0;padding-top:0}
+.wvn{font-family:var(--en,inherit);font-size:13px;font-weight:900;color:#fff;background:linear-gradient(100deg,#0d3b8c,#1a86ff);padding:3px 8px;align-self:start;text-align:center;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.wvb .clampbox:last-child{margin-bottom:0}
+@media (max-width:640px){.wv{grid-template-columns:1fr;gap:4px}.wvn{justify-self:start}}
 .clampbox{margin-bottom:12px}.clampbox .note-b{margin:0}
 .clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .clampbox.open .clamp{display:block;-webkit-line-clamp:unset}
@@ -1007,6 +1012,10 @@ function condHit(cond,c){const k=ALIAS[cond]||cond;if(k==="女性")return c.gend
 function scMatch(s,c){const n=s.conds.filter(x=>condHit(x,c)).length;return{n,roleOk:!s.role||s.role===c.role||s.role==="ワイルド"};}
 const RAR={SSR:3,SR:2,R:1};
 function colOf(d,names){for(const n of names){const i=d.headers.indexOf(n);if(i>=0)return i;}return -1;}
+/* WAVE情報：列 WAVE に [{f:特徴,t:立ち回りのコツ}…] の JSON（配列の長さ＝その階層のウェーブ数） */
+function parseWaves(v){if(!v)return [];try{const a=JSON.parse(v);return Array.isArray(a)?a.map(x=>({f:String((x&&x.f)||""),t:String((x&&x.t)||"")})):[];}catch(e){return [];}}
+function wavesHtml(f){const w=(f&&f.waves)||[];if(!w.length)return "";
+  return `<div class="floorcard wavecard"><p class="note-h">🌊 WAVE情報 <small class="count">全${w.length} wave</small></p><div class="wvlist">${w.map((x,i)=>`<div class="wv"><b class="wvn">WAVE ${i+1}</b><div class="wvb">${x.f?clampBox("特徴",x.f,f.key+"|w"+i+"f"):""}${x.t?clampBox("立ち回りのコツ",x.t,f.key+"|w"+i+"t"):""}${!x.f&&!x.t?'<p class="count">まだ情報がありません</p>':""}</div></div>`).join("")}</div></div>`;}
 function buildModels(){
   const d=data("chars");
   const iId=Math.max(0,colOf(d,["ID","キャラID"])>=0?colOf(d,["ID","キャラID"]):colOf(d,["キャラ名","名前"]));
@@ -1037,14 +1046,14 @@ function buildModels(){
   const SI={id:si("ID"),name:si("名前"),role:si("ロール"),rar:si("レアリティ"),date:si("実装日"),c2:si("条件2"),c3:si("条件3"),lim:si("限定"),rel:si("実装")};
   SC=sd.rows.map((r,i)=>{const v=k=>SI[k]>=0?(r[SI[k]]||"").trim():"";const name=v("name")||r[0];return{i,row:r,id:v("id")||name,name,role:v("role"),rar:v("rar"),date:parseDate(v("date")),limit:v("lim"),unrel:v("rel")==="未実装",conds:[v("c2"),v("c3")].filter(Boolean)};});SCMAP={};SC.forEach(x=>{if(!SCMAP[x.id])SCMAP[x.id]=x;});
   const b=data("babel");const bi=n=>colOf(b,[n]);
-  const B={type:bi("バベル種類"),floor:bi("階層"),boss:bi("ボス"),attr:bi("推奨属性"),eff:bi("解析データ"),point:colOf(b,["攻略のコツ","ポイント"]),rec:bi("おすすめキャラID"),comment:bi("コメント")};
+  const B={wave:bi("WAVE"),type:bi("バベル種類"),floor:bi("階層"),boss:bi("ボス"),attr:bi("推奨属性"),eff:bi("解析データ"),point:colOf(b,["攻略のコツ","ポイント"]),rec:bi("おすすめキャラID"),comment:bi("コメント")};
   FLOORS=[];TYPES=[];
   b.rows.forEach(r=>{
     const v=k=>B[k]>=0?(r[B[k]]||"").trim():"";
     const type=v("type")||"バベル",fl=v("floor");if(!fl)return;
     if(!TYPES.includes(type))TYPES.push(type);
     const recs=v("rec").split(/[,、，\s]+/).map(x=>x.replace(/＿/g,"_").replace(/_デフォルト$/,"_DEFAULT").trim()).filter(Boolean);
-    const bm=bossOf(v("boss"));const f={key:type+"|"+fl,type,floor:fl,boss:bm?bm.name:v("boss"),bossId:bm?bm.id:v("boss"),attr:v("attr"),eff:v("eff"),point:v("point"),recs,comment:v("comment")};
+    const bm=bossOf(v("boss"));const f={key:type+"|"+fl,type,floor:fl,boss:bm?bm.name:v("boss"),bossId:bm?bm.id:v("boss"),attr:v("attr"),eff:v("eff"),point:v("point"),recs,comment:v("comment"),waves:parseWaves(v("wave"))};
     f.lines=analyzeEffects(f.eff);
     FLOORS.push(f);
   });
@@ -1056,7 +1065,7 @@ function buildModels(){
   const sd2=data("seals");const qi=n=>colOf(sd2,[n]);
   SEALS=[];
   sd2.rows.forEach(r=>{const v=n=>{const i=qi(n);return i>=0?(r[i]||"").trim():"";};const name=v("封印戦名"),sid=v("ID")||name;if(!name)return;const kp=personOf(v("キャラ名"));
-    const f={key:"封印戦|"+sid,sid,type:"封印戦",floor:name,seal:true,boss:kp?kp.name:v("キャラ名"),bossId:kp?kp.id:v("キャラ名"),attr:"",dtype:v("ダメージタイプ"),eff:v("ステージ効果"),point:"",recs:[],comment:"",dates:v("過去開催日").split(/[,、，\n]+/).map(x=>x.trim()).filter(Boolean)};
+    const f={key:"封印戦|"+sid,sid,type:"封印戦",floor:name,seal:true,boss:kp?kp.name:v("キャラ名"),bossId:kp?kp.id:v("キャラ名"),attr:"",dtype:v("ダメージタイプ"),eff:v("ステージ効果"),point:"",recs:[],comment:"",waves:parseWaves(v("WAVE")),dates:v("過去開催日").split(/[,、，\n]+/).map(x=>x.trim()).filter(Boolean)};
     f.lines=analyzeEffects(f.eff);f.last=Math.max(0,...f.dates.map(parseDate));SEALS.push(f);FLOORS.push(f);});
   SEALS.sort((a,b)=>b.last-a.last);
   if(!SEALS.find(f=>f.key===S.curSeal))S.curSeal=SEALS.length?SEALS[0].key:null;
@@ -1721,6 +1730,7 @@ function renderTier(){
   if(f.comment)h+=clampBox("コメント",f.comment,f.key+"|comment");
   /* 自分用メモは閉じておく（押すと開く。書いてあれば「あり」） */
   h+=`<details class="memobox"${MEMOOPEN.has(f.key)?" open":""} data-memo="${esc(f.key)}"><summary class="note-h">自分用メモ${S.notes[f.key]?' <small class="count">（あり）</small>':""}</summary><textarea class="memo" id="memo" placeholder="編成メモ、クリア編成など（このブラウザ・ログインしていればアカウントに保存）">${esc(S.notes[f.key]||"")}</textarea></details></div></div>${teamsHtml(f)}</div>`;
+  h+=wavesHtml(f);
   if(!CH.length){h+=emptyBlock("chars")+`</section></div>`;patchMain(h);return;}
   const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);
   h+=`<details class="tcrit"${S.critOpen?" open":""}><summary>評価基準</summary><dl>${TIERS.map((t,i)=>`<div><dt style="background:${TCOL[i]}">${t}</dt><dd>${esc(tdesc(t))}</dd></div>`).join("")}</dl></details>`;
@@ -2051,7 +2061,7 @@ function floorInfoHtml(key,pool,label){const f=floorObj(key);if(!f)return "";con
   return `<div class="flinfos">`+box("info",`📋 ${esc(label||floorName(key)+" の情報")} <small class="count">（${f.seal?"ステージ効果":"解析データ"}・攻略のコツ）</small>`,
     `<p class="flboss">${BOSS[f.bossId]||BOSS[f.boss]?`<img src="${BOSS[f.bossId]||BOSS[f.boss]}" alt="">`:""}<span><b>${esc(f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F")}</b>${f.boss?` ${esc(f.boss)}`:""}${f.attr?` <span class="count">（推奨 ${esc(f.attr)}）</span>`:""}</span></p>
     ${ef?`<p class="note-h">${f.seal?"ステージ効果":"解析データ"}</p><ul class="effects">${ef}</ul>`:""}
-    ${f.point?`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`:""}${f.comment?`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`:""}${!ef&&!f.point&&!f.comment?'<p class="count">まだ情報がありません</p>':""}`)
+    ${f.point?`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`:""}${(f.waves||[]).length?`<p class="note-h">WAVE情報（全${f.waves.length} wave）</p>${f.waves.map((x,i)=>`<p class="note-b"><b>WAVE ${i+1}</b>${x.f?`\n${esc(x.f)}`:""}${x.t?`\n【立ち回り】${esc(x.t)}`:""}</p>`).join("")}`:""}${f.comment?`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`:""}${!ef&&!f.point&&!f.comment?'<p class="count">まだ情報がありません</p>':""}`)
   +box("teams",`🧩 クリア編成例 <small class="count">（${ts.length}件）</small>`,ts.length?ts.map(t=>teamOneHtml(t,false,"fi|"+key+"|"+t.name)).join(""):`<p class="count">この${W}の編成例はまだありません</p>`)
   +box("tier",`📊 運営Tier表${pool&&rows.length?` <small class="count">（グレー＝持っていない）</small>`:""}`,rows.length?`<div class="fltier">${rows.map(([t,ks])=>`<div><b class="t-${esc(t)}">${esc(t)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<span class="fltc${pool&&!pool[c.id]?" tmnot":""}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</span>`;}).join("")}</span></div>`).join("")}</div>`:`<p class="count">この${W}の運営Tier表はまだありません</p>`)
   +`</div>`;}
@@ -2910,7 +2920,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=58");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=59");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
