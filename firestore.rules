@@ -88,6 +88,64 @@ service cloud.firestore {
       allow update: if isEditor() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["chk"]);
     }
 
+    // ユーザー投稿（みんなの攻略）：だれでも読める。ログインした人が自分の名前で投稿・編集・削除できる（投稿停止＝banned にいる人はできない）
+    // likes・views・rc（通報の数）は、決まった形の ±1 だけ。hidden は運営だけが変えられる
+    function authed() { return request.auth != null; }
+    function okPost(d) {
+      return d.uid == request.auth.uid
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 20
+        && d.f is string && d.f.size() <= 80
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 40
+        && d.body is string && d.body.size() <= 500
+        && d.m is string && d.m.size() <= 3000
+        && d.w is string && d.w.size() <= 9000
+        && d.v is string && d.v.size() <= 300
+        && d.t == request.time;
+    }
+    match /posts/{pid} {
+      allow read: if true;
+      allow create: if authed() && !exists(/databases/$(database)/documents/banned/$(request.auth.uid))
+        && request.resource.data.keys().hasOnly(["uid", "name", "f", "title", "body", "m", "w", "v", "at", "t", "likes", "views", "rc", "hidden"])
+        && okPost(request.resource.data) && request.resource.data.at == request.time
+        && request.resource.data.likes == 0 && request.resource.data.views == 0 && request.resource.data.rc == 0 && request.resource.data.hidden == false;
+      allow update: if authed() && resource.data.uid == request.auth.uid && !exists(/databases/$(database)/documents/banned/$(request.auth.uid))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "title", "body", "m", "w", "v", "t"]) && okPost(request.resource.data);
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(["views"]) && request.resource.data.views == resource.data.views + 1;
+      allow update: if authed() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likes"])
+        && ((request.resource.data.likes == resource.data.likes + 1 && !exists(/databases/$(database)/documents/posts/$(pid)/likes/$(request.auth.uid)) && existsAfter(/databases/$(database)/documents/posts/$(pid)/likes/$(request.auth.uid)))
+          || (request.resource.data.likes == resource.data.likes - 1 && exists(/databases/$(database)/documents/posts/$(pid)/likes/$(request.auth.uid)) && !existsAfter(/databases/$(database)/documents/posts/$(pid)/likes/$(request.auth.uid))));
+      allow update: if authed() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["rc"]) && request.resource.data.rc == resource.data.rc + 1
+        && !exists(/databases/$(database)/documents/reports/$(pid + "_" + request.auth.uid)) && existsAfter(/databases/$(database)/documents/reports/$(pid + "_" + request.auth.uid));
+      allow update: if isEditor() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["hidden", "rc"]);
+      allow delete: if (authed() && resource.data.uid == request.auth.uid) || isEditor();
+      match /likes/{uid} {
+        allow read: if true;
+        allow create: if authed() && request.auth.uid == uid && request.resource.data.keys().hasOnly(["t"]);
+        allow delete: if authed() && request.auth.uid == uid;
+      }
+    }
+    // 通報：1人1回（ID＝投稿ID_uid）。中身は編集者だけが読める
+    match /reports/{rid} {
+      allow create: if authed() && request.resource.data.uid == request.auth.uid && rid == request.resource.data.pid + "_" + request.auth.uid
+        && request.resource.data.keys().hasOnly(["pid", "uid", "reason", "text", "at"])
+        && request.resource.data.reason is string && request.resource.data.reason.size() <= 40
+        && request.resource.data.text is string && request.resource.data.text.size() <= 500 && request.resource.data.at == request.time;
+      allow read, update, delete: if isEditor();
+    }
+    // 投稿者のプロフィール（投稿者名・フレンドID・公開するか）。だれでも読める（フレンドIDは fpub のときだけ画面に出す）
+    match /profiles/{uid} {
+      allow read: if true;
+      allow write: if authed() && request.auth.uid == uid && request.resource.data.keys().hasOnly(["name", "fid", "fpub", "t"])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20
+        && request.resource.data.fid is string && request.resource.data.fid.size() <= 40 && request.resource.data.fpub is bool;
+      allow delete: if isEditor();
+    }
+    // 投稿停止
+    match /banned/{uid} {
+      allow read: if isEditor() || (authed() && request.auth.uid == uid);
+      allow write: if isEditor();
+    }
+
     // 一般ユーザーの記録（所持キャラ・自分用Tier表など。本人だけが読み書きできる。d は記録の JSON 文字列）
     match /users/{uid} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;

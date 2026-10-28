@@ -103,7 +103,7 @@ function renderDlg() {
       <div class="acinfo">${esc(PROV[p] || "")}でログイン中${who ? `<br><b>${esc(who)}</b>` : ""}<br>${U.synced ? `記録はアカウントに保存されています${U.at ? `（最後の保存 ${U.at.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}）` : ""}` : "アカウントの記録を確認しています…"}</div>
       <p class="hint">所持キャラ・所持スクリプト・自分用Tier表・メモ・運用メモ・くらべるトレイを保存しています。ほかの端末でも同じアカウントでログインすると同じ記録になります。</p>
       <p class="acerr">${esc(U.err)}</p>
-      <div class="acbtns"><button class="btn" data-ac="sync">今すぐ同期</button><button class="btn" data-ac="out">ログアウト</button></div>
+      <div class="acbtns"><button class="btn" data-mypage="1">マイページ（投稿・フレンドID）</button><button class="btn" data-ac="sync">今すぐ同期</button><button class="btn" data-ac="out">ログアウト</button></div>
       <p style="text-align:right;margin:4px 0 0"><button class="aclink" data-ac="del">アカウントを削除する</button></p>
       <div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
     return;
