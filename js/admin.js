@@ -1234,7 +1234,7 @@ function fieldHtml(name, type, i, both) {
       <div class="addcol"><button class="btn small" data-pkopen="scm|${esc(name)}">スクリプトを選ぶ</button></div>`;
   } else if (type === "waves") {
     cls += " long"; const ws = wavesOf(v); label = "各 wave の情報";
-    inner = `<div class="wvhead"><label>ウェーブ数 <select data-wvn="1">${Array.from({ length: 21 }, (_, n) => `<option value="${n}" ${n === ws.length ? "selected" : ""}>${n ? n + " wave" : "なし"}</option>`).join("")}</select></label></div>
+    inner = `<div class="wvhead"><label>ウェーブ数 <select data-wvn="1">${Array.from({ length: 11 }, (_, n) => `<option value="${n}" ${n === ws.length ? "selected" : ""}>${n ? n + " wave" : "なし"}</option>`).join("")}</select></label></div>
       <div class="wvedit">${ws.length ? `<div class="wvrow wvlab"><span></span><small>特徴（出てくる敵・敵の行動・注意点）</small><small>立ち回りのコツ</small></div>` : ""}${ws.map((x, i) => `<div class="wvrow"><b class="wvno">WAVE ${i + 1}</b><textarea data-wv="${i}|f" rows="3" maxlength="2000" placeholder="特徴（出てくる敵・敵の行動・注意点など）">${esc(x.f)}</textarea><textarea data-wv="${i}|t" rows="3" maxlength="2000" placeholder="立ち回りのコツ">${esc(x.t)}</textarea></div>`).join("")}</div>`;
   } else if (type === "synergy") {
     cls += " long"; inner = synField(name, v);

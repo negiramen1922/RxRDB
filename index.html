@@ -2098,8 +2098,8 @@ async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e)
 /* ================= みんなの攻略（ユーザー投稿）。データは js/posts.js（開いたとき・投稿するときだけ読み込む） =================
    投稿は編成ビルダーの「投稿モード」（TB.post）で作る：6枠（キャラ・★・覚醒Lv・BLADE Lv・スクリプト・凸・ランク・出撃順）・タイトル・WAVEごとのメモ・自由記述・動画のURL。
    ★・スクリプトの凸は所持の記録から入れておき、そのあと自由に直せる（投稿に書き込むので、あとで所持の記録が変わっても投稿は変わらない） */
-const PLIM={title:40,body:500,wave:300,waves:20};
-let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=1").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
+const PLIM={title:40,body:500,wave:300,waves:10};
+let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=2").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
 const PST={f:"",list:null,busy:false,sort:"new",err:""};
 const lvSel=(k,l,v)=>`<label>${l} <select data-tbf="${k}"><option value="">—</option>${Array.from({length:13},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>`;
 function postExtraHtml(){const P=TB.post,f=floorObj(TB.floor),nw=Math.max(P.w.length,(f&&f.waves||[]).length);
@@ -3049,7 +3049,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=60");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=61");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }

@@ -8,7 +8,7 @@ import * as F from "./fb.js";
 import { collection, query, where, limit, getDocs, getDoc, doc, writeBatch, runTransaction, serverTimestamp, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const db = F.db;
-export const LIM = { title: 40, body: 500, wave: 300, waves: 20, name: 20, fid: 40, video: 300 };
+export const LIM = { title: 40, body: 500, wave: 300, waves: 10, name: 20, fid: 40, video: 300 };
 export const HIDE_AT = 3;   // 通報がこの数になったら一覧に出さない（運営が確認する）
 const me = () => F.auth.currentUser;
 export const user = () => { const u = me(); return u ? { uid: u.uid } : null; };
