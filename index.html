@@ -157,6 +157,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .psvid{display:block;position:relative;max-width:480px;margin:10px 0;border-radius:6px;overflow:hidden}.psvid img{width:100%;display:block}.psvid span{position:absolute;left:8px;bottom:8px;background:rgba(200,0,0,.9);color:#fff;font-weight:800;font-size:13px;padding:4px 10px;border-radius:4px}
 .psvlink{display:inline-block;margin:10px 0;font-weight:700}.psrep{border:1px solid var(--line2);padding:10px;margin-top:10px;border-radius:6px;background:var(--panel2);display:flex;flex-direction:column;gap:4px}.psrep textarea{width:100%;box-sizing:border-box;min-height:4em}
 .psprof{display:grid;gap:6px;margin:0 0 12px;padding:10px;background:var(--panel2);border-radius:6px}.psprof input[type=text],.psprof input:not([type]){width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--line2);background:var(--field);color:var(--ink);font:inherit}
+.pbmrow{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
 .psmine{display:grid;gap:2px}.psfid{font-size:14px}.pswaves{margin:8px 0}.pswv{display:grid;grid-template-columns:5em 1fr;gap:6px;margin-top:6px}.pswv textarea{width:100%;box-sizing:border-box}
 .pswaves select{font:inherit;font-size:12.5px;margin-left:6px}
 .wavecard{padding:14px 16px;margin-bottom:12px}.wvlist{display:flex;flex-direction:column;gap:8px}
@@ -2098,8 +2099,8 @@ async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e)
 /* ================= みんなの攻略（ユーザー投稿）。データは js/posts.js（開いたとき・投稿するときだけ読み込む） =================
    投稿は編成ビルダーの「投稿モード」（TB.post）で作る：6枠（キャラ・★・覚醒Lv・BLADE Lv・スクリプト・凸・ランク・出撃順）・タイトル・WAVEごとのメモ・自由記述・動画のURL。
    ★・スクリプトの凸は所持の記録から入れておき、そのあと自由に直せる（投稿に書き込むので、あとで所持の記録が変わっても投稿は変わらない） */
-const PLIM={title:40,body:500,wave:300,waves:20};
-let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=1").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
+const PLIM={title:40,body:500,wave:300,waves:10};
+let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=3").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
 const PST={f:"",list:null,busy:false,sort:"new",err:""};
 const lvSel=(k,l,v)=>`<label>${l} <select data-tbf="${k}"><option value="">—</option>${Array.from({length:13},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>`;
 function postExtraHtml(){const P=TB.post,f=floorObj(TB.floor),nw=Math.max(P.w.length,(f&&f.waves||[]).length);
@@ -2134,17 +2135,24 @@ function postsBoxHtml(f){if(MODE==="admin"||!f||f.all)return "";const on=PST.f==
   const l=on?PST.list.slice().sort((a,b)=>PST.sort==="like"?(b.likes-a.likes)||(b.at-a.at):b.at-a.at):[];
   return `<div class="floorcard postsbox" id="postsbox"><div class="pshead"><p class="note-h">📝 みんなの攻略${on?` <small class="count">${l.length}件</small>`:""}</p><span style="flex:1"></span>
     ${on&&l.length>1?`<span class="viewsw"><button data-psort="new" aria-pressed="${PST.sort==="new"}">新しい順</button><button data-psort="like" aria-pressed="${PST.sort==="like"}">いいね順</button></span>`:""}
-    <button class="btn small" data-mypage="1">マイページ</button><button class="btn small primary" data-postnew="${esc(f.key)}">＋ 攻略を投稿する</button></div>
+    <button class="btn small" data-pbmlist="1">🔖 ブックマーク ${Object.keys(PBM()).length}</button><button class="btn small" data-mypage="1">マイページ</button><button class="btn small primary" data-postnew="${esc(f.key)}">＋ 攻略を投稿する</button></div>
     ${on?(l.length?`<div class="pslist">${l.map(postCardHtml).join("")}</div>`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
       :`<button class="btn" data-postload="${esc(f.key)}" ${PST.busy?"disabled":""}>${PST.busy?"読み込み中…":"みんなの攻略を見る"}</button>${PST.err?`<p class="err">${esc(PST.err)}</p>`:""}`}</div>`;}
 const pdate=t=>{if(!t)return "";const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;};
+const pdtime=t=>{if(!t)return "";const d=new Date(t);return `${pdate(t)} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;};
+const pEdited=p=>p.t&&p.at&&p.t-p.at>60000;
+/* 投稿のブックマーク（S.pbm＝{投稿ID:{t:タイトル,f:階層キー,n:投稿者名,at}}。ブラウザに保存し、ログインしていればアカウントにも） */
+const PBM=()=>S.pbm||(S.pbm={});
 function postCardHtml(p){const ms=postMs(p.m).filter(x=>x.id);
   return `<button class="pscard" data-post="${esc(p.id)}"><b class="pst">${esc(p.title||"（タイトルなし）")}</b><span class="psfaces">${ms.map(x=>{const c=CHMAP[x.id];return c?cth(c):"";}).join("")}</span>
-    <span class="psmeta"><span>${esc(p.name)}</span><span>${pdate(p.at)}</span><span>♥ ${p.likes}</span><span>👁 ${p.views}</span>${p.v?"<span>▶ 動画</span>":""}${p.w.some(Boolean)?"<span>WAVEメモ</span>":""}</span></button>`;}
+    <span class="psmeta">${PBM()[p.id]?"<span>🔖</span>":""}<span>${esc(p.name)}</span><span>投稿 ${pdate(p.at)}</span>${pEdited(p)?`<span>更新 ${pdate(p.t)}</span>`:""}<span>♥ ${p.likes}</span><span>👁 ${p.views}</span>${p.v?"<span>▶ 動画</span>":""}${p.w.some(Boolean)?"<span>WAVEメモ</span>":""}</span></button>`;}
 async function loadFloorPosts(fk){PST.busy=true;PST.err="";PST.f=fk;PST.list=null;render();
   try{const pm=await loadPosts();PST.list=await pm.listByFloor(fk);}catch(er){console.warn(er);PST.err="読み込めませんでした。時間をおいてもう一度お試しください";PST.f="";}
   PST.busy=false;render();}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],[data-postnew],[data-psort],[data-post],[data-plike],[data-preport],[data-pedit],[data-pdel],[data-pshare],[data-mypage],[data-pprof]");if(!b)return;const ds=b.dataset;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],[data-postnew],[data-psort],[data-post],[data-plike],[data-preport],[data-pedit],[data-pdel],[data-pshare],[data-mypage],[data-pprof],[data-pbm],[data-pbmlist],[data-pbmrm]");if(!b)return;const ds=b.dataset;
+  if(ds.pbm){const o=PBM();if(o[ds.pbm])delete o[ds.pbm];else if(PCUR&&PCUR.id===ds.pbm)o[ds.pbm]={t:PCUR.title,f:PCUR.f,n:PCUR.name,at:Date.now()};save();const on=!!o[ds.pbm];b.textContent=on?"🔖 ブックマーク済み":"🔖 ブックマーク";b.classList.toggle("primary",on);toast(on?"ブックマークしました":"ブックマークを外しました");if(tab==="tier"||tab==="seal")render();return;}
+  if(ds.pbmlist){openBookmarks();return;}
+  if(ds.pbmrm){delete PBM()[ds.pbmrm];save();openBookmarks();if(tab==="tier"||tab==="seal")render();return;}
   if(ds.postload){loadFloorPosts(ds.postload);return;}
   if(ds.postnew){postNew(ds.postnew).catch(()=>{});return;}
   if(ds.psort){PST.sort=ds.psort;render();return;}
@@ -2168,14 +2176,14 @@ async function openPostById(pid){let pm,p;try{pm=await loadPosts();p=await pm.ge
   const f=floorObj(p.f),ms=postMs(p.m),ho=hasOwn(),hs=Object.keys(S.sown||{}).length>0;
   const nc=id=>ho&&id&&!OWN()[id]?" tmnot":"",ns=n=>hs&&n&&!SOWN()[n]?" tmnot":"";
   const h=`<h2>${esc(p.title||"（タイトルなし）")}</h2>
-  <p class="psby"><button class="aclink2" data-pprof="${esc(p.uid)}">${esc(p.name)}</button> ・ ${pdate(p.at)}${p.t&&p.t-p.at>60000?`（更新 ${pdate(p.t)}）`:""} ・ 👁 ${p.views}</p>
+  <p class="psby"><button class="aclink2" data-pprof="${esc(p.uid)}">${esc(p.name)}</button> ・ 投稿 ${pdtime(p.at)}${pEdited(p)?` ・ 最終更新 ${pdtime(p.t)}`:""} ・ 👁 ${p.views}</p>
   ${f?`<p class="tbfloor">${esc(floorName(p.f))}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ</button></p>`:""}
   <div class="teams" style="border:0;margin:0;padding:0"><div class="team tv-c">${teamCardsHtml(ms,{nc,ns})}</div></div>
   ${ho?'<p class="hint">グレー＝あなたが持っていないキャラ・スクリプト</p>':""}
   ${p.w.some(Boolean)?`<div class="pswvs"><p class="note-h">WAVEごとの立ち回り</p>${p.w.map((x,i)=>x?`<div class="wv"><b class="wvn">WAVE ${i+1}</b><p class="note-b">${esc(x)}</p></div>`:"").join("")}</div>`:""}
   ${p.body?`<p class="note-h">コメント</p><p class="note-b">${esc(p.body)}</p>`:""}
   ${videoHtml(p.v)}
-  <div class="psacts"><button class="btn${lk?" primary":""}" data-plike="${esc(p.id)}">♥ いいね ${p.likes}</button><button class="btn" data-pshare="${esc(p.id)}">🔗 リンクを共有</button>
+  <div class="psacts"><button class="btn${lk?" primary":""}" data-plike="${esc(p.id)}">♥ いいね ${p.likes}</button><button class="btn${PBM()[p.id]?" primary":""}" data-pbm="${esc(p.id)}">${PBM()[p.id]?"🔖 ブックマーク済み":"🔖 ブックマーク"}</button><button class="btn" data-pshare="${esc(p.id)}">🔗 リンクを共有</button>
     ${mine?`<button class="btn" data-pedit="${esc(p.id)}">編集</button><button class="btn" data-pdel="${esc(p.id)}">削除</button>`:`<button class="btn small" data-preport="${esc(p.id)}">通報</button>`}</div>
   <div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();dl.scrollTop=0;}
@@ -2190,6 +2198,9 @@ async function postReport(pid){const pm=await loadPosts();if(!pm.user()){needLog
     try{const ok=await pm.report(pid,r,document.getElementById("psrt").value);toast(ok?"通報しました。運営が確認します":"この投稿はもう通報済みです");document.getElementById("psrep").remove();}catch(er){console.warn(er);toast("通報できませんでした");}};}
 async function postDelete(pid){if(!confirm("この投稿を削除しますか？（元に戻せません）"))return;const pm=await loadPosts();
   try{await pm.remove(pid);toast("削除しました");const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();if(PST.list)PST.list=PST.list.filter(x=>x.id!==pid);if(tab==="tier"||tab==="seal")render();}catch(er){toast("削除できませんでした");}}
+function bookmarksHtml(){const l=Object.entries(PBM()).sort((a,b)=>(b[1].at||0)-(a[1].at||0));
+  return l.length?`<div class="pslist">${l.map(([id,x])=>`<div class="pbmrow"><button class="pscard" data-post="${esc(id)}"><b class="pst">${esc(x.t||"（タイトルなし）")}</b><span class="psmeta"><span>${esc(floorName(x.f)||"")}</span><span>${esc(x.n||"")}</span></span></button><button class="btn small" data-pbmrm="${esc(id)}" aria-label="ブックマークを外す">✕</button></div>`).join("")}</div>`:'<p class="count">まだありません。投稿の詳細の「🔖 ブックマーク」で追加できます。</p>';}
+function openBookmarks(){document.getElementById("detailBody").innerHTML=`<h2>🔖 ブックマークした攻略</h2><p class="hint">このブラウザに保存されます（ログインしていればアカウントにも保存され、ほかの端末でも見られます）。</p>${bookmarksHtml()}<div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
 // 投稿者のページ（フレンドIDは本人が公開にしたときだけ）
 async function openProfile(uid){let pm,pr,l;try{pm=await loadPosts();[pr,l]=await Promise.all([pm.getProfile(uid),pm.listByUser(uid)]);}catch(er){toast("読み込めませんでした");return;}
   const h=`<h2>${esc((pr&&pr.name)||"投稿者")}</h2>${pr&&pr.fpub&&pr.fid?`<p class="psfid">フレンドID：<b>${esc(pr.fid)}</b> <button class="btn small" onclick="navigator.clipboard.writeText(${esc(JSON.stringify(pr.fid))}).then(()=>RXR.toast('コピーしました'))">コピー</button></p>`:""}
@@ -2202,7 +2213,8 @@ async function openMyPage(){let pm;try{pm=await loadPosts();}catch(er){return;}c
   const h=`<h2>マイページ</h2><div class="psprof"><label>投稿者名 <input id="mpName" maxlength="20" value="${esc(pr.name||"")}" placeholder="投稿に表示される名前"></label>
     <label>フレンドID（任意） <input id="mpFid" maxlength="40" value="${esc(pr.fid||"")}" placeholder="ゲームのフレンドID"></label>
     <label class="ck"><input type="checkbox" id="mpPub" ${pr.fpub?"checked":""}> フレンドIDを投稿者のページで公開する（公開しないときは保存しません）</label><button class="btn primary small" id="mpSave">保存</button></div>
-  <p class="note-h">自分の投稿（${l.length}件・閲覧 ${tv}・いいね ${tl}）</p>
+  <p class="note-h">🔖 ブックマーク（${Object.keys(PBM()).length}件）</p>${bookmarksHtml()}
+  <p class="note-h" style="margin-top:12px">自分の投稿（${l.length}件・閲覧 ${tv}・いいね ${tl}）</p>
   <div class="pslist">${l.sort((a,b)=>b.at-a.at).map(p=>`<div class="psmine">${postCardHtml(p)}${p.hidden||p.rc>=3?`<small class="err">${p.hidden?"運営が非表示にしています":"通報が多いため確認中です"}</small>`:""}</div>`).join("")||'<p class="count">まだ投稿がありません。階層のページの「＋ 攻略を投稿する」から投稿できます。</p>'}</div>
   <div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();dl.scrollTop=0;
@@ -3049,7 +3061,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=60");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=62");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -3087,7 +3099,7 @@ document.getElementById("fbSend").addEventListener("click",async e=>{
 document.addEventListener("click",e=>{if(!e.target.closest("[data-fbagain]"))return;document.getElementById("fbText").value="";document.getElementById("fbErr").textContent="";document.getElementById("fbHist").innerHTML=fbHistHtml();document.getElementById("fbDone").hidden=true;document.getElementById("fbForm").hidden=false;});
 /* ================= ユーザーのログイン（js/user.js。ログインしたことがある端末か、ログインを押したときだけ読み込む） ================= */
 let USERMOD=null;
-function loadUser(){if(!USERMOD)USERMOD=import("./js/user.js?v=1").then(m=>{m.init();return m;}).catch(e=>{USERMOD=null;toast("ログインの準備ができませんでした。通信を確認してください");throw e;});return USERMOD;}
+function loadUser(){if(!USERMOD)USERMOD=import("./js/user.js?v=2").then(m=>{m.init();return m;}).catch(e=>{USERMOD=null;toast("ログインの準備ができませんでした。通信を確認してください");throw e;});return USERMOD;}
 document.addEventListener("click",ev=>{const b=ev.target.closest("[data-account]");if(!b)return;ev.preventDefault();loadUser().then(m=>m.open()).catch(()=>{});});
 function setAcctBtn(){const b=document.getElementById("acctBtn");if(b)b.textContent=LOGGEDIN?"アカウント":"ログイン";}
 setAcctBtn();

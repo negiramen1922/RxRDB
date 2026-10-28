@@ -118,6 +118,14 @@ service cloud.firestore {
         && !exists(/databases/$(database)/documents/reports/$(pid + "_" + request.auth.uid)) && existsAfter(/databases/$(database)/documents/reports/$(pid + "_" + request.auth.uid));
       allow update: if isEditor() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["hidden", "rc"]);
       allow delete: if (authed() && resource.data.uid == request.auth.uid) || isEditor();
+      // 編集の記録（直す前の内容）：投稿した本人が編集するときに足す。運営だけが読める
+      match /hist/{hid} {
+        allow create: if authed() && get(/databases/$(database)/documents/posts/$(pid)).data.uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(["uid", "name", "title", "body", "m", "w", "v", "was", "at"])
+          && request.resource.data.at == request.time;
+        allow read, delete: if isEditor();
+      }
       match /likes/{uid} {
         allow read: if true;
         allow create: if authed() && request.auth.uid == uid && request.resource.data.keys().hasOnly(["t"]);
