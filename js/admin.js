@@ -2420,6 +2420,18 @@ async function fbNote(id) {
 
 /* ================= 投稿（みんなの攻略）の管理：通報の確認・非表示・削除・投稿停止 ================= */
 let PSTS = [], REPS = [], BANNED = new Set();
+const PMH = {};   // 投稿ID → 編集の記録（開いたときだけ読む）
+function histHtml(p) {
+  const l = PMH[p.id]; if (!l) return "";
+  if (l === "loading") return '<p class="count">編集の記録を読み込み中…</p>';
+  if (!l.length) return '<p class="count">編集の記録はありません（一度も編集されていません）</p>';
+  const tx = (k, x) => k === "w" ? (() => { try { return JSON.parse(x || "[]").map((y, i) => y ? `WAVE${i + 1}：${y}` : "").filter(Boolean).join("\n"); } catch (e) { return x; } })() : k === "m" ? (() => { try { return JSON.parse(x || "[]").filter(Boolean).map(r => `${R.CHMAP[r[0]] ? R.CHMAP[r[0]].name : r[0]}${r[4] ? " / " + scName(r[4]) : ""}`).join("、"); } catch (e) { return x; } })() : x;
+  const lab = { title: "タイトル", body: "自由記述", w: "WAVEメモ", m: "編成", v: "動画", name: "投稿者名" };
+  // 新しい順。各記録は「その編集の直前の内容」なので、次の版（新しい記録か今の投稿）と比べて変わった欄を出す
+  return `<div class="pmhist"><p class="note-h">編集の記録（${l.length}件・運営だけが見られます）</p>${l.map((h, i) => { const next = i === 0 ? p : l[i - 1];
+    const ch = Object.keys(lab).filter(k => String(h[k] || "") !== String(next[k] || ""));
+    return `<details class="pmh"><summary>${esc(fmtTime(h.at))} に編集（変わった欄：${esc(ch.map(k => lab[k]).join("・") || "なし")}）</summary>${ch.map(k => `<p class="count">【${lab[k]}】編集前：</p><p class="fbtext">${esc(tx(k, h[k]) || "（空）")}</p>`).join("")}</details>`; }).join("")}</div>`;
+}
 const PM = { v: "rep", q: "" };
 function renderPostsTab() {
   const rcOf = id => REPS.filter(r => r.pid === id);
@@ -2431,8 +2443,8 @@ function renderPostsTab() {
     return `<article class="fbcard ${p.hidden ? "st-hold" : (p.rc || 0) >= 3 ? "" : (p.rc || 0) ? "st-doing" : "st-done"}"><header><b>${esc(p.title || "")}</b><span class="count">${esc(p.name || "")}${ban ? "（投稿停止中）" : ""}</span><span class="count">${esc(fmtTime(p.at))}</span><span style="flex:1"></span><span class="count">♥${p.likes || 0} 👁${p.views || 0}${p.rc ? ` ⚠通報${p.rc}` : ""}${p.hidden ? " 非表示" : ""}</span></header>
       <p class="count" style="margin:0">${esc(floorLabel(p.f))}${p.v ? ` ・ 動画：<a href="${esc(p.v)}" target="_blank" rel="noopener nofollow">${esc(p.v.slice(0, 60))}</a>` : ""}</p>
       ${p.body ? longText(p.body, "pb:" + p.id) : ""}${(() => { let w = []; try { w = JSON.parse(p.w || "[]"); } catch (e) { } return w.filter(Boolean).length ? longText(w.map((x, i) => x ? `WAVE${i + 1}：${x}` : "").filter(Boolean).join("\n"), "pw:" + p.id) : ""; })()}
-      ${rs.length ? `<div class="pmreps">${rs.map(r => `<p class="count">⚠ ${esc(r.reason || "")}${r.text ? `：${esc(r.text)}` : ""}（${esc(fmtTime(r.at))}）</p>`).join("")}</div>` : ""}
-      <footer><a class="btn small" href="${esc(R.SITE_URL + "?post=" + encodeURIComponent(p.id))}" target="_blank" rel="noopener">公開サイトで見る</a><span style="flex:1"></span>
+      ${histHtml(p)}${rs.length ? `<div class="pmreps">${rs.map(r => `<p class="count">⚠ ${esc(r.reason || "")}${r.text ? `：${esc(r.text)}` : ""}（${esc(fmtTime(r.at))}）</p>`).join("")}</div>` : ""}
+      <footer><a class="btn small" href="${esc(R.SITE_URL + "?post=" + encodeURIComponent(p.id))}" target="_blank" rel="noopener">公開サイトで見る</a><button class="btn small" data-pmhist="${esc(p.id)}">${PMH[p.id] ? "編集の記録を閉じる" : "編集の記録"}</button><span style="flex:1"></span>
         ${p.hidden || (p.rc || 0) ? `<button class="btn small" data-pmok="${esc(p.id)}">問題なし（表示に戻す）</button>` : ""}${p.hidden ? "" : `<button class="btn small" data-pmhide="${esc(p.id)}">非表示</button>`}
         <button class="btn small" data-pmban="${esc(p.uid)}">${ban ? "投稿停止を解除" : "投稿停止"}</button><button class="btn small danger" data-pmdel="${esc(p.id)}">削除</button></footer></article>`; }).join("") || '<p class="count">該当する投稿はありません</p>'}</div>`;
   AM.innerHTML = h;
@@ -2441,6 +2453,9 @@ function renderPostsTab() {
 async function pmAction(ds) {
   try {
     if (ds.pmv) { PM.v = ds.pmv; renderPostsTab(); return; }
+    if (ds.pmhist) { const id = ds.pmhist; if (PMH[id]) { delete PMH[id]; renderPostsTab(); return; } PMH[id] = "loading"; renderPostsTab();
+      const q = await F.getDocs(F.query(F.collection(F.db, "posts", id, "hist"), F.orderBy("at", "desc"), F.limit(50)));
+      PMH[id] = q.docs.map(d => { const x = d.data(); return Object.assign({}, x, { at: x.at && x.at.toMillis ? x.at.toMillis() : 0 }); }); renderPostsTab(); return; }
     if (ds.pmok) { await F.updateDoc(F.doc(F.db, "posts", ds.pmok), { hidden: false, rc: 0 }); const rs = REPS.filter(r => r.pid === ds.pmok); for (const r of rs) await F.deleteDoc(F.doc(F.db, "reports", r.id)); toast("表示に戻しました"); return; }
     if (ds.pmhide) { await F.updateDoc(F.doc(F.db, "posts", ds.pmhide), { hidden: true }); toast("非表示にしました"); return; }
     if (ds.pmdel) { if (!confirm("この投稿を削除しますか？（元に戻せません）")) return; await F.deleteDoc(F.doc(F.db, "posts", ds.pmdel)); for (const r of REPS.filter(r => r.pid === ds.pmdel)) await F.deleteDoc(F.doc(F.db, "reports", r.id)); toast("削除しました"); return; }
@@ -2661,7 +2676,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2674,7 +2689,7 @@ function onAdminClick(e) {
     const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(k); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.tdopen || ds.tdedit || ds.tdcancel || ds.tdsave || ds.tdgo || ds.tdadd || ds.tddel) { todoAction(ds); return; }
-  if (ds.pmv || ds.pmok || ds.pmhide || ds.pmdel || ds.pmban) { pmAction(ds); return; }
+  if (ds.pmv || ds.pmhist || ds.pmok || ds.pmhide || ds.pmdel || ds.pmban) { pmAction(ds); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
@@ -2812,6 +2827,7 @@ function injectStyle() {
 .wvedit{display:flex;flex-direction:column;gap:8px}.wvrow{display:grid;grid-template-columns:5.5em 1fr 1fr;gap:6px;align-items:start}
 .wvno{font-size:12.5px;font-weight:900;color:#fff;background:linear-gradient(100deg,#0d3b8c,#1a86ff);padding:4px 6px;text-align:center}
 .wvrow textarea{width:100%;box-sizing:border-box}.wvlab small{font-weight:700;color:var(--muted)}@media (max-width:700px){.wvlab{display:none}}@media (max-width:700px){.wvrow{grid-template-columns:1fr}.wvno{justify-self:start}}
+.pmh{font-size:13px;border-top:1px solid var(--line);padding:4px 0}.pmh summary{cursor:pointer}.pmhist{margin:4px 0}
 .fbtext{margin:0;white-space:pre-wrap;word-break:break-word;font-size:14px}
 .fbmore>summary{list-style:none;cursor:pointer}.fbmore>summary::-webkit-details-marker{display:none}
 .fbmore[open] .fbclip{display:none}.fbmorel{display:inline-block;margin-top:2px;font-size:12.5px;font-weight:700;color:var(--accent-ink)}

@@ -3,7 +3,7 @@
 // posts/{pid}：uid・name（投稿したときの投稿者名）・f（階層キー）・title・body（自由記述）・m（編成の JSON 文字列
 //   [[キャラID,★,覚醒Lv,BLADE Lv,スクリプトID,スクリプト凸,スクリプトランク,出撃順]…]）・w（WAVEごとのメモの JSON 文字列 [文…]）・v（動画のURL）・
 //   at（投稿時刻）・t（更新時刻）・likes・views・rc（通報の数）・hidden（運営が非表示）
-// posts/{pid}/likes/{uid}：いいね（1人1回）。reports/{pid_uid}：通報（1人1回）。profiles/{uid}：投稿者名・フレンドID・公開するか。banned/{uid}：投稿停止
+// posts/{pid}/hist/{id}：編集する前の内容（運営だけが読める）。posts/{pid}/likes/{uid}：いいね（1人1回）。reports/{pid_uid}：通報（1人1回）。profiles/{uid}：投稿者名・フレンドID・公開するか。banned/{uid}：投稿停止
 import * as F from "./fb.js";
 import { collection, query, where, limit, getDocs, getDoc, doc, writeBatch, runTransaction, serverTimestamp, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -35,7 +35,17 @@ export async function save(o) {
   const name = clip(prof && prof.name, LIM.name); if (!name) throw new Error("name");
   const v = clip(o.v, LIM.video); if (v && !/^https?:\/\//i.test(v)) throw new Error("video");
   const body = { name, f: clip(o.f, 80), title: clip(o.title, LIM.title), body: clip(o.body, LIM.body), m: JSON.stringify(o.m || []).slice(0, 3000), w: JSON.stringify((o.w || []).slice(0, LIM.waves).map(x => clip(x, LIM.wave))), v, t: serverTimestamp() };
-  if (o.id) { const b = writeBatch(db); b.update(doc(db, "posts", o.id), body); await b.commit(); return o.id; }
+  // 編集したときは、直す前の内容を posts/{pid}/hist に残す（運営だけが読める）
+  if (o.id) {
+    const pr = doc(db, "posts", o.id);
+    await runTransaction(db, async tx => {
+      const s = await tx.get(pr); if (!s.exists()) throw new Error("gone");
+      const x = s.data();
+      tx.set(doc(collection(db, "posts", o.id, "hist")), { uid: u.uid, name: x.name || "", title: x.title || "", body: x.body || "", m: x.m || "", w: x.w || "", v: x.v || "", was: x.t || x.at || null, at: serverTimestamp() });
+      tx.update(pr, body);
+    });
+    return o.id;
+  }
   const ref = doc(collection(db, "posts"));
   const b = writeBatch(db); b.set(ref, Object.assign({ uid: u.uid, at: serverTimestamp(), likes: 0, views: 0, rc: 0, hidden: false }, body)); await b.commit();
   return ref.id;

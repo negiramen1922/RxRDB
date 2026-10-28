@@ -7,7 +7,7 @@ import { GoogleAuthProvider, TwitterAuthProvider, signInWithPopup, signInWithRed
 const R = window.RXR;
 const esc = R.esc;
 // アカウントに保存する項目（所持キャラ・所持スクリプト・共有名・自分用Tier表・並び・運用メモ・階層メモ・くらべるトレイ）
-const SYNC = ["own", "sown", "ownName", "tiers", "tord", "tnote", "notes", "cmp", "ccmp"];
+const SYNC = ["own", "sown", "ownName", "tiers", "tord", "tnote", "notes", "cmp", "ccmp", "pbm"];
 const LS = { on: "rxr-login", uid: "rxr-login-uid", dirty: "rxr-sync-dirty" };
 const ls = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }, del(k) { try { localStorage.removeItem(k); } catch (_) {} } };
 
@@ -21,7 +21,7 @@ function apply(o) { const S = R.S; SYNC.forEach(k => { if (o && o[k] !== undefin
 function merge(cloud, local) {
   const o = Object.assign({}, local, cloud);
   for (const k of ["own", "sown"]) { const a = Object.assign({}, local[k] || {}); for (const [id, v] of Object.entries(cloud[k] || {})) a[id] = Math.max(+a[id] || 0, +v || 0) || a[id] || v; o[k] = a; }
-  for (const k of ["tiers", "tord", "tnote", "notes"]) o[k] = Object.assign({}, local[k] || {}, cloud[k] || {});
+  for (const k of ["tiers", "tord", "tnote", "notes", "pbm"]) o[k] = Object.assign({}, local[k] || {}, cloud[k] || {});
   for (const k of ["cmp", "ccmp"]) o[k] = [...new Set([...(cloud[k] || []), ...(local[k] || [])])].slice(0, 4);
   return o;
 }
