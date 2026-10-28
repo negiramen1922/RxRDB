@@ -199,7 +199,7 @@ async function resolveRole(u) {
 }
 
 /* ================= live listeners ================= */
-function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = false; TODODOC = null; }
+function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = false; TODODOC = null; }
 function startListeners() {
   const on = (ref, fn, opt) => S.unsubs.push(F.onSnapshot(ref, opt || {}, fn, err => {
     console.warn(ref.path, err);
@@ -231,7 +231,7 @@ function startListeners() {
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
   initName().then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
-  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = false; TODODOC = null;
+  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = false; TODODOC = null;
   // ご意見・変更履歴は、そのタブを開いたときに読む（未対応のご意見の数だけは件数クエリで数える＝1回の読み取り）
   F.getCountFromServer(F.query(F.collection(F.db, "feedback"), F.where("status", "==", "new"))).then(c => { S.fbNew = c.data().count; renderNav(); }).catch(e => console.warn("fbcount", e));
   S.unsubs.push(F.onSnapshot(F.doc(F.db, "secrets", "github"), s => { GH = s.exists() && s.data().token ? s.data() : null; softRender(); }, () => { GH = null; }));
@@ -281,7 +281,7 @@ function listenRows(k, on) {
     }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
   }
 }
-const LAZY = { log: false, fb: false, todo: false, test: false };
+const LAZY = { log: false, fb: false, todo: false, test: false, posts: false };
 function ensureLazy(tab) {
   if (!S.on) return;
   if (tab === "log" && !LAZY.log) { LAZY.log = true; S.on(F.query(F.collection(F.db, "log"), F.orderBy("at", "desc"), F.limit(150)), q => { LOG = q.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.tab === "log") softRender(); }); }
@@ -289,6 +289,12 @@ function ensureLazy(tab) {
     FEEDBACK = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: x.at && x.at.toMillis ? x.at.toMillis() : (x.at || 0) }); });
     S.fbNew = FEEDBACK.filter(f => f.status === "new").length; renderNav(); if (S.tab === "fb") softRender();
   }); }
+  if (tab === "posts" && !LAZY.posts) { LAZY.posts = true;
+    const tsm = x => x && x.toMillis ? x.toMillis() : 0;
+    S.on(F.query(F.collection(F.db, "posts"), F.orderBy("at", "desc"), F.limit(150)), q => { PSTS = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: tsm(x.at), t: tsm(x.t) }); }); if (S.tab === "posts") softRender(); });
+    S.on(F.query(F.collection(F.db, "reports"), F.orderBy("at", "desc"), F.limit(200)), q => { REPS = q.docs.map(d => { const x = d.data(); return Object.assign({ id: d.id }, x, { at: tsm(x.at) }); }); if (S.tab === "posts") softRender(); });
+    S.on(F.collection(F.db, "banned"), q => { BANNED = new Set(q.docs.map(d => d.id)); if (S.tab === "posts") softRender(); });
+  }
   if (tab === "test" && !LAZY.test) { LAZY.test = true; S.on(F.collection(F.db, "testers"), q => {
     TESTERS = q.docs.map(d => { const x = d.data(); let v = {}; try { v = JSON.parse(x.d || "{}"); } catch (e) { } return { id: d.id, name: x.name || v.name || "", ua: x.ua || "", t: x.t && x.t.toMillis ? x.t.toMillis() : 0, chk: x.chk || {}, r: v.r || {}, f: v.f || {}, rep: v.rep || [] }; }).sort((a, b) => b.t - a.t);
     if (S.tab === "test") softRender();
@@ -503,7 +509,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "やること"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "やること"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["posts", "投稿"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = S.fbNew || 0;
@@ -543,6 +549,7 @@ function renderAdmin(soft) {
   else if (S.tab === "guide") { if (!(soft && GD.dirty)) renderGuideTab(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
+  else if (S.tab === "posts") renderPostsTab();
   else if (S.tab === "test") { if (!(soft && TS.dirty)) renderTest(); }
   else if (S.tab === "stats") renderStats(soft);
   else if (S.tab === "members") renderMembers(soft);
@@ -2411,6 +2418,35 @@ async function fbNote(id) {
   try { await F.updateDoc(F.doc(F.db, "feedback", id), { note: v.slice(0, 500), noteBy: meId() }); } catch (e) { toast(fbErr(e)); }
 }
 
+/* ================= 投稿（みんなの攻略）の管理：通報の確認・非表示・削除・投稿停止 ================= */
+let PSTS = [], REPS = [], BANNED = new Set();
+const PM = { v: "rep", q: "" };
+function renderPostsTab() {
+  const rcOf = id => REPS.filter(r => r.pid === id);
+  const flagged = PSTS.filter(p => (p.rc || 0) > 0 || p.hidden);
+  const list = (PM.v === "rep" ? flagged : PSTS).filter(p => !PM.q || (p.title + p.name + p.body + p.f).toLowerCase().includes(PM.q.toLowerCase()));
+  let h = userBar() + `<div class="toolbar"><h2><small>POSTS</small>投稿（みんなの攻略）</h2><div class="seg"><button data-pmv="rep" aria-pressed="${PM.v === "rep"}">通報・非表示 ${flagged.length}</button><button data-pmv="all" aria-pressed="${PM.v === "all"}">新しい投稿 ${PSTS.length}</button></div><input class="search" id="pmq" placeholder="タイトル・投稿者・本文で検索" value="${esc(PM.q)}"></div>
+  <p class="hint" style="margin:-4px 0 12px">通報が ${3} 件になった投稿は、公開サイトの一覧から自動で外れます（ここで「問題なし」にすると戻ります）。「投稿停止」にした人は、新しい投稿・編集ができなくなります。</p>`;
+  h += `<div class="fblist">${list.map(p => { const rs = rcOf(p.id), ban = BANNED.has(p.uid);
+    return `<article class="fbcard ${p.hidden ? "st-hold" : (p.rc || 0) >= 3 ? "" : (p.rc || 0) ? "st-doing" : "st-done"}"><header><b>${esc(p.title || "")}</b><span class="count">${esc(p.name || "")}${ban ? "（投稿停止中）" : ""}</span><span class="count">${esc(fmtTime(p.at))}</span><span style="flex:1"></span><span class="count">♥${p.likes || 0} 👁${p.views || 0}${p.rc ? ` ⚠通報${p.rc}` : ""}${p.hidden ? " 非表示" : ""}</span></header>
+      <p class="count" style="margin:0">${esc(floorLabel(p.f))}${p.v ? ` ・ 動画：<a href="${esc(p.v)}" target="_blank" rel="noopener nofollow">${esc(p.v.slice(0, 60))}</a>` : ""}</p>
+      ${p.body ? longText(p.body, "pb:" + p.id) : ""}${(() => { let w = []; try { w = JSON.parse(p.w || "[]"); } catch (e) { } return w.filter(Boolean).length ? longText(w.map((x, i) => x ? `WAVE${i + 1}：${x}` : "").filter(Boolean).join("\n"), "pw:" + p.id) : ""; })()}
+      ${rs.length ? `<div class="pmreps">${rs.map(r => `<p class="count">⚠ ${esc(r.reason || "")}${r.text ? `：${esc(r.text)}` : ""}（${esc(fmtTime(r.at))}）</p>`).join("")}</div>` : ""}
+      <footer><a class="btn small" href="${esc(R.SITE_URL + "?post=" + encodeURIComponent(p.id))}" target="_blank" rel="noopener">公開サイトで見る</a><span style="flex:1"></span>
+        ${p.hidden || (p.rc || 0) ? `<button class="btn small" data-pmok="${esc(p.id)}">問題なし（表示に戻す）</button>` : ""}${p.hidden ? "" : `<button class="btn small" data-pmhide="${esc(p.id)}">非表示</button>`}
+        <button class="btn small" data-pmban="${esc(p.uid)}">${ban ? "投稿停止を解除" : "投稿停止"}</button><button class="btn small danger" data-pmdel="${esc(p.id)}">削除</button></footer></article>`; }).join("") || '<p class="count">該当する投稿はありません</p>'}</div>`;
+  AM.innerHTML = h;
+  const qi = document.getElementById("pmq"); if (qi) R.liveInput(qi, () => { PM.q = qi.value; const ps = qi.selectionStart; renderPostsTab(); const n = document.getElementById("pmq"); n.focus(); n.setSelectionRange(ps, ps); });
+}
+async function pmAction(ds) {
+  try {
+    if (ds.pmv) { PM.v = ds.pmv; renderPostsTab(); return; }
+    if (ds.pmok) { await F.updateDoc(F.doc(F.db, "posts", ds.pmok), { hidden: false, rc: 0 }); const rs = REPS.filter(r => r.pid === ds.pmok); for (const r of rs) await F.deleteDoc(F.doc(F.db, "reports", r.id)); toast("表示に戻しました"); return; }
+    if (ds.pmhide) { await F.updateDoc(F.doc(F.db, "posts", ds.pmhide), { hidden: true }); toast("非表示にしました"); return; }
+    if (ds.pmdel) { if (!confirm("この投稿を削除しますか？（元に戻せません）")) return; await F.deleteDoc(F.doc(F.db, "posts", ds.pmdel)); for (const r of REPS.filter(r => r.pid === ds.pmdel)) await F.deleteDoc(F.doc(F.db, "reports", r.id)); toast("削除しました"); return; }
+    if (ds.pmban) { if (BANNED.has(ds.pmban)) { await F.deleteDoc(F.doc(F.db, "banned", ds.pmban)); toast("投稿停止を解除しました"); } else { if (!confirm("この人の投稿を停止しますか？（今の投稿は残ります。必要なら非表示・削除してください）")) return; await F.setDoc(F.doc(F.db, "banned", ds.pmban), { at: now(), by: meId() }); toast("投稿停止にしました"); } return; }
+  } catch (e) { toast(fbErr(e), 6000); }
+}
 /* ================= テスト（テスターモードのチェックリストと結果） ================= */
 // 項目は public/testlist（json={groups:[{title,items:[{id,text,free}]}]}。公開データ一式に入り、公開サイトのテスターモードが読む。無ければ data/testlist.json）
 // 結果は testers/{tid}（テスターの端末が送る。d＝記録の JSON 文字列、chk＝「対応済み」の印）。このタブを開いたときに読む
@@ -2625,7 +2661,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2638,6 +2674,7 @@ function onAdminClick(e) {
     const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(k); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.tdopen || ds.tdedit || ds.tdcancel || ds.tdsave || ds.tdgo || ds.tdadd || ds.tddel) { todoAction(ds); return; }
+  if (ds.pmv || ds.pmok || ds.pmhide || ds.pmdel || ds.pmban) { pmAction(ds); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
