@@ -2,7 +2,7 @@
 
 リバースブルー×リバースエンドのエンドコンテンツ「バベル」の階層別Tier表サイトです。
 
-- 公開URL: https://negiramen1922.github.io/RxRDB/
+- 公開URL: https://rxrwiki.com/ （旧 https://negiramen1922.github.io/RxRDB/ は自動で転送）
 - データ: `data/*.json`（管理用アーティファクトから書き出して上書き）
 - 画像: `images/`（対応表は `data/images.json`、対応の確認は `IMAGE_REPORT.md`）
 

@@ -1,6 +1,6 @@
 # RxRwiki（リポジトリ RxRDB。リバリバ バベル攻略wiki 公開サイト）
 
-リバースブルー×リバースエンドのバベル階層別Tier表サイト。GitHub Pages（main ブランチ / ルート）で公開。ビルド不要の静的サイト。
+リバースブルー×リバースエンドのバベル階層別Tier表サイト。GitHub Pages（main ブランチ / ルート）で公開。ドメインは rxrwiki.com（Cloudflare Registrar で取得・DNS も Cloudflare。旧アドレス negiramen1922.github.io/RxRDB は GitHub が自動で転送）。ビルド不要の静的サイト。
 
 ## 構成
 - `index.html` … 公開サイト本体（HTML/CSS/JS 1ファイル）。`window.SITE` に GA4 の ID と Firebase（apiKey / projectId）を設定する。一般の閲覧では Firebase SDK も Firestore も使わず、GitHub Pages の `data/all.json`（公開データ一式。管理画面が自動で置く）を読む（閲覧で Firestore の読み取り枠・費用を使わない。不正な大量アクセス対策）。無ければ Firestore REST で `public/all`、それも駄目なら `public/*` を個別に、最後に data/*.json。
