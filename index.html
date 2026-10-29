@@ -975,6 +975,10 @@ window.SITE={authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyC
   move:{from:"https://negiramen1922.github.io/rxr-move/",hosts:["rxrwiki.com","www.rxrwiki.com"],until:"2027-06-30"}};
 </script>
 <script>
+/* 共有された所持キャラ・自分のTier表・編成のリンクとテスター用リンクは検索結果に出さない（noindex） */
+try{if(/[?&](own|tl|team|tester)=/.test(location.search)){var nr=document.createElement("meta");nr.name="robots";nr.content="noindex";document.head.appendChild(nr);}}catch(e){}
+</script>
+<script>
 /* 記録の引き継ぎ：ブラウザの記録はアドレス（オリジン）ごとに別なので、旧アドレスの記録を引き継ぎページ経由で URL の # に入れて受け取る。
    受け取るのは自分で飛んだとき（sessionStorage rxr-move-go）だけ。受け取ったら書き込んで読み込み直す（その間はサイトを動かさない＝RXRMOVING） */
 (function(){var M=window.SITE.move;if(!M)return;var ls,ss;try{ls=localStorage;ss=sessionStorage;}catch(e){return;}
@@ -3026,7 +3030,7 @@ function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(loc
    人が押して移ったときは履歴を足し（戻るボタンで前のページへ）、それ以外は置き換える。戻る・進むでは URL のページを開き直す */
 const URLTABS=["home","guide","faq","own","sown","ctier","knights","events","chars","scripts","rank","tier","sum","babel","seal"];
 const TITLE0=document.title;let DETAIL=null,URLPOP=false,NAVPUSH=false,DETPUSHED=false,IGNOREPOP=false;
-const isDetQ=q=>/^\?(char|script|event|knight)=/.test(q||"");
+const isDetQ=q=>/^\?(char|script|event|knight|post)=/.test(q||"");
 document.addEventListener("click",()=>{NAVPUSH=true;},true);
 function urlState(){
   if(DETAIL&&document.getElementById("dlgDetail").open&&DETAIL.n===document.getElementById("detailBody").firstElementChild){const k=DETAIL.k,v=DETAIL.v;return {q:`?${k}=${encodeURIComponent(v)}`,t:DETAIL.t};}
@@ -3036,7 +3040,26 @@ function urlState(){
   const lab=(()=>{for(const k in TOPS){const x=TOPS[k].find(([y])=>y===tab||(tab==="rank"&&y==="rank:"+RK.t));if(x)return tab==="rank"?`ランキング（${RK.t==="scripts"?"スクリプト":"キャラ"}）`:x[1];}return "";})();
   return {q:`?tab=${tab}${tab==="rank"?"&rk="+RK.t:""}`,t:lab};
 }
-function syncUrl(){if(MODE==="admin"||URLPOP||!SITE_LOADED)return;try{const st=urlState();document.title=st.t?`${st.t} | RxRwiki`:TITLE0;
+/* 検索エンジン向け：ページごとの題名・説明文（meta description）・正規の URL（canonical）。sitemap.xml は管理画面が data/all.json と一緒に作る */
+const DESC0=(document.querySelector('meta[name="description"]')||{}).content||"";
+const TABDESC={guide:"RxRwiki の使い方ガイド。Tier表・所持率チェッカー・編成ビルダー・みんなの攻略の使い方。",faq:"RxRwiki のよくある質問（Q&A）。",
+  chars:"キャラクター一覧。ロール・属性・騎士団・スタイル・効果で絞り込み、性能を比べられます。",rank:"キャラ・スクリプトのステータスランキング。",knights:"騎士の一覧（騎士団・階級ごと）と誕生日。",
+  own:"キャラ所持率チェッカー。持っているキャラと★を記録して、リンクで共有できます。",sown:"スクリプト所持率チェッカー。持っているスクリプトと凸を記録できます。",
+  ctier:"キャラクター全体Tier。メインストーリー・バベル・封印戦などでの出番の多さ・使いやすさの総合評価。",scripts:"スクリプト一覧。ロール・レアリティで絞り込み、効果を比べられます。",
+  babel:"バベルの階層一覧と攻略（階層別Tier表・おすすめキャラ・クリア編成例）。",seal:"封印戦の一覧と攻略・Tier表。",events:"イベント一覧（開催中・予定・新規・復刻・常設）と実装キャラ・登場ボス。"};
+function seoMeta(st){try{const q=new URLSearchParams(st.q),W="リバリバ（リバースブルー×リバースエンド）攻略wiki RxRwiki";let d="",t=st.t;
+  const c=q.get("char"),sc=q.get("script"),ev=q.get("event"),kn=q.get("knight"),fl=q.get("floor"),po=q.get("post"),tb=q.get("tab");
+  if(c){const x=CHMAP[c];if(x){t=`${x.name}の性能・評価`;d=`${x.name}の性能・評価。${[x.order,x.role,x.attr,x.dtype].filter(Boolean).join("・")}。全体Tier・スキル・おすすめスクリプト・おすすめセット・強いところ／弱いところ。`;}}
+  else if(sc){const x=scOf(sc);if(x){t=`${x.name}（スクリプト）の効果・評価`;d=`スクリプト「${x.name}」の効果・ステータス・評価。${x.role?x.role+"向け。":""}おすすめのキャラ。`;}}
+  else if(ev){const x=eventOf(ev);if(x)d=`イベント「${x.name}」の開催期間・実装キャラ・登場ボス。`;}
+  else if(kn){const x=personOf(kn);if(x)d=`${x.name}のプロフィール・誕生日・CV・騎士団と、スタイル（キャラ）の一覧。`;}
+  else if(po){t=`${st.t}（みんなの攻略）`;d=`「${st.t}」みんなの攻略（ユーザー投稿）。編成・WAVEごとの立ち回り。`;}
+  else if(fl){const f=FLOORS.find(y=>y.key===fl);if(f){t=f.seal?`封印戦 ${f.floor} 攻略・Tier表`:`${st.t} 攻略・Tier表`;d=f.seal?`封印戦「${f.floor}」${f.boss?"（"+f.boss+"）":""}の攻略。Tier表・ステージ効果・WAVE情報・クリア編成例・みんなの攻略。`:`${f.type} ${f.floor}F${f.boss?"（"+f.boss+"）":""}の攻略。運営Tier表・おすすめキャラ・解析データ・WAVE情報・クリア編成例・みんなの攻略。`;}}
+  else if(tb)d=TABDESC[tb]||"";
+  document.title=t?`${t}｜リバリバ攻略wiki RxRwiki`:TITLE0;
+  const md=document.querySelector('meta[name="description"]');if(md)md.setAttribute("content",d?d+W:DESC0);
+  let cl=document.querySelector('link[rel="canonical"]');if(!cl){cl=document.createElement("link");cl.rel="canonical";document.head.appendChild(cl);}cl.href=location.origin+location.pathname+st.q;}catch(e){}}
+function syncUrl(){if(MODE==="admin"||URLPOP||!SITE_LOADED)return;try{const st=urlState();seoMeta(st);
   if(location.search===st.q)return;const u=location.pathname+st.q+location.hash;
   // 詳細を開いたときだけ履歴を足す（詳細から別の詳細へ移るときは置き換え）。閉じたときは「戻る」と同じにする
   const wasDet=isDetQ(location.search),push=NAVPUSH&&!(isDetQ(st.q)&&wasDet);if(push)history.pushState(null,"",u);else history.replaceState(null,"",u);
@@ -3048,20 +3071,21 @@ new MutationObserver(()=>{if(DETAIL)queueMicrotask(syncUrl);}).observe(document.
 {const oc=openChar;openChar=function(id){const r=oc.apply(this,arguments);const c=CHMAP[id];if(c)setDetail("char",id,c.name);return r;};
  const os=openScript;openScript=function(i){const r=os.apply(this,arguments);const x=SC.find(y=>y.i===i);if(x)setDetail("script",x.id,x.name);return r;};
  const oe=openEvent;openEvent=function(i){const r=oe.apply(this,arguments);const x=EVENTS.find(y=>y.i===i);if(x)setDetail("event",x.id,x.name);return r;};
- const ok=openKnight;openKnight=function(n){const r=ok.apply(this,arguments);const k=personOf(n);if(k)setDetail("knight",k.id,k.name);return r;};}
+ const ok=openKnight;openKnight=function(n){const r=ok.apply(this,arguments);const k=personOf(n);if(k)setDetail("knight",k.id,k.name);return r;};
+ const opp=openPostById;openPostById=async function(pid){const r=await opp.apply(this,arguments);if(PCUR&&PCUR.id===pid&&document.getElementById("dlgDetail").open)setDetail("post",pid,PCUR.title||"攻略");return r;};}
 document.getElementById("dlgDetail").addEventListener("close",()=>{DETAIL=null;if(URLPOP)return;if(DETPUSHED&&isDetQ(location.search)){DETPUSHED=false;IGNOREPOP=true;history.back();return;}syncUrl();});
 // 戻る・進む
-addEventListener("popstate",()=>{if(MODE==="admin"||!SITE_LOADED)return;if(IGNOREPOP){IGNOREPOP=false;const st=urlState();document.title=st.t?`${st.t} | RxRwiki`:TITLE0;if(location.search!==st.q)history.replaceState(null,"",location.pathname+st.q+location.hash);return;}DETPUSHED=false;URLPOP=true;try{
+addEventListener("popstate",()=>{if(MODE==="admin"||!SITE_LOADED)return;if(IGNOREPOP){IGNOREPOP=false;const st=urlState();seoMeta(st);if(location.search!==st.q)history.replaceState(null,"",location.pathname+st.q+location.hash);return;}DETPUSHED=false;URLPOP=true;try{
   const q=new URLSearchParams(location.search),dl=document.getElementById("dlgDetail");
-  const det=["char","script","event","knight"].find(k=>q.get(k));
+  const det=["char","script","event","knight","post"].find(k=>q.get(k));
   if(dl.open){DETAIL=null;dl.close();}
   const fl=q.get("floor"),tp=q.get("tab");
   if(fl){const f=FLOORS.find(x=>x.key===fl);if(f){if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}}}
   else if(tp&&URLTABS.includes(tp)){tab=tp;if(tp==="rank"){const rk=q.get("rk");if(rk==="chars"||rk==="scripts")RK.t=rk;}}
   else if(!det)tab="home";
   sel=null;HEROKEY=null;render();
-  if(det){const v=q.get(det);if(det==="char"&&CHMAP[v])openChar(v);else if(det==="script"){const x=scOf(v);if(x)openScript(x.i);}else if(det==="event"){const x=eventOf(v);if(x)openEvent(x.i);}else if(det==="knight"&&personOf(v))openKnight(v);}
-}catch(e){}finally{URLPOP=false;const st=urlState();document.title=st.t?`${st.t} | RxRwiki`:TITLE0;}});
+  if(det){const v=q.get(det);if(det==="char"&&CHMAP[v])openChar(v);else if(det==="script"){const x=scOf(v);if(x)openScript(x.i);}else if(det==="event"){const x=eventOf(v);if(x)openEvent(x.i);}else if(det==="knight"&&personOf(v))openKnight(v);else if(det==="post")openPostById(v);}
+}catch(e){}finally{URLPOP=false;seoMeta(urlState());}});
 
 /* ================= お知らせ ================= */
 let NEWS=[];
@@ -3089,7 +3113,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=62");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=63");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }

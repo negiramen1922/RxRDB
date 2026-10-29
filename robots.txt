@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /tools/
+
+Sitemap: https://rxrwiki.com/sitemap.xml
