@@ -970,10 +970,38 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 <script>
 /* サイト設定：アクセス解析のIDを入れると有効になります */
 /* authX: X（Twitter）ログインのボタンを出す（Firebase コンソールで X を有効にしてから true に） */
-window.SITE={authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"}};
+window.SITE={authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
+  /* 記録の引き継ぎ（旧アドレス negiramen1922.github.io/RxRDB → 新しいドメイン）。hosts で開いた端末に記録が無ければ、一度だけ from（旧アドレスと同じオリジンに置いた引き継ぎページ）へ飛んで記録を持ち帰る。from を空にすると止まる */
+  move:{from:"",hosts:["rxrwiki.com","www.rxrwiki.com"],until:"2027-06-30"}};
+</script>
+<script>
+/* 記録の引き継ぎ：ブラウザの記録はアドレス（オリジン）ごとに別なので、旧アドレスの記録を引き継ぎページ経由で URL の # に入れて受け取る。
+   受け取るのは自分で飛んだとき（sessionStorage rxr-move-go）だけ。受け取ったら書き込んで読み込み直す（その間はサイトを動かさない＝RXRMOVING） */
+(function(){var M=window.SITE.move;if(!M)return;var ls,ss;try{ls=localStorage;ss=sessionStorage;}catch(e){return;}
+var OKK=/^(babel-tier-v2$|rxr-|fb-sent$)/,NGK=/^(rxr-admin-rows-|rxr-pv-|rxr-login|rxr-sync-dirty|rxr-ghnew-hide-|rxr-move)/;
+function done(back,how){try{ls.setItem("rxr-moved-in",how);}catch(e){}history.replaceState(null,"",location.pathname+location.search+(back||""));location.reload();}
+var h=location.hash;
+if(h.indexOf("#rxrmove=")===0){
+  if(ss.getItem("rxr-move-go")!=="1"){history.replaceState(null,"",location.pathname+location.search);return;}
+  window.RXRMOVING=true;ss.removeItem("rxr-move-go");var back=ss.getItem("rxr-move-hash")||"";ss.removeItem("rxr-move-hash");
+  var code=h.slice(9);if(code==="0"||code.length<2){done(back,"none");return;}
+  var bin=atob(code.slice(1).replace(/-/g,"+").replace(/_/g,"/")),b=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);
+  var p=code[0]==="z"?new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text():Promise.resolve(new TextDecoder().decode(b));
+  p.then(function(t){var d=JSON.parse(t);Object.keys(d).forEach(function(k){if(OKK.test(k)&&!NGK.test(k)&&typeof d[k]==="string")ls.setItem(k,d[k]);});done(back,"done");})
+   .catch(function(e){console.warn("move",e);done(back,"fail");});
+  return;
+}
+if(!M.from||M.hosts.indexOf(location.hostname)<0||Date.now()>Date.parse(M.until))return;
+if(ls.getItem("rxr-moved-in"))return;
+if(ls.getItem("babel-tier-v2")||ls.getItem("rxr-test")){ls.setItem("rxr-moved-in","local");return;}
+if(navigator.webdriver||/bot|crawl|spider|slurp|facebookexternalhit|Discord|Line\//i.test(navigator.userAgent))return;
+ls.setItem("rxr-moved-in","try");ss.setItem("rxr-move-go","1");ss.setItem("rxr-move-hash",location.hash);
+window.RXRMOVING=true;location.replace(M.from+"?to="+encodeURIComponent(location.origin+location.pathname+location.search));
+})();
 </script>
 <script id="app">
 (function(){
+if(window.RXRMOVING)return;  // 記録の引き継ぎ中（読み込み直すまで動かさない）
 const PRISTINE="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
 "use strict";
 const SEED=JSON.parse(document.getElementById("seed").textContent);
