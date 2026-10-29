@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>RxRwiki 記録の引き継ぎ</title>
+<style>body{font-family:system-ui,sans-serif;background:#e6f4ff;color:#0d3b8c;display:grid;place-items:center;min-height:90vh;margin:0}p{font-size:15px}</style>
+</head><body><p>記録を新しいアドレスへ引き継いでいます…</p>
+<script>
+/* RxRwiki の記録の引き継ぎページ。リポジトリ negiramen1922/rxr-move のルートに index.html として置き、GitHub Pages で公開する
+   （https://negiramen1922.github.io/rxr-move/ ＝旧アドレス negiramen1922.github.io/RxRDB と同じオリジンなので、旧アドレスの記録が読める）。
+   記録（所持キャラ・自分用Tier表・テストの記録など）を圧縮して、新しいドメインの URL の # に入れて戻す。# はサーバーに送られない。送り先は OK のドメインだけ */
+(async () => {
+  const OK = ["https://rxrwiki.com", "https://www.rxrwiki.com"];
+  let u; try { u = new URL(new URLSearchParams(location.search).get("to") || ""); } catch (e) { u = null; }
+  if (!u || !OK.includes(u.origin)) u = new URL(OK[0] + "/");
+  u.hash = "";
+  const OKK = /^(babel-tier-v2$|rxr-|fb-sent$)/, NGK = /^(rxr-admin-rows-|rxr-pv-|rxr-login|rxr-sync-dirty|rxr-ghnew-hide-|rxr-move)/;
+  const d = {};
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (OKK.test(k) && !NGK.test(k)) d[k] = localStorage.getItem(k); } } catch (e) { }
+  const b64 = b => { let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+  let code = "0";
+  if (Object.keys(d).length) {
+    const raw = new TextEncoder().encode(JSON.stringify(d));
+    try { const z = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer()); code = "z" + b64(z); }
+    catch (e) { code = "j" + b64(raw); }
+    try { localStorage.setItem("rxr-moved", String(Date.now())); } catch (e) { }
+  }
+  location.replace(u.href + "#rxrmove=" + code);
+})();
+</script>
+</body></html>

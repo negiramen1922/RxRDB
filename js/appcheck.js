@@ -11,7 +11,7 @@ export const firebaseConfig = {
   messagingSenderId: "259834284152",
   appId: "1:259834284152:web:78a601e30e6da654b4058d"
 };
-// reCAPTCHA Enterprise のサイトキー（公開してよい値。Google Cloud の Fraud Defense で negiramen1922.github.io 用に作成）
+// reCAPTCHA Enterprise のサイトキー（公開してよい値。Google Cloud の Fraud Defense で negiramen1922.github.io・rxrwiki.com 用に作成）
 export const APPCHECK_KEY = "6LfU4-wtAAAAAFfVg1892CXAOTaDr252UMb6P434";
 
 export const app = getApps()[0] || initializeApp(firebaseConfig);
