@@ -466,6 +466,22 @@ function ghStatus() { document.querySelectorAll(".ghpubwrap").forEach(el => { co
 setInterval(ghStatus, 30000);
 // 公開データ一式（public/all と同じ中身。GitHub には 1MB の上限が無いので常に全部入れる）
 const bundleJson = () => "{" + BUNDLE_KEYS.filter(k => PUBRAW[k] != null).map(k => JSON.stringify(k) + ":" + PUBRAW[k]).join(",") + `,"_at":${now()}}`;
+// 検索エンジン用のサイトマップ（公開サイトの各ページの URL。index.html の urlState と同じ形）。data/all.json と一緒に出す
+const SITE_ORIGIN = "https://rxrwiki.com/";
+function sitemapXml() {
+  const tb = k => { try { const d = JSON.parse(PUBRAW[k] || "null"); return d && d.headers ? d : { headers: [], rows: [] }; } catch (e) { return { headers: [], rows: [] }; } };
+  const urls = [""].concat(["guide", "faq", "chars", "rank", "knights", "ctier", "scripts", "babel", "seal", "events"].map(t => "?tab=" + t));
+  const add = (k, cols, fn) => { const d = tb(k), ix = c => d.headers.indexOf(c); d.rows.forEach(r => { const v = c => { const i = ix(c); return i >= 0 ? String(r[i] == null ? "" : r[i]).trim() : ""; }; const u = fn(v); if (u) urls.push(u); }); };
+  const q = (k, v) => v ? `?${k}=${encodeURIComponent(v)}` : "";
+  add("chars", 0, v => v("実装") === "未実装" ? "" : q("char", v("ID")));
+  add("scripts", 0, v => v("実装") === "未実装" ? "" : q("script", v("ID") || v("名前")));
+  add("babel", 0, v => v("階層") ? q("floor", (v("バベル種類") || "バベル") + "|" + v("階層")) : "");
+  add("seals", 0, v => v("封印戦名") ? q("floor", "封印戦|" + (v("ID") || v("封印戦名"))) : "");
+  add("events", 0, v => q("event", v("ID") || v("イベント名")));
+  add("people", 0, v => q("knight", v("ID") || v("名前")));
+  const x = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` + [...new Set(urls)].map(u => `<url><loc>${x(SITE_ORIGIN + u)}</loc></url>`).join("\n") + "\n</urlset>\n";
+}
 async function ghPublish(force) {
   if (!GH || GHP.busy || !ALLSIG || (!force && !needGh())) { scheduleGh(); return; }
   const sig = ALLSIG, body = bundleJson();
@@ -475,7 +491,7 @@ async function ghPublish(force) {
     for (let attempt = 0; attempt < GH_TRY; attempt++) {
       const ref = await gh(`/git/ref/heads/${br}`); const base = ref.object.sha;
       const commit = await gh(`/git/commits/${base}`);
-      const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree: [{ path: "data/all.json", mode: "100644", type: "blob", content: body }] }) });
+      const t = await gh("/git/trees", { method: "POST", body: JSON.stringify({ base_tree: commit.tree.sha, tree: [{ path: "data/all.json", mode: "100644", type: "blob", content: body }, { path: "sitemap.xml", mode: "100644", type: "blob", content: sitemapXml() }] }) });
       if (t.sha === commit.tree.sha) break;   // ほかの人がもう同じ内容を出していた
       const c = await gh("/git/commits", { method: "POST", body: JSON.stringify({ message: `公開データを更新\n\n管理画面から ${meName()}`, tree: t.sha, parents: [base] }) });
       try { await gh(`/git/refs/heads/${br}`, { method: "PATCH", body: JSON.stringify({ sha: c.sha, force: false }) }); break; }
