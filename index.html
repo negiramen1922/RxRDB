@@ -517,7 +517,9 @@ tbody tr{cursor:pointer}
 tbody tr:nth-child(even){background:rgba(26,134,255,.035)}
 tbody tr:hover{background:rgba(26,134,255,.1)}
 /* 左端の固定列: アイコン(.first.thc)と名前(.nm)。背景は不透明にして、横スクロールした列が透けないようにする */
-td.first,th.first,td.nm,th.nm{position:sticky;left:0;z-index:1;-webkit-transform:translateZ(0);transform:translateZ(0)}
+td.first,th.first,td.nm,th.nm{position:sticky;left:0;z-index:1}
+/* iPhone の Safari だけ、固定列が消えないよう独立した層にする（Android の Chrome では同じ指定で固定列の絵が1行ずれて描かれることがあるため、ほかでは使わない） */
+@supports (-webkit-touch-callout:none){td.first,th.first,td.nm,th.nm{-webkit-transform:translateZ(0);transform:translateZ(0)}}
 td.nm,th.nm{left:calc(10px + var(--thw,26px))}
 td.first,td.nm{background:var(--stick)}
 tbody tr:hover td.first,tbody tr:hover td.nm{background:linear-gradient(rgba(26,134,255,.1),rgba(26,134,255,.1)),var(--stick)}
