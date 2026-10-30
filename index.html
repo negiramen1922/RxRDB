@@ -75,6 +75,10 @@ header.top{position:relative;color:#fff}
 .brand h1 span{display:inline-block;margin-left:.18em;color:transparent;-webkit-text-stroke:2px #fff;text-shadow:none}
 .brand .sub{margin:8px 0 0;font-weight:700;font-size:15px;letter-spacing:.12em;text-shadow:0 1px 6px rgba(0,30,90,.6)}
 .brand .acts{margin-left:auto;display:flex;gap:8px}
+/* ヘッダーの画像は毎回ランダム（白っぽい絵もある）なので、上のボタンは濃い半透明の地＋文字の影で、どの絵の上でも読めるようにする */
+.brand .acts .btn.ghost-dark{background:rgba(6,20,52,.62);border-color:rgba(255,255,255,.7);text-shadow:0 1px 2px rgba(0,0,0,.6);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.brand .acts .btn.ghost-dark:hover{background:rgba(6,20,52,.8)}
+.brand .kicker,.brand h1,.brand .sub{text-shadow:0 1px 3px rgba(0,0,0,.65),0 0 14px rgba(0,0,0,.35)}
 .tabs{position:relative;z-index:2;display:flex;gap:6px;max-width:1240px;margin:-34px auto 0;padding:0 20px;overflow-x:auto}
 .tabs button{border:0;background:rgba(6,34,90,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#d7ecff;padding:9px 22px 8px;font-weight:700;white-space:nowrap;clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);font-size:14px;letter-spacing:.06em}
 .tabs button[aria-selected="true"]{background:linear-gradient(180deg,#fff,#e6f4ff);color:var(--accent-ink)}
