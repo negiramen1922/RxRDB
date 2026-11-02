@@ -525,7 +525,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "やること"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["posts", "投稿"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "やること"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["posts", "投稿"], ["ownst", "所持率"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = S.fbNew || 0;
@@ -566,6 +566,7 @@ function renderAdmin(soft) {
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
   else if (S.tab === "posts") renderPostsTab();
+  else if (S.tab === "ownst") { if (!OS.data && !OS.busy && !OS.err) loadOwnStat(); else renderOwnStat(); }
   else if (S.tab === "test") { if (!(soft && TS.dirty)) renderTest(); }
   else if (S.tab === "stats") renderStats(soft);
   else if (S.tab === "members") renderMembers(soft);
@@ -1187,7 +1188,7 @@ function usage(key, v) {
 function renderOptions() {
   let h = `<div class="optgrid">${OPT_KEYS.map(k => `<section class="apanel optcard"><h3 class="ph">${esc(k)}</h3><p class="hint" style="margin:0 0 8px">${esc(OPT_NOTE[k] || "")}</p>
     <div class="optchips">${opts(k).map((v, i, a) => `<span class="optchip">${ICONKEYS.includes(k) ? `<label class="opticon" title="${esc(v)} のアイコンを${R.ICON[v] ? "変更" : "追加"}">${R.ICON[v] ? `<img src="${esc(R.ICON[v])}" alt="">` : "＋"}<input type="file" accept="image/*" data-opticon="${esc(v)}" hidden></label>` : ""}${i > 0 ? `<button data-optmv="${esc(k)}|${i}|-1" title="前へ">‹</button>` : ""}<b>${esc(v)}</b><small>${usage(k, v)}</small>${i < a.length - 1 ? `<button data-optmv="${esc(k)}|${i}|1" title="後ろへ">›</button>` : ""}<button data-optrm="${esc(k)}|${esc(v)}" title="外す">✕</button></span>`).join("")}</div>
-    <div class="addcol"><input data-optin="${esc(k)}" placeholder="${esc(k)}を追加"><button class="btn small" data-optadd="${esc(k)}">追加</button></div></section>`).join("")}</div>
+    <div class="addcol"><input data-optin="${esc(k)}" placeholder="${esc(k)}を追加"><button class="btn small" data-optadd="${esc(k)}">追加</button></div>${k === "攻撃速度" ? `<p class="hint" style="margin:8px 0 0">表記（Aplus・APlus・A+ など）がばらばらなら、まとめてそろえられます。${(n => n ? `<b>いま ${n}人がそろっていません。</b>` : "")(seeded("chars") ? speedOdd().length : 0)} <button class="btn small" data-a="fixspeed">表記をそろえる</button></p>` : ""}</section>`).join("")}</div>
     <p class="hint">数字はその値を使っているデータの件数です。外しても、入力済みのデータはそのまま残ります。騎士団・階級・ロール・属性は、左の四角を押すとアイコン画像を追加・変更できます（GitHub 連携が必要）。</p>`;
   return h;
 }
@@ -1427,6 +1428,7 @@ async function saveRow(force) {
   if (!ED.isNew && !ED.gone) (SCHEMA[k] || []).forEach(g => g.f.forEach(([n, t]) => { if (t === "id" || t === "auto") ED.draft[n] = ED.base[n] == null ? "" : ED.base[n]; }));
   normRefs(k, ED.draft);
   if ("WAVE" in ED.draft) ED.draft["WAVE"] = wavesStr(wavesOf(ED.draft["WAVE"]));
+  if (k === "chars" && ED.draft["攻撃速度"]) ED.draft["攻撃速度"] = speedStd(ED.draft["攻撃速度"]);
   if (IDT[k]) {   // ID：空なら（新しい行は今の名前、古い行は前の名前）で付ける。新しい行はほかと重ならないように
     const D = ED.draft; let v = String(D["ID"] || "").trim() || (!ED.isNew && !ED.gone ? String(ED.base[IDT[k]] || "").trim() : "") || String(D[IDT[k]] || "").trim();
     if (v && (ED.isNew || ED.gone || !String(ED.base["ID"] || "").trim())) { const taken = new Set([...T[k].rows.values()].filter(r => r.id !== ED.id).map(r => idOf(k, r.c))); let n = 2; const b0 = v; while (taken.has(v)) v = b0 + "_" + n++; }
@@ -2449,6 +2451,58 @@ function histHtml(p) {
     return `<details class="pmh"><summary>${esc(fmtTime(h.at))} に編集（変わった欄：${esc(ch.map(k => lab[k]).join("・") || "なし")}）</summary>${ch.map(k => `<p class="count">【${lab[k]}】編集前：</p><p class="fbtext">${esc(tx(k, h[k]) || "（空）")}</p>`).join("")}</details>`; }).join("")}</div>`;
 }
 const PM = { v: "rep", q: "" };
+/* ---- みんなの所持率（運営だけが見る） ----
+   公開サイトが所持の記録を匿名で ownstat/{端末ID}（o＝所持キャラのコード・s＝所持スクリプトのコード・n＝所持キャラ数・t）に送る（変わったときだけ・7日に1回まで）。
+   このタブを開いたときに、期間内（t が新しい）の分を読んで集計する（読み取り＝端末の数） */
+const OS = { busy: false, data: null, err: "", days: 60, v: "chars" };
+async function loadOwnStat() {
+  OS.busy = true; OS.err = ""; if (S.tab === "ownst") renderOwnStat();
+  try {
+    const qs = OS.days ? F.query(F.collection(F.db, "ownstat"), F.where("t", ">", F.Timestamp.fromMillis(Date.now() - OS.days * 864e5))) : F.collection(F.db, "ownstat");
+    const q = await F.getDocs(qs);
+    const ch = {}, sc = {}; let n = 0, nS = 0, totC = 0, totS = 0;
+    const add = (m, id, v, top) => { const a = m[id] || (m[id] = { n: 0, sum: 0, top: 0 }); a.n++; a.sum += v; if (v >= top) a.top++; };
+    q.docs.forEach(d => { const x = d.data(); let o = {}; try { o = R.ownDecode(x.o || ""); } catch (e) { }
+      const ids = Object.keys(o).filter(k => o[k]); if (!ids.length) return; n++; totC += ids.length; ids.forEach(id => add(ch, id, +o[id], 5));
+      if (x.s) { let so = {}; try { so = R.sownDecode(x.s) || {}; } catch (e) { } const sk = Object.keys(so).filter(k => so[k]); if (sk.length) { nS++; totS += sk.length; sk.forEach(id => add(sc, id, +so[id], 4)); } } });
+    OS.data = { n, nS, totC, totS, ch, sc, read: q.size, at: Date.now() };
+  } catch (e) { OS.err = fbErr(e); }
+  OS.busy = false; if (S.tab === "ownst") renderOwnStat();
+}
+function renderOwnStat() {
+  const D = OS.data, isC = OS.v === "chars";
+  let h = userBar() + `<div class="toolbar"><h2><small>OWNERSHIP</small>みんなの所持率</h2><div class="seg"><button data-osv="chars" aria-pressed="${isC}">キャラ</button><button data-osv="scripts" aria-pressed="${!isC}">スクリプト</button></div>
+    <div class="seg">${[[30, "30日"], [60, "60日"], [90, "90日"], [0, "全期間"]].map(([d, l]) => `<button data-osdays="${d}" aria-pressed="${OS.days === d}">${l}</button>`).join("")}</div><span style="flex:1"></span><button class="btn small" data-a="osreload"${OS.busy ? " disabled" : ""}>${OS.busy ? "集計中…" : "集計し直す"}</button></div>
+  <p class="hint" style="margin:-4px 0 12px">公開サイトの所持率チェッカーを使っている端末が、所持の記録を匿名で送ったものの集計です（運営だけが見られます。名前・ログイン情報は含みません）。期間はその端末が最後に送った日。送るのは記録が変わったときだけ・7日に1回までなので、最新の状態から少し遅れます。開くたびに端末の数だけ読み取ります。</p>`;
+  if (OS.err) h += `<p class="err">${esc(OS.err)}</p>`;
+  if (!D) { AM.innerHTML = h + (OS.busy ? '<p class="count">集計しています…</p>' : ""); return; }
+  const items = isC ? R.CH.filter(c => !c.unrel) : R.SC.filter(x => !x.unrel), N = isC ? D.n : D.nS, M = isC ? D.ch : D.sc, tot = isC ? D.totC : D.totS;
+  const avg = N ? tot / N : 0, pct = v => (v * 100).toFixed(1) + "%";
+  h += `<div class="osum"><div><small>集計した端末</small><b>${N.toLocaleString()}</b></div><div><small>平均の所持${isC ? "キャラ" : "スクリプト"}数</small><b>${avg.toFixed(1)} <small>/ ${items.length}</small></b></div><div><small>平均の所持率</small><b>${items.length ? pct(avg / items.length) : "—"}</b></div><div><small>集計日時</small><b style="font-size:14px">${esc(fmtTime(D.at))}</b></div></div>`;
+  const rows = items.map(x => { const a = M[x.id] || { n: 0, sum: 0, top: 0 }; return { x, r: N ? a.n / N : 0, avg: a.n ? a.sum / a.n : 0, top: a.n ? a.top / a.n : 0, n: a.n }; }).sort((a, b) => b.r - a.r || b.avg - a.avg);
+  const img = x => isC ? R.IMG[x.id] : R.SIMG[x.id];
+  h += `<div class="tblwrap"><table class="chtbl tstbl ostbl"><tr><th>#</th><th>${isC ? "キャラ" : "スクリプト"}</th><th>所持率</th><th>持っている端末</th><th>${isC ? "平均の★" : "平均の凸"}</th><th>${isC ? "★5の割合" : "3凸以上の割合"}</th></tr>${rows.map((o, i) => `<tr><td>${i + 1}</td><td class="osname">${img(o.x) ? `<img src="${esc(img(o.x))}" alt="" loading="lazy">` : ""}${esc(o.x.name)}</td><td><span class="osbar"><i style="width:${(o.r * 100).toFixed(1)}%"></i></span>${pct(o.r)}</td><td>${o.n.toLocaleString()}</td><td>${o.n ? (isC ? "★" + o.avg.toFixed(2) : esc(R.lbLabel(Math.round(o.avg))) + `（${o.avg.toFixed(1)}）`) : "—"}</td><td>${o.n ? pct(o.top) : "—"}</td></tr>`).join("")}</table></div>`;
+  AM.innerHTML = h;
+}
+/* ---- キャラの攻撃速度の表記をそろえる（APlus・A+ → Aplus など。S+ は Splus） ---- */
+const SPEED_STD = ["Splus", "S", "Aplus", "A", "Bplus", "B", "C"];
+const speedStd = v => { const t = String(v || "").trim(), k = t.replace(/\s/g, "").replace(/(plus|\+|＋)$/i, "+").toUpperCase(), m = /^([SABC])(\+?)$/.exec(k); return m ? m[1] + (m[2] ? "plus" : "") : t; };
+const speedOdd = () => [...T.chars.rows.values()].filter(r => { const v = String((r.c || {})["攻撃速度"] || "").trim(); return v && speedStd(v) !== v; });
+async function fixSpeed() {
+  const odd = speedOdd();
+  if (!odd.length) { await saveOpts(o => { o["攻撃速度"] = SPEED_STD.slice(); }, "攻撃速度の選択肢をそろえる"); toast("表記はそろっています（選択肢を Splus・S・Aplus・A・Bplus・B・C にしました）"); return; }
+  if (!confirm(`攻撃速度の表記を ${odd.length}人ぶん直します（${[...new Set(odd.map(r => r.c["攻撃速度"] + "→" + speedStd(r.c["攻撃速度"])))].join("、")}）。選択肢も Splus・S・Aplus・A・Bplus・B・C にそろえます。よろしいですか？`)) return;
+  try {
+    let b = F.writeBatch(F.db), n = 0;
+    for (const r of odd) { const c = Object.assign({}, r.c, { "攻撃速度": speedStd(r.c["攻撃速度"]) });
+      b.set(F.doc(F.db, "tables", "chars", "rows", r.id), { c, o: r.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() });
+      if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; } }
+    b.set(F.doc(F.db, "log", rid()), logDoc({ act: "import", k: "chars", label: `攻撃速度の表記をそろえる（${odd.length}人）` }));
+    await b.commit();
+    await saveOpts(o => { o["攻撃速度"] = SPEED_STD.slice(); }, "攻撃速度の選択肢をそろえる");
+    toast(`${odd.length}人の攻撃速度を直しました。公開サイトには数分で反映されます`);
+  } catch (e) { toast(fbErr(e), 6000); }
+}
 function renderPostsTab() {
   const rcOf = id => REPS.filter(r => r.pid === id);
   const flagged = PSTS.filter(p => (p.rc || 0) > 0 || p.hidden);
@@ -2692,7 +2746,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-osv],[data-osdays],[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2706,6 +2760,10 @@ function onAdminClick(e) {
   if (ds.a === "ghimportnew") { ghImport(true); return; }
   if (ds.tdopen || ds.tdedit || ds.tdcancel || ds.tdsave || ds.tdgo || ds.tdadd || ds.tddel) { todoAction(ds); return; }
   if (ds.pmv || ds.pmhist || ds.pmok || ds.pmhide || ds.pmdel || ds.pmban) { pmAction(ds); return; }
+  if (ds.osv) { OS.v = ds.osv; renderOwnStat(); return; }
+  if (ds.osdays) { OS.days = +ds.osdays; loadOwnStat(); return; }
+  if (ds.a === "osreload") { loadOwnStat(); return; }
+  if (ds.a === "fixspeed") { fixSpeed(); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
@@ -2832,6 +2890,8 @@ function injectStyle() {
 .tscnt{display:flex;gap:6px;align-items:center;font-size:12px;font-weight:700;flex-wrap:wrap}.tscnt>span{padding:1px 7px;border-radius:9px;background:var(--panel2)}
 .tscnt .ok{color:var(--good)}.tscnt .ng{color:#d97a00}.tscnt .na{color:var(--muted)}
 .tstbl td{background:none!important;white-space:nowrap}
+.osum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:0 0 12px}.osum div{background:var(--panel);box-shadow:var(--shadow);padding:10px 12px}.osum small{display:block;color:var(--sub);font-size:11px}.osum b{font-size:22px}
+.ostbl .osname{display:flex;align-items:center;gap:6px}.ostbl .osname img{width:28px;height:28px;object-fit:cover}.osbar{display:inline-block;width:80px;height:6px;background:var(--line2);margin-right:6px;vertical-align:middle}.osbar i{display:block;height:100%;background:var(--accent,#1a7bff)}
 .tsans{margin:4px 0 0;font-size:13px;white-space:pre-wrap}
 .fblist{align-items:start;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
 .fbcard{background:var(--panel);box-shadow:var(--shadow);padding:12px 14px;border-left:4px solid var(--bad);display:flex;flex-direction:column;gap:6px}

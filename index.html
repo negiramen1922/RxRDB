@@ -1038,7 +1038,7 @@ let SAVEHOOK=null,LOGGEDIN=false;try{LOGGEDIN=localStorage.getItem("rxr-login")=
 // テスターモード（?tester=1 で開いた端末だけ。?tester=0 で終わる）。js/tester.js のチェックリストを出す
 let TESTER=false,TESTLIST=null;try{const q=new URLSearchParams(location.search).get("tester");if(q!=null){if(q==="0")localStorage.removeItem("rxr-tester");else localStorage.setItem("rxr-tester","1");}TESTER=localStorage.getItem("rxr-tester")==="1";}catch(_){}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
-function save(){saveLocal();if(SAVEHOOK)SAVEHOOK();}
+function save(){saveLocal();if(SAVEHOOK)SAVEHOOK();ownStatQueue();}
 let S=load();
 let LIVE={};
 /* 列名の変更（古い公開データも新しい列名で読む）。キャラの「最大値」は完凸、スクリプトの「最大値」は Lv200 のステータス */
@@ -2623,6 +2623,21 @@ async function fsCommit(writes){
 }
 const fsDoc=p=>`projects/${FBC.projectId}/databases/(default)/documents/${p}`;
 function jstDay(t){return new Date((t||Date.now())+9*3600e3).toISOString().slice(0,10);}
+/* みんなの所持率の集計（運営だけが管理画面で見る）：所持の記録を匿名で ownstat/{端末ID} に送る（所持のコードだけ。名前・ログイン情報は送らない）。
+   記録が変わったときだけ、前回から7日以上空けて（App Check の判定の回数を抑える）。端末ID と前回の印は localStorage rxr-ostat */
+var OSTAT_GAP=7*864e5,OSTAT_T=null;
+function ownStatQueue(){if(OSTAT_T)clearTimeout(OSTAT_T);OSTAT_T=setTimeout(ownStatSend,20000);}
+async function ownStatSend(){OSTAT_T=null;try{
+  if(!FBC||MODE==="admin"||!SITE_LOADED||!navigator.onLine)return;
+  const o=S.own||{},so=S.sown||{},n=CH.filter(c=>!c.unrel&&o[c.id]).length;if(!n)return;
+  const code=ownEncode(o),sc=Object.keys(so).some(k=>so[k])?sownEncode(so):"",sig=hashId(code+"|"+sc);
+  let st={};try{st=JSON.parse(localStorage.getItem("rxr-ostat")||"{}")||{};}catch(_){}
+  if(st.sig===sig||(st.at&&Date.now()-st.at<OSTAT_GAP))return;
+  if(!st.id||st.id.length<20){const a=new Uint8Array(18);crypto.getRandomValues(a);st.id=btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_");}
+  const sv=v=>({stringValue:String(v||"")});
+  await fsCommit([{update:{name:fsDoc("ownstat/"+st.id),fields:{o:sv(code),s:sv(sc),n:{integerValue:String(n)},v:{integerValue:"1"}}},updateTransforms:[{fieldPath:"t",setToServerValue:"REQUEST_TIME"}]}]);
+  st.sig=sig;st.at=Date.now();try{localStorage.setItem("rxr-ostat",JSON.stringify(st));}catch(_){}
+}catch(e){console.warn("ownstat",e);}}
 async function sendFeedback(o){
   if(!FBC)throw new Error("no firebase");
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,10);
@@ -2664,7 +2679,7 @@ async function loadSite(){
   renderNewsBadge();
   const im=await imP;
   if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});Object.assign(BASE.SEAL,im.seals||{});Object.assign(BASE.SEALF,im.sealfull||{});Object.assign(BASE.KN,im.knights||{});Object.assign(BASE.KNF,im.knightfull||{});if(im.hero)BASE.HERO=im.hero;}
-  SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();runOpenLink();
+  SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();runOpenLink();ownStatQueue();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
   if(location.hash==="#admin")openAdminModule();
   else if(TESTER)import("./js/tester.js?v=1").then(m=>m.init()).catch(e=>console.warn("tester",e));
@@ -3126,7 +3141,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=63");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=64");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -3188,7 +3203,7 @@ window.RXR={
   get DOCS(){return DOCS;},setDocs,docHtml,get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
   setOptions,
   liveInput,
-  jstDay,get SITE_LOADED(){return SITE_LOADED;},
+  jstDay,get SITE_LOADED(){return SITE_LOADED;},ownEncode,ownDecode,sownDecode,lbLabel,
   get S(){return S;},saveLocal,setSaveHook(fn){SAVEHOOK=fn;},setLoggedIn(v){const ch=LOGGEDIN!==!!v;LOGGEDIN=!!v;setAcctBtn();if(ch&&MODE!=="admin"&&(tab==="own"||tab==="sown"))render();},
   dlg(id){return document.getElementById(id);},
 };
