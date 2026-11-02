@@ -470,7 +470,7 @@ const bundleJson = () => "{" + BUNDLE_KEYS.filter(k => PUBRAW[k] != null).map(k 
 const SITE_ORIGIN = "https://rxrwiki.com/";
 function sitemapXml() {
   const tb = k => { try { const d = JSON.parse(PUBRAW[k] || "null"); return d && d.headers ? d : { headers: [], rows: [] }; } catch (e) { return { headers: [], rows: [] }; } };
-  const urls = [""].concat(["guide", "faq", "chars", "rank", "knights", "ctier", "scripts", "babel", "feed", "seal", "events"].map(t => "?tab=" + t));
+  const urls = [""].concat(["guide", "faq", "updates", "chars", "rank", "knights", "ctier", "scripts", "babel", "feed", "seal", "events"].map(t => "?tab=" + t));
   const add = (k, cols, fn) => { const d = tb(k), ix = c => d.headers.indexOf(c); d.rows.forEach(r => { const v = c => { const i = ix(c); return i >= 0 ? String(r[i] == null ? "" : r[i]).trim() : ""; }; const u = fn(v); if (u) urls.push(u); }); };
   const q = (k, v) => v ? `?${k}=${encodeURIComponent(v)}` : "";
   add("chars", 0, v => v("実装") === "未実装" ? "" : q("char", v("ID")));
