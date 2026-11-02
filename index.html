@@ -154,7 +154,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
 .postsbox{padding:14px 16px;margin-bottom:12px}.pshead{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.pshead .note-h{margin:0}
-.pslist{display:flex;flex-direction:column;gap:6px}.pscard{display:grid;gap:4px;text-align:left;border:1px solid var(--line);background:var(--field);padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--ink);font:inherit;width:100%}
+.pslist{display:flex;flex-direction:column;gap:6px}.pscard .psfl{color:var(--sub);font-size:11px;font-weight:700}.pstl{margin:8px 0}.psbtns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0}.pscard{display:grid;gap:4px;text-align:left;border:1px solid var(--line);background:var(--field);padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--ink);font:inherit;width:100%}
 .pscard:hover{border-color:var(--accent)}.pst{font-size:14.5px}.psfaces{display:flex;gap:3px;flex-wrap:wrap}.psfaces img,.psfaces .noth{width:30px;height:30px;border-radius:4px;object-fit:cover;display:grid;place-items:center}
 .psmeta{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}.psby{margin:0 0 6px;color:var(--muted);font-size:13px}
 .pswvs{margin:10px 0}.pswvs .wv{margin-top:6px}.psacts{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
@@ -1208,7 +1208,7 @@ function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(
 function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">📷 画像で共有</button>`:""}${MINE()?(tab==="tier"||tab==="seal"||ALLCTX()?`<button class="btn small linkbtn2" data-act="mylink">🔗 自分のTier表をリンクで共有</button>`:""):pageLinkBtn()}${(tab==="tier"||tab==="seal")&&!ALLCTX()&&curFloor()?`<button class="btn small helpbtn" data-ownhelp="1">所持キャラで編成を組んでもらう</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
-const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
+const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
 const LASTSUB={};
 function topOf(t){if(t==="rank")return RK.t==="scripts"?"script":"chara";for(const k in TOPS)if(TOPS[k].some(([x])=>x===t))return k;return "chara";}
 function subKey(){return tab==="rank"?"rank:"+RK.t:tab;}
@@ -1248,6 +1248,7 @@ function renderMain(){
   else if(tab==="sum")renderSum();
   else if(tab==="chars")renderChars();
   else if(tab==="babel")renderBabel();
+  else if(tab==="feed")renderFeed();
   else if(tab==="rank")renderRank();
   else renderScripts();
   renderActionBar();renderCmpBar();
@@ -1259,7 +1260,7 @@ function emptyBlock(kind){
 }
 
 /* ---------- ホーム・使い方ガイド・Q&A ---------- */
-const TABNAME={chars:"キャラ一覧",ctier:"キャラクター全体Tier",knights:"騎士",events:"イベント",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",seal:"封印戦 攻略・Tier表"};
+const TABNAME={chars:"キャラ一覧",ctier:"キャラクター全体Tier",knights:"騎士",events:"イベント",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",feed:"バベル みんなの投稿",seal:"封印戦 攻略・Tier表"};
 function lastLabel(){const k=S.lastTab;if(!k||!TABNAME[k])return "";let t=TABNAME[k];
   if(k==="tier"){const f=FLOORS.find(x=>x.key===S.curFloor);if(f)t+=`（${f.type} ${f.floor}F）`;}
   if(k==="seal"){const f=FLOORS.find(x=>x.key===S.curSeal);if(f)t+=`（${f.floor}）`;}return t;}
@@ -2052,13 +2053,13 @@ function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById(
   const n=TB.ms.filter(x=>x.id).length;
   const P=TB.post;
   setDlg("tbBody",`<button class="btn small dlgx" data-close aria-label="閉じる">✕ 閉じる</button><h2 style="margin-right:90px">${P?(P.id?"攻略を編集する":"攻略を投稿する"):"編成を組む"}</h2><p class="count" style="margin:0">${who}から選べます（同じキャラ・同じスクリプトは1枠だけ）${P?"。★・凸は所持の記録から入れてあります。クリアしたときの状態に合わせて直してください（あとで所持の記録を変えても、投稿は変わりません）":""}</p>
-  <div class="tbmeta"><span class="tbfl">階層：<b>${TB.floor?esc(floorName(TB.floor)):"指定なし"}</b>${g?`（${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団のキャラだけ）`:""}</span><label>${P?"タイトル":"編成名"} <input data-tbf="name" value="${esc(TB.name)}" placeholder="${P?"例：破壊パで突破／召喚物で反転させる":"例：〇〇階 クリア編成"}" maxlength="40"></label>${P?`<label>投稿者名 <input data-tbf="pname" value="${esc(P.pname||"")}" placeholder="表示される名前" maxlength="20"></label>`:""}</div>
+  <div class="tbmeta">${P&&P.pick?postFloorHtml():`<span class="tbfl">階層：<b>${TB.floor?esc(floorName(TB.floor)):"指定なし"}</b></span>`}${g?`<span class="tbfl">（${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団のキャラだけ）</span>`:""}<label>${P?"タイトル":"編成名"} <input data-tbf="name" value="${esc(TB.name)}" placeholder="${P?"例：破壊パで突破／召喚物で反転させる":"例：〇〇階 クリア編成"}" maxlength="40"></label>${P?`<label>投稿者名 <input data-tbf="pname" value="${esc(P.pname||"")}" placeholder="表示される名前" maxlength="20"></label>`:""}</div>
   ${TB.floor?floorInfoHtml(TB.floor,TB.pool,`${floorName(TB.floor)} の情報`):""}
   <p class="hint" style="margin:4px 0">カードを押すとその枠を選びます（枠の1〜6はゲームの編成画面の左からの並び）。キャラを選ぶと続けてスクリプトを選べます。</p>
   <div class="team tv-c tbteam">${teamCardsHtml(TB.ms,{slot:true,sel:TB.sel})}</div>${ed}${pick}
   ${P?postExtraHtml():""}
   <label class="tbcm">${P?`自由記述（${PLIM.body}文字まで。運用のコツ・育成の目安など）`:"コメント（運用のコツなど）"}<textarea data-tbf="comment" maxlength="${P?PLIM.body:600}" placeholder="例：1番目にタンクを出して、ゲージが溜まったら〇〇のBLADE">${esc(TB.comment)}</textarea></label>
-  <div class="foot"><button class="btn" data-tbreset="1">最初から</button><span style="flex:1"></span>${P?`<button class="btn primary" data-postsave="1" ${n&&!P.busy?"":"disabled"}>${P.busy?"送信中…":P.id?"更新する":"投稿する"}</button>`:`<button class="btn primary" data-tbshare="1" ${n?"":"disabled"}>🔗 リンクで共有</button>`}</div>`);
+  <div class="foot"><button class="btn" data-tbreset="1">最初から</button><span style="flex:1"></span>${P?`<button class="btn primary" data-postsave="1" ${(n||(P.tl&&P.tl.length))&&!P.busy?"":"disabled"}>${P.busy?"送信中…":P.id?"更新する":"投稿する"}</button>`:`<button class="btn primary" data-tbshare="1" ${n?"":"disabled"}>🔗 リンクで共有</button>`}</div>`);
   const qi=document.getElementById("tbQ");if(qi)liveInput(qi,()=>{TB.q=qi.value;const p=qi.selectionStart;tbRender();const nq=document.getElementById("tbQ");if(nq){nq.focus();nq.setSelectionRange(p,p);}});
 }
 // 同じキャラ（スタイル違いも同じ騎士）がほかの枠にいれば、その枠の番号（いなければ -1）
@@ -2126,6 +2127,11 @@ function floorInfoHtml(key,pool,label){const f=floorObj(key);if(!f)return "";con
    スマホの共有メニューは押した直後でないと開けないので、圧縮せずにその場で作る ---------- */
 function myTierUrl(f){const P=place(f.key);const r=TIERS.map(t=>[t,rowSort(f.key,entries(P).filter(e=>e.t===t&&grpOk(e.c,f))).map(e=>e.k)]).filter(([,ks])=>ks.length);
   if(!r.length)return "";return `${SITE_URL}?tl=j${b64uEnc(new TextEncoder().encode(JSON.stringify({v:1,f:f.key,r})))}`;}
+// Tier表の行（[[Tier,[キャラID または キャラID~星…]]…]）。共有された Tier表・投稿に付けた Tier表で使う。持っていないキャラはグレー
+function tierRowsHtml(rows){const ho=hasOwn(),own=OWN();return (rows||[]).filter(x=>Array.isArray(x)&&TIERS.includes(x[0])&&Array.isArray(x[1])).map(([tr,ks])=>`<div><b class="t-${esc(tr)}">${esc(tr)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<button class="fltc${ho&&!own[c.id]?" tmnot":""}" data-detail="${esc(c.id)}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</button>`;}).join("")}</span></div>`).join("");}
+// その階層の「自分のTier表」（並び順も自分の並び。使えない騎士団のキャラは外す）
+function myTierRows(fk){const f=floorObj(fk);if(!f)return [];const P=(S.tiers||{})[fk]||{},ix={};((S.tord||{})[fk]||[]).forEach((k,i)=>ix[k]=i);const at=k=>k in ix?ix[k]:1e9;
+  return TIERS.map(t=>[t,entries(P).filter(e=>e.t===t&&grpOk(e.c,f)).sort((a,b)=>at(a.k)-at(b.k)).map(e=>e.k)]).filter(([,ks])=>ks.length);}
 async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e){t=null;}
   if(!t||!Array.isArray(t.r)){toast("Tier表のリンクを読めませんでした（途中で切れているかもしれません）",6000);return;}
   const f=t.f===ALLF.key?ALLF:floorObj(t.f);const nm=f?(f.all?"キャラクター全体Tier":f.seal?"封印戦 "+f.floor:`${f.type} ${f.floor}F`):"";
@@ -2133,7 +2139,7 @@ async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e)
   const rows=t.r.filter(x=>Array.isArray(x)&&TIERS.includes(x[0])&&Array.isArray(x[1]));
   const h=`<h2>共有された Tier表</h2>${f?`<p class="tbfloor">${esc(nm)}${f.boss?" "+esc(f.boss):""} ${f.all?"":`<button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ（運営Tier表）</button>`}</p>`:""}
   <p class="hint">ほかの人が作った「自分のTier表」です${ho?"（グレー＝あなたが持っていないキャラ）":""}。キャラを押すと詳細が見られます。</p>
-  <div class="fltier shtier">${rows.map(([tr,ks])=>`<div><b class="t-${esc(tr)}">${esc(tr)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<button class="fltc${ho&&!own[c.id]?" tmnot":""}" data-detail="${esc(c.id)}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</button>`;}).join("")}</span></div>`).join("")||'<p class="count">配置がありません</p>'}</div>
+  <div class="fltier shtier">${tierRowsHtml(rows)||'<p class="count">配置がありません</p>'}</div>
   ${f&&!f.all?floorInfoHtml(f.key,ho?own:null,"この"+(f.seal?"封印戦":"階層")+"の情報"):""}
   <div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
@@ -2141,16 +2147,27 @@ async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e)
    投稿は編成ビルダーの「投稿モード」（TB.post）で作る：6枠（キャラ・★・覚醒Lv・BLADE Lv・スクリプト・凸・ランク・出撃順）・タイトル・WAVEごとのメモ・自由記述・動画のURL。
    ★・スクリプトの凸は所持の記録から入れておき、そのあと自由に直せる（投稿に書き込むので、あとで所持の記録が変わっても投稿は変わらない） */
 const PLIM={title:40,body:500,wave:300,waves:10};
-let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=3").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
+let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=4").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
 const PST={f:"",list:null,busy:false,sort:"new",err:""};
 const lvSel=(k,l,v)=>`<label>${l} <select data-tbf="${k}"><option value="">—</option>${Array.from({length:13},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>`;
 function postExtraHtml(){const P=TB.post,f=floorObj(TB.floor),nw=Math.max(P.w.length,(f&&f.waves||[]).length);
   return `<div class="pswaves"><p class="note-h">WAVEごとのメモ（任意・1つ${PLIM.wave}文字まで）
     <select data-pwn="1">${Array.from({length:PLIM.waves+1},(_,n)=>`<option value="${n}" ${n===P.w.length?"selected":""}>${n?n+" wave":"書かない"}</option>`).join("")}</select>${nw&&!P.w.length?`<button class="btn small" data-pwn="${nw}">この階層の ${nw} wave で書く</button>`:""}</p>
     ${P.w.map((x,i)=>`<label class="pswv"><b>WAVE ${i+1}</b><textarea data-tbw="${i}" maxlength="${PLIM.wave}" rows="2" placeholder="このwaveの立ち回り">${esc(x)}</textarea></label>`).join("")}</div>
+  ${postTlHtml()}
   <label class="tbcm">動画のURL（任意。YouTube・X・ニコニコなど）<input data-tbf="video" value="${esc(P.v||"")}" placeholder="https://www.youtube.com/watch?v=…" maxlength="300"></label>`;}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-pwn]");if(!b||!TB.post||b.tagName==="SELECT")return;setWaves(+b.dataset.pwn);});
 document.addEventListener("change",e=>{const b=e.target.closest("select[data-pwn]");if(!b||!TB.post)return;setWaves(+b.value);});
+function postTlHtml(){const P=TB.post,tl=P.tl||[],mine=TB.floor?myTierRows(TB.floor):[],cnt=r=>r.reduce((a,[,ks])=>a+ks.length,0);
+  return `<div class="pstl"><p class="note-h">Tier表を付ける（任意）</p>${tl.length?`<div class="fltier shtier">${tierRowsHtml(tl)}</div><p class="psbtns">${mine.length?`<button class="btn small" data-ptl="mine">いまの「自分のTier表」で付け直す</button>`:""}<button class="btn small" data-ptl="off">Tier表を外す</button></p>`
+    :!TB.floor?`<p class="hint">先に階層を選んでください。</p>`:mine.length?`<button class="btn small" data-ptl="mine">この階層の「自分のTier表」を付ける（${cnt(mine)}人）</button>`
+    :`<p class="hint">この階層の「自分のTier表」がまだありません。階層のページで「自分のTier表」に切り替えてキャラを並べると、ここに付けられます（いま書いている内容は、投稿するまで保存されません）。</p>`}</div>`;}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-ptl]");if(!b||!TB.post)return;TB.post.tl=b.dataset.ptl==="mine"?myTierRows(TB.floor):[];tbRender();});
+// 「みんなの投稿」から投稿するときは、階層をここで選ぶ（バベルの種類→階層）
+function postFloorHtml(){const P=TB.post,f=floorObj(TB.floor),ty=P.type||(f&&f.type)||"";
+  return `<span class="tbfl">階層：<select data-ptype="1"><option value="">バベルを選ぶ</option>${TYPES.map(t=>`<option ${t===ty?"selected":""}>${esc(t)}</option>`).join("")}</select>${ty?`<select data-pfloor="1"><option value="">階層を選ぶ</option>${FLOORS.filter(x=>!x.seal&&x.type===ty).map(x=>`<option value="${esc(x.key)}" ${x.key===TB.floor?"selected":""}>${esc(x.floor)}F${x.boss?" "+esc(x.boss):""}</option>`).join("")}</select>`:""}</span>`;}
+document.addEventListener("change",e=>{const b=e.target.closest("select[data-ptype],select[data-pfloor]");if(!b||!TB.post)return;
+  if(b.dataset.ptype){TB.post.type=b.value;TB.floor="";}else TB.floor=b.value;TB.post.tl=[];tbRender();});
 function setWaves(n){const w=TB.post.w;if(n<w.length&&w.slice(n).some(x=>x&&x.trim())&&!confirm(`WAVE ${n+1} 以降に書いたメモが消えます。よろしいですか？`)){tbRender();return;}while(w.length<n)w.push("");w.length=n;tbRender();}
 // 投稿の編成 m（[[キャラID,★,覚醒,BLADE,スクリプトID,凸,ランク,出撃順]…]）⇔ 編成ビルダーの枠
 const postMs=m=>{const ms=(m||[]).map(x=>Array.isArray(x)?{id:x[0]||"",star:x[1]?String(x[1]):"",awk:x[2]?String(x[2]):"",bl:x[3]?String(x[3]):"",sc:x[4]||"",lb:x[5]?String(x[5]):"",sr:x[6]?String(x[6]):"",ord:x[7]?String(x[7]):""}:{id:"",star:"",sc:"",ord:""});while(ms.length<6)ms.push({id:"",star:"",sc:"",ord:""});return ms.slice(0,6);};
@@ -2158,18 +2175,18 @@ const msPost=ms=>{const m=ms.map(x=>x.id||x.sc?[x.id,+x.star||0,+x.awk||0,+x.bl|
 const needLogin=()=>{toast("投稿・いいね・通報にはログインが必要です");if(window.RXR&&RXR.login)RXR.login();};
 async function postNew(fk){const pm=await loadPosts();if(!pm.user()){needLogin();return;}if(await pm.banned()){toast("このアカウントは投稿できません");return;}
   const pr=await pm.getProfile(pm.user().uid).catch(()=>null);
-  tbOpen({pool:hasOwn()?OWN():null,spool:SOWN(),floor:fk,post:{id:"",w:[],v:"",pname:(pr&&pr.name)||""}});}
+  const pick=!fk||fk==="*";tbOpen({pool:hasOwn()?OWN():null,spool:SOWN(),floor:pick?"":fk,post:{id:"",w:[],v:"",tl:[],pick,pname:(pr&&pr.name)||""}});}
 async function postEdit(p){const pm=await loadPosts();if(!pm.user()||pm.user().uid!==p.uid)return;const pr=await pm.getProfile(p.uid).catch(()=>null);
   const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();
-  tbOpen({pool:null,spool:SOWN(),floor:p.f,name:p.title,comment:p.body,ms:postMs(p.m),post:{id:p.id,w:p.w.slice(),v:p.v,pname:(pr&&pr.name)||p.name}});}
+  tbOpen({pool:null,spool:SOWN(),floor:p.f,name:p.title,comment:p.body,ms:postMs(p.m),post:{id:p.id,w:p.w.slice(),v:p.v,tl:(p.tl||[]).slice(),pname:(pr&&pr.name)||p.name}});}
 async function postSave(){const P=TB.post;if(!P||P.busy)return;const pm=await loadPosts();if(!pm.user()){needLogin();return;}
-  const name=(P.pname||"").trim();if(!name){toast("投稿者名を入れてください");return;}if(!TB.name.trim()){toast("タイトルを入れてください");return;}
+  const name=(P.pname||"").trim();if(!name){toast("投稿者名を入れてください");return;}if(!TB.floor){toast("階層を選んでください");return;}if(!TB.name.trim()){toast("タイトルを入れてください");return;}
   if(P.v&&!/^https?:\/\//i.test(P.v.trim())){toast("動画のURLは http から始まる形で入れてください");return;}
   P.busy=true;tbRender();
   try{const pr=await pm.getProfile(pm.user().uid).catch(()=>null);if(!pr||pr.name!==name)await pm.saveProfile({name,fid:pr?pr.fid:"",fpub:pr?pr.fpub:false});
-    const id=await pm.save({id:P.id||undefined,f:TB.floor,title:TB.name,body:TB.comment,m:msPost(TB.ms),w:P.w,v:P.v});
-    document.getElementById("dlgTB").close();toast(P.id?"投稿を更新しました":"投稿しました。ありがとうございます");if(tab==="tier"||tab==="seal")loadFloorPosts(TB.floor);else{PST.f="";PST.list=null;}track("post_save",{floor:TB.floor});openPostById(id);}
-  catch(er){console.warn(er);P.busy=false;tbRender();toast(er&&er.message==="login"?"ログインし直してください":"投稿できませんでした（時間をおいてもう一度お試しください）",5000);}}
+    const id=await pm.save({id:P.id||undefined,f:TB.floor,title:TB.name,body:TB.comment,m:msPost(TB.ms),w:P.w,v:P.v,tl:P.tl||[]});
+    document.getElementById("dlgTB").close();toast(P.id?"投稿を更新しました":"投稿しました。ありがとうございます");if(tab==="tier"||tab==="seal")loadFloorPosts(TB.floor);else{PST.f="";PST.list=null;}if(tab==="feed")loadFeed(false);else FEED.list=null;track("post_save",{floor:TB.floor});openPostById(id);}
+  catch(er){console.warn(er);P.busy=false;tbRender();toast(er&&er.message==="login"?"ログインし直してください":er&&er.message==="tl"?"Tier表が大きすぎて付けられません（キャラを減らしてください）":"投稿できませんでした（時間をおいてもう一度お試しください）",5000);}}
 document.addEventListener("click",e=>{if(e.target.closest("[data-postsave]"))postSave();});
 // 階層ページの「みんなの攻略」
 function postsBoxHtml(f){if(MODE==="admin"||!f||f.all)return "";const on=PST.f===f.key&&PST.list;
@@ -2184,9 +2201,24 @@ const pdtime=t=>{if(!t)return "";const d=new Date(t);return `${pdate(t)} ${d.get
 const pEdited=p=>p.t&&p.at&&p.t-p.at>60000;
 /* 投稿のブックマーク（S.pbm＝{投稿ID:{t:タイトル,f:階層キー,n:投稿者名,at}}。ブラウザに保存し、ログインしていればアカウントにも） */
 const PBM=()=>S.pbm||(S.pbm={});
-function postCardHtml(p){const ms=postMs(p.m).filter(x=>x.id);
-  return `<button class="pscard" data-post="${esc(p.id)}"><b class="pst">${esc(p.title||"（タイトルなし）")}</b><span class="psfaces">${ms.map(x=>{const c=CHMAP[x.id];return c?cth(c):"";}).join("")}</span>
-    <span class="psmeta">${PBM()[p.id]?"<span>🔖</span>":""}<span>${esc(p.name)}</span><span>投稿 ${pdate(p.at)}</span>${pEdited(p)?`<span>更新 ${pdate(p.t)}</span>`:""}<span>♥ ${p.likes}</span><span>👁 ${p.views}</span>${p.v?"<span>▶ 動画</span>":""}${p.w.some(Boolean)?"<span>WAVEメモ</span>":""}</span></button>`;}
+function postCardHtml(p,showFloor){const ms=postMs(p.m).filter(x=>x.id);
+  return `<button class="pscard" data-post="${esc(p.id)}">${showFloor&&floorObj(p.f)?`<small class="psfl">${esc(floorName(p.f))}</small>`:""}<b class="pst">${esc(p.title||"（タイトルなし）")}</b><span class="psfaces">${ms.map(x=>{const c=CHMAP[x.id];return c?cth(c):"";}).join("")}</span>
+    <span class="psmeta">${PBM()[p.id]?"<span>🔖</span>":""}<span>${esc(p.name)}</span><span>投稿 ${pdate(p.at)}</span>${pEdited(p)?`<span>更新 ${pdate(p.t)}</span>`:""}<span>♥ ${p.likes}</span><span>👁 ${p.views}</span>${p.v?"<span>▶ 動画</span>":""}${p.w.some(Boolean)?"<span>WAVEメモ</span>":""}${p.tl&&p.tl.length?"<span>Tier表</span>":""}</span></button>`;}
+/* ================= バベル →「みんなの投稿」：バベル（リバース・アナザー・リビルドなど。封印戦は除く）の攻略の投稿を新しい順に（20件ずつ） ================= */
+const FEED={list:null,busy:false,end:false,err:""};
+const isSealKey=f=>/^封印戦\|/.test(f||"");
+async function loadFeed(more){if(FEED.busy)return;FEED.busy=true;FEED.err="";if(tab==="feed")renderFeed();
+  try{const pm=await loadPosts();const r=await pm.listRecent(more,isSealKey);FEED.list=(more&&FEED.list?FEED.list:[]).concat(r.list.filter(p=>!FEED.list||!more||!FEED.list.some(x=>x.id===p.id)));FEED.end=r.end;}
+  catch(er){console.warn(er);FEED.err="読み込めませんでした。時間をおいてもう一度お試しください";}
+  FEED.busy=false;if(tab==="feed")renderFeed();}
+function renderFeed(){if(!FEED.list&&!FEED.busy&&!FEED.err){loadFeed(false);return;}
+  const l=FEED.list||[];
+  main.innerHTML=`<div class="toolbar"><h2><small>POSTS</small>みんなの投稿</h2><span style="flex:1"></span><button class="btn small" data-pbmlist="1">🔖 ブックマーク ${Object.keys(PBM()).length}</button><button class="btn small" data-mypage="1">マイページ</button><button class="btn small primary" data-postnew="*">＋ 攻略を投稿する</button></div>
+  <p class="hint">みんなが投稿したバベル攻略（クリア編成・WAVEごとの立ち回り・Tier表）の新しい順です。投稿にはログインが必要です。</p>
+  <div class="floorcard postsbox">${l.length?`<div class="pslist">${l.map(p=>postCardHtml(p,true)).join("")}</div>`:FEED.busy?"":`<p class="count">${FEED.err?"":"まだ投稿がありません。クリアした編成やTier表を投稿してみてください。"}</p>`}
+  ${FEED.err?`<p class="err">${esc(FEED.err)}</p>`:""}${FEED.busy?'<p class="count">読み込み中…</p>':""}
+  <p class="psbtns">${l.length&&!FEED.end&&!FEED.busy?'<button class="btn" data-feedmore="1">もっと見る</button>':""}<button class="btn small" data-feedreload="1" ${FEED.busy?"disabled":""}>↻ 最新にする</button></p></div>`;}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-feedmore],[data-feedreload]");if(!b)return;loadFeed(!!b.dataset.feedmore);});
 async function loadFloorPosts(fk){PST.busy=true;PST.err="";PST.f=fk;PST.list=null;render();
   try{const pm=await loadPosts();PST.list=await pm.listByFloor(fk);}catch(er){console.warn(er);PST.err="読み込めませんでした。時間をおいてもう一度お試しください";PST.f="";}
   PST.busy=false;render();}
@@ -2219,8 +2251,9 @@ async function openPostById(pid){let pm,p;try{pm=await loadPosts();p=await pm.ge
   const h=`<h2>${esc(p.title||"（タイトルなし）")}</h2>
   <p class="psby"><button class="aclink2" data-pprof="${esc(p.uid)}">${esc(p.name)}</button> ・ 投稿 ${pdtime(p.at)}${pEdited(p)?` ・ 最終更新 ${pdtime(p.t)}`:""} ・ 👁 ${p.views}</p>
   ${f?`<p class="tbfloor">${esc(floorName(p.f))}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ</button></p>`:""}
-  <div class="teams" style="border:0;margin:0;padding:0"><div class="team tv-c">${teamCardsHtml(ms,{nc,ns})}</div></div>
+  ${ms.some(x=>x.id||x.sc)?`<div class="teams" style="border:0;margin:0;padding:0"><div class="team tv-c">${teamCardsHtml(ms,{nc,ns})}</div></div>`:""}
   ${ho?'<p class="hint">グレー＝あなたが持っていないキャラ・スクリプト</p>':""}
+  ${p.tl&&p.tl.length?`<p class="note-h">投稿者の Tier表</p><div class="fltier shtier">${tierRowsHtml(p.tl)}</div>`:""}
   ${p.w.some(Boolean)?`<div class="pswvs"><p class="note-h">WAVEごとの立ち回り</p>${p.w.map((x,i)=>x?`<div class="wv"><b class="wvn">WAVE ${i+1}</b><p class="note-b">${esc(x)}</p></div>`:"").join("")}</div>`:""}
   ${p.body?`<p class="note-h">コメント</p><p class="note-b">${esc(p.body)}</p>`:""}
   ${videoHtml(p.v)}
@@ -3056,7 +3089,7 @@ function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(loc
    いま見ているページ・開いている詳細に合わせて、アドレスバーのURLとタブの題名を変える。
    キャラ詳細 ?char=ID／スクリプト ?script=名前／イベント ?event=名前／騎士 ?knight=名前／バベル・封印戦 ?floor=キー／ほかのページ ?tab=名前（ランキングは &rk=chars|scripts）。ホームは何も付けない。
    人が押して移ったときは履歴を足し（戻るボタンで前のページへ）、それ以外は置き換える。戻る・進むでは URL のページを開き直す */
-const URLTABS=["home","guide","faq","own","sown","ctier","knights","events","chars","scripts","rank","tier","sum","babel","seal"];
+const URLTABS=["home","guide","faq","own","sown","ctier","knights","events","chars","scripts","rank","tier","sum","babel","feed","seal"];
 const TITLE0=document.title;let DETAIL=null,URLPOP=false,NAVPUSH=false,DETPUSHED=false,IGNOREPOP=false;
 const isDetQ=q=>/^\?(char|script|event|knight|post)=/.test(q||"");
 document.addEventListener("click",()=>{NAVPUSH=true;},true);
@@ -3074,7 +3107,7 @@ const TABDESC={guide:"RxRwiki の使い方ガイド。Tier表・所持率チェ�
   chars:"キャラクター一覧。ロール・属性・騎士団・スタイル・効果で絞り込み、性能を比べられます。",rank:"キャラ・スクリプトのステータスランキング。",knights:"騎士の一覧（騎士団・階級ごと）と誕生日。",
   own:"キャラ所持率チェッカー。持っているキャラと★を記録して、リンクで共有できます。",sown:"スクリプト所持率チェッカー。持っているスクリプトと凸を記録できます。",
   ctier:"キャラクター全体Tier。メインストーリー・バベル・封印戦などでの出番の多さ・使いやすさの総合評価。",scripts:"スクリプト一覧。ロール・レアリティで絞り込み、効果を比べられます。",
-  babel:"バベルの階層一覧と攻略（階層別Tier表・おすすめキャラ・クリア編成例）。",seal:"封印戦の一覧と攻略・Tier表。",events:"イベント一覧（開催中・予定・新規・復刻・常設）と実装キャラ・登場ボス。"};
+  babel:"バベルの階層一覧と攻略（階層別Tier表・おすすめキャラ・クリア編成例）。",feed:"みんなのバベル攻略の投稿（新しい順）。クリア編成・WAVEごとの立ち回り・Tier表。",seal:"封印戦の一覧と攻略・Tier表。",events:"イベント一覧（開催中・予定・新規・復刻・常設）と実装キャラ・登場ボス。"};
 function seoMeta(st){try{const q=new URLSearchParams(st.q),W="リバリバ（リバースブルー×リバースエンド）バベル攻略wiki RxRwiki";let d="",t=st.t;
   const c=q.get("char"),sc=q.get("script"),ev=q.get("event"),kn=q.get("knight"),fl=q.get("floor"),po=q.get("post"),tb=q.get("tab");
   if(c){const x=CHMAP[c];if(x){t=`${x.name}の性能・評価`;d=`${x.name}の性能・評価。${[x.order,x.role,x.attr,x.dtype].filter(Boolean).join("・")}。全体Tier・スキル・おすすめスクリプト・おすすめセット・強いところ／弱いところ。`;}}
