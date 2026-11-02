@@ -705,7 +705,7 @@ function renderEdit(soft) {
     return;
   }
   document.getElementById("main").innerHTML = "";   // 同じ id の検索欄が重ならないように
-  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "chars" ? `<button class="btn" data-a="bulkrar">レアリティ・実装をまとめて入力</button>` : ""}${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
+  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "chars" ? `<button class="btn" data-a="bulkrar">レアリティ・実装をまとめて入力</button>${(n => n ? `<button class="btn" data-a="fixnames">キャラ名の表記をそろえる（${n}人）</button>` : "")(nameOdd().length)}` : ""}${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
   if (custom) { R.setMain(null); bindCustomList(); }
   else { R.setMain(document.getElementById("admlist"), () => { if (S.tab === "edit") R.renderList(ED.k); }); R.renderList(k); }
   if (DLG && DLG.open) refreshForm();
@@ -2484,6 +2484,25 @@ function renderOwnStat() {
   h += `<div class="tblwrap"><table class="chtbl tstbl ostbl"><tr><th>#</th><th>${isC ? "キャラ" : "スクリプト"}</th><th>所持率</th><th>持っている端末</th><th>${isC ? "平均の★" : "平均の凸"}</th><th>${isC ? "★5の割合" : "3凸以上の割合"}</th></tr>${rows.map((o, i) => `<tr><td>${i + 1}</td><td class="osname">${img(o.x) ? `<img src="${esc(img(o.x))}" alt="" loading="lazy">` : ""}${esc(o.x.name)}</td><td><span class="osbar"><i style="width:${(o.r * 100).toFixed(1)}%"></i></span>${pct(o.r)}</td><td>${o.n.toLocaleString()}</td><td>${o.n ? (isC ? "★" + o.avg.toFixed(2) : esc(R.lbLabel(Math.round(o.avg))) + `（${o.avg.toFixed(1)}）`) : "—"}</td><td>${o.n ? pct(o.top) : "—"}</td></tr>`).join("")}</table></div>`;
   AM.innerHTML = h;
 }
+/* ---- キャラ名・ひらがなの表記をそろえる（「スペース ブルー」→「ブルー スペース」）
+   キャラ名・ひらがなは自動で入る欄（編集画面では直せない）。騎士の名前で始まっていないキャラだけ、「騎士の名前 スタイルの略称」・「ふりがな＋よみ」に作り直す */
+function nameOdd() {
+  if (!seeded("chars")) return [];
+  return [...T.chars.rows.values()].map(r => { const c = r.c || {}, p = personRow((c["キャラ"] || "").trim()); if (!p || !p["名前"]) return null;
+    const st = (c["スタイル"] || "").trim() || "DEFAULT", sty = styleRow(st) || {}, nm = String(c["キャラ名"] || "").trim();
+    if (!nm || nm.startsWith(p["名前"])) return null;
+    return { r, name: `${p["名前"]} ${sty["略称"] || st}`, kana: `${p["ふりがな"] || ""}${sty["よみ"] || ""}` }; }).filter(Boolean);
+}
+async function fixNames() {
+  const odd = nameOdd(); if (!odd.length) { toast("そろっています"); return; }
+  if (!confirm(`キャラ名・ひらがなを直します：\n${odd.map(x => `${x.r.c["キャラ名"]} → ${x.name}（${x.kana}）`).join("\n")}\nよろしいですか？`)) return;
+  try {
+    const b = F.writeBatch(F.db);
+    odd.forEach(x => b.set(F.doc(F.db, "tables", "chars", "rows", x.r.id), { c: Object.assign({}, x.r.c, { "キャラ名": x.name, "名前 ひらがな": x.kana }), o: x.r.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }));
+    b.set(F.doc(F.db, "log", rid()), logDoc({ act: "import", k: "chars", label: `キャラ名の表記をそろえる（${odd.map(x => x.name).join("・")}）` }));
+    await b.commit(); toast(`${odd.length}人のキャラ名を直しました。公開サイトには数分で反映されます`);
+  } catch (e) { toast(fbErr(e), 6000); }
+}
 /* ---- キャラの攻撃速度の表記をそろえる（APlus・A+ → Aplus など。S+ は Splus） ---- */
 const SPEED_STD = ["Splus", "S", "Aplus", "A", "Bplus", "B", "C"];
 const speedStd = v => { const t = String(v || "").trim(), k = t.replace(/\s/g, "").replace(/(plus|\+|＋)$/i, "+").toUpperCase(), m = /^([SABC])(\+?)$/.exec(k); return m ? m[1] + (m[2] ? "plus" : "") : t; };
@@ -2764,6 +2783,7 @@ function onAdminClick(e) {
   if (ds.osdays) { OS.days = +ds.osdays; loadOwnStat(); return; }
   if (ds.a === "osreload") { loadOwnStat(); return; }
   if (ds.a === "fixspeed") { fixSpeed(); return; }
+  if (ds.a === "fixnames") { fixNames(); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
