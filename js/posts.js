@@ -34,6 +34,8 @@ export async function listRecent(more, skip) {
   const q = await getDocs(query(...qs)); LAST = q.docs.length ? q.docs[q.docs.length - 1] : LAST;
   return { list: q.docs.map(toPost).filter(p => visible(p) && !(skip && skip(p.f))), end: q.docs.length < 20 };
 }
+// 新着（ホームの「新着のみんなの攻略」）。見えないものを除いて n 件
+export async function latest(n) { const q = await getDocs(query(collection(db, "posts"), orderBy("at", "desc"), limit(n + 4))); return q.docs.map(toPost).filter(visible).slice(0, n); }
 export async function get(pid) { const s = await getDoc(doc(db, "posts", pid)); return s.exists() ? toPost(s) : null; }
 
 const clip = (s, n) => String(s || "").trim().slice(0, n);
