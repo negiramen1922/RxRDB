@@ -180,6 +180,24 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .abstars [aria-pressed="true"]{background:#ffd54a!important;color:#3a2a00!important}
 .tbright{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}
 .sortbar{display:flex;gap:8px}
+.ico{width:1.2em;height:1.2em;vertical-align:-.24em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ibtn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line2);background:var(--panel);color:var(--accent,#1a6fe0);font-weight:700;font-size:13px;padding:6px 9px;cursor:pointer;min-height:34px;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);padding-left:12px;padding-right:12px}
+.ibtn:hover{background:var(--field)}.ibtn b{font-size:12px}.ibtn .ico{width:18px;height:18px}
+.lbtn{display:inline-flex;align-items:center;gap:6px;border:0;border-bottom:2px solid var(--line2);background:none;color:var(--ink);font-weight:700;font-size:13px;padding:4px 2px;cursor:pointer;min-width:0;max-width:100%}
+.lbtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lbtn .ico{color:var(--accent,#1a6fe0)}
+.icosw button{padding:5px 9px;display:inline-flex;align-items:center}.icosw .ico{width:17px;height:17px}
+.lbar{flex-wrap:nowrap!important;min-width:0}.lbar .sortbtn{flex:1 1 auto}
+.vbtools{display:flex;gap:6px;margin-left:auto;align-items:center}.ibtn.helpbtn{color:#8a5a00}
+.pstools{display:flex;gap:6px;align-items:center;margin-left:auto}.pstools .btn{white-space:nowrap}
+.psmeta .ico{width:13px;height:13px;margin-right:2px}.psbm .ico{color:var(--accent,#1a6fe0)}
+.psacts .ico,.btn .ico{width:16px;height:16px}
+.sortdirb{margin-left:8px;font-size:12px;vertical-align:middle}
+.fdbar{flex-wrap:nowrap}.fdbar h2{flex:none}.pshead{flex-wrap:wrap}
+@media (max-width:640px){.fdbar h2{font-size:21px}.pstools{gap:4px}.pstools .ibtn{padding:6px 9px}.pstools .btn{padding-left:10px;padding-right:10px}}
+.feedsent{height:1px}.hposts{margin:12px 0}.hphead{display:flex;align-items:center;gap:8px;justify-content:space-between}.hphead h3{margin:0}.hposts .pslist{margin-top:8px}
+.sp{display:none}
+@media (max-width:640px){.vbtools .lbl,.vbtools .pc,.viewseg .pc{display:none}.viewseg .sp{display:inline}.vbtools .ibtn{padding:6px 10px}.viewbar .viewseg button{padding:7px 12px;font-size:13px}.viewbar.viewbar{flex-wrap:nowrap;gap:6px}.vbtools{gap:4px}
+  .lbar{width:100%}.toolbar .count{order:9}}
 .sortslot{display:inline-flex;align-items:center;border-bottom:2px solid var(--line2);gap:4px;padding-bottom:2px}
 .sortslot i{font-style:normal;position:relative;isolation:isolate;display:inline-grid;place-items:center;width:22px;height:22px;color:#fff;font-size:11px;font-weight:900}
 .sortslot i::before{content:"";position:absolute;inset:3px;background:var(--accent-ink);transform:rotate(45deg);z-index:-1}
@@ -1030,6 +1048,19 @@ const ROLE_SHORT={"アタッカー":"アタ","シューター":"シュ","ブレ�
 const RANKS=["KING","QUEEN","FORTRESS","KNIGHT","WIZARD","JOKER"];
 const ORDERS=["ブレイドライン","千紫","MAZE LABORATORY","第六起源魔術教会","リンドヴルム","オッター貿易","アクシオンゲート","ORANGE","星の夢の終わりに"];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* サイト用の線画アイコン（絵文字の代わり。文字の色に合わせる）。svgI("bookmark") など */
+const ICOS={bookmark:'<path d="M6 3.5h12v17l-6-4.2-6 4.2z"/>',bookmarked:'<path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="currentColor"/>',user:'<circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c.6-4 3.8-6 7.5-6s6.9 2 7.5 6"/>',
+  pen:'<path d="M4 20h4.2L19.5 8.7l-4.2-4.2L4 15.8z"/><path d="M13.6 6.2l4.2 4.2"/>',plus:'<path d="M12 5v14M5 12h14"/>',
+  link:'<path d="M10.2 13.8a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.1 1.1"/><path d="M13.8 10.2a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.1-1.1"/>',
+  camera:'<path d="M4 8.5h3.2l1.8-3h6l1.8 3H20v11H4z"/><circle cx="12" cy="13.6" r="3.4"/>',
+  team:'<circle cx="9" cy="8.5" r="3.2"/><path d="M3 20c.4-3.4 2.9-5.4 6-5.4s5.6 2 6 5.4"/><circle cx="17" cy="9.3" r="2.5"/><path d="M15.8 14.7c2.8.3 4.8 2.1 5.2 5.3"/>',
+  sort:'<path d="M7.5 4v16M4 16.5l3.5 3.5 3.5-3.5M16.5 20V4M13 7.5L16.5 4 20 7.5"/>',filter:'<path d="M3.5 5h17l-6.6 7.7V19l-3.8 1.8v-8.1z"/>',
+  grid:'<rect x="4" y="4" width="6.8" height="6.8"/><rect x="13.2" y="4" width="6.8" height="6.8"/><rect x="4" y="13.2" width="6.8" height="6.8"/><rect x="13.2" y="13.2" width="6.8" height="6.8"/>',
+  rows:'<path d="M4 6h16M4 12h16M4 18h16"/>',heart:'<path d="M12 19.5s-7.5-4.6-7.5-10.2A4.1 4.1 0 0 1 12 7a4.1 4.1 0 0 1 7.5 2.3c0 5.6-7.5 10.2-7.5 10.2z"/>',
+  hearted:'<path d="M12 19.5s-7.5-4.6-7.5-10.2A4.1 4.1 0 0 1 12 7a4.1 4.1 0 0 1 7.5 2.3c0 5.6-7.5 10.2-7.5 10.2z" fill="currentColor"/>',
+  eye:'<path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.7"/>',play:'<path d="M8.5 5.5v13l10-6.5z"/>',
+  refresh:'<path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4.8h-4.8"/>',tier:'<path d="M4 5h16M4 10h11M4 15h7M4 20h4"/>',wave:'<path d="M3 12c2.2-3 4.3-3 6.5 0s4.3 3 6.5 0 3.7-2.6 5 0"/>'};
+const svgI=(n,cls)=>`<svg class="ico${cls?" "+cls:""}" viewBox="0 0 24 24" aria-hidden="true">${ICOS[n]||""}</svg>`;
 
 /* ---------- state ---------- */
 function blank(){return{tiers:{},notes:{},curType:null,curFloor:null};}
@@ -1205,7 +1236,7 @@ function reorder(key,tier,before){const f=curFloor();if(!f)return;const P=place(
   const i=before?row.indexOf(before):-1;row.splice(i<0?row.length:i,0,key);
   const all=[];TIERS.forEach(t=>{if(t===tier)all.push(...row);else all.push(...rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k));});setOrder(f.key,all);}
 function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(!t)return;const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);const row=rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k);const i=row.indexOf(key),j=i+d;if(i<0||j<0||j>=row.length)return;reorder(key,t,d<0?row[j]:row[j+1]);}
-function viewSeg(){if(MODE==="admin")return "";const m=MINE();return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分のTier表をつくる</button></div>${tab==="tier"||tab==="seal"?`<button class="btn small sharebtn" data-act="share">📷 画像で共有</button>`:""}${MINE()?(tab==="tier"||tab==="seal"||ALLCTX()?`<button class="btn small linkbtn2" data-act="mylink">🔗 自分のTier表をリンクで共有</button>`:""):pageLinkBtn()}${(tab==="tier"||tab==="seal")&&!ALLCTX()&&curFloor()?`<button class="btn small helpbtn" data-ownhelp="1">所持キャラで編成を組んでもらう</button>`:""}${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
+function viewSeg(){if(MODE==="admin")return "";const m=MINE(),tf=tab==="tier"||tab==="seal";return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分<span class="pc">のTier表</span><span class="sp">用</span></button></div><span class="vbtools">${tf||ALLCTX()?`<button class="ibtn" data-act="share" title="画像で共有（リンクも付きます）" aria-label="画像で共有">${svgI("camera")}<span class="lbl">画像で共有</span></button>`:""}${tf&&!ALLCTX()&&curFloor()?`<button class="ibtn helpbtn" data-ownhelp="1" title="所持キャラで編成を組んでもらう">${svgI("team")}<span class="lbl2"><span class="pc">編成を</span>相談</span></button>`:""}</span>${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
 const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
@@ -1233,7 +1264,7 @@ function switchTab(t){track("tab",{tab:t});NAVSEQ++;tab=t;sel=null;HEROKEY=null;
 /* 日本語入力（IME）の変換中は再描画しない */
 function liveInput(el,fn){if(!el)return;el.addEventListener("input",e=>{if(e.isComposing||el._comp)return;fn();});el.addEventListener("compositionstart",()=>{el._comp=true;});el.addEventListener("compositionend",()=>{el._comp=false;fn();});}
 let main=document.getElementById("main");
-function render(){renderMain();syncUrl();}
+function render(){renderMain();syncUrl();armLazy();renderNewsBadge();}
 function renderMain(){
   if(MODE==="admin"){if(ADMIN_LIST)ADMIN_LIST();return;}
   if(!SITE_LOADED){main.innerHTML=`<div class="empty"><h2>読み込み中…</h2><p>データを読み込んでいます。</p></div>`;return;}
@@ -1284,6 +1315,7 @@ function renderHome(){
   ${card("seal",sealImg,"SEAL BATTLE","封印戦","封印戦ごとのTier表・ステージ効果・過去の開催日")}
   ${EVENTS.length?card("events",rnd(EVENTS.map(ev=>EVTF[ev.id]).filter(Boolean)),"EVENTS","イベント","これまでのイベントと復刻・実装キャラ・登場ボス"):""}
   </div>
+  <div class="hbox hposts"><div class="hphead"><h3>${svgI("pen")} 新着のみんなの攻略</h3><button class="aclink2" data-gosub="feed">みんなの投稿へ ›</button></div><div data-hposts>${HP.list?"":'<p class="count">読み込んでいます…</p>'}</div></div>
   <div class="hgrid2">
     <div class="hbox"><h3>お知らせ</h3>${news.length?news.map(n=>`<button class="hnews" data-news><span class="ndate">${fmtDate(n.date)}</span><b>${n.pin?"📌 ":""}${esc(n.title||"")}</b></button>`).join(""):'<p class="count">お知らせはまだありません。</p>'}<button class="btn small" data-news>すべて見る</button></div>
     <div class="hbox hlinks"><h3>はじめての方へ・サポート</h3>
@@ -1295,7 +1327,7 @@ function renderHome(){
   </div>
   <label class="hstart"><input type="checkbox" id="startLast" ${S.startLast?"checked":""}> 次からはホームを飛ばして、前回見ていたページを開く</label>
   </section>`;
-  main.innerHTML=h;
+  main.innerHTML=h;fillHomePosts();
   const cb=document.getElementById("startLast");cb.addEventListener("change",()=>{S.startLast=cb.checked;save();toast(cb.checked?"次から前回のページを開きます（ホームはメニューの「ホーム」から）":"次からホームを開きます");});
 }
 /* 使い方ガイド・Q&A：運営が管理画面の「ガイド・Q&A」で編集（public/guide。予備は data/guide.json）
@@ -1436,7 +1468,7 @@ function cfMatch(c,st){st=st||CFS.chars;
 const cfCount=st=>Object.values((st||CFS.chars).sel).reduce((a,v)=>a+v.length,0);
 /* 「▼ 絞り込み」ボタンと、選んでいる条件のチップ */
 function cfBar(k){const st=CFS[k],n=cfCount(st);
-  return {btn:`<button class="btn primary small cfbtn" data-cfopen="${k}">▼ 絞り込み${n?` <b>${n}</b>`:""}</button>`,
+  return {btn:`<button class="btn primary small cfbtn" data-cfopen="${k}">${svgI("filter")} 絞り込み${n?` <b>${n}</b>`:""}</button>`,
     chips:n?`<div class="chips cfactive">${Object.entries(st.sel).flatMap(([kk,vs])=>vs.map(v=>`<button class="chip" data-cfrm="${k}|${esc(kk)}|${esc(v)}" aria-pressed="true">${esc(v)} ✕</button>`)).join("")}<button class="chip" data-cfact="resetlist" data-cfctx="${k}">すべて解除</button></div>`:""};}
 /* 一覧の上のワンタップ絞り込み（アイコンだけ1行。スマホは横にスクロール）。押すと絞り込みダイアログと同じ条件が付く */
 /* ctx：chars（キャラ一覧）／pool（Tier表の未配置。属性も出し、騎士団はそのバベルで使えるものだけ・アナザー／リビルドは出さない） */
@@ -1524,13 +1556,13 @@ function sortList(kind,list){
 function setColSort(kind,i){const s=SORTS[kind][0];const k="col:"+i;SORTS[kind]=[{k,dir:s&&s.k===k?-s.dir:1},null];saveSorts();}
 const colArrow=(kind,i)=>{const s=SORTS[kind][0];return s&&s.k==="col:"+i?(s.dir>0?" ▲":" ▼"):"";};
 function sortBar(kind){
-  const [a,b]=SORTS[kind];const one=(n,s)=>`<span class="sortslot"><i>${n}</i><button data-sortopen="${kind}">${esc(sortLabel(kind,s&&s.k))}</button>${s&&s.k?`<button class="sortdir" data-sortdir="${kind}|${n-1}" title="昇順・降順を切り替え">${s.dir>0?"▲":"▼"}</button>`:""}</span>`;
-  return `<div class="sortbar">${one(1,a)}${one(2,b)}</div>`;
+  const cur=SORTS[kind].filter(s=>s&&s.k).map(s=>esc(sortLabel(kind,s.k))+(s.dir>0?"▲":"▼")).join(" → ");
+  return `<button class="lbtn sortbtn" data-sortopen="${kind}" title="並び替え">${svgI("sort")}<span>${cur||"並び替え"}</span></button>`;
 }
 function sortDialogHtml(kind){
   const btns=(slot)=>{const cur=SORTS[kind][slot];return `<div class="sortgrid">${slot?`<button data-sortset="${kind}|1|" aria-pressed="${!cur||!cur.k}">なし</button>`:""}${SORTDEF[kind].map(([k,l])=>`<button data-sortset="${kind}|${slot}|${k}" aria-pressed="${!!cur&&cur.k===k}">${esc(l)}</button>`).join("")}</div>`;};
   return `<h2 class="sorthd">並び替え</h2><p class="hint" style="margin:0 0 6px">① の順に並べ、同じ値のときは ② の順にします。▲▼ で昇順・降順を切り替えられます。</p>
-  <h3>① 並び替え</h3>${btns(0)}<h3>② 同じ値のとき</h3>${btns(1)}
+  ${[0,1].map(i=>{const c=SORTS[kind][i];return `<h3>${i?"② 同じ値のとき":"① 並び替え"}${c&&c.k?` <button class="chip sortdirb" data-sortdir="${kind}|${i}">${c.dir>0?"▲ 昇順":"▼ 降順"}</button>`:""}</h3>${btns(i)}`;}).join("")}
   <div class="cffoot"><button class="btn" data-sortreset="${kind}">リセット</button><span style="flex:1"></span><button class="btn primary" data-sortclose="${kind}">並び替える</button></div>`;
 }
 function openSort(kind){const dl=document.getElementById("dlgSort");document.getElementById("sortBody").innerHTML=sortDialogHtml(kind);if(!dl.open)dl.showModal();}
@@ -1538,7 +1570,7 @@ const rerenderKind=kind=>{saveSorts();if(kind==="chars"&&sovOpen())openSharedOwn
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-sortopen],[data-sortdir],[data-sortset],[data-sortreset],[data-sortclose]");if(!b)return;const ds=b.dataset;
   if(ds.sortopen){openSort(ds.sortopen);return;}
-  if(ds.sortdir){const [kind,i]=ds.sortdir.split("|");const s=SORTS[kind][+i];if(s){s.dir*=-1;rerenderKind(kind);}return;}
+  if(ds.sortdir){const [kind,i]=ds.sortdir.split("|");const s=SORTS[kind][+i];if(s){s.dir*=-1;if(document.getElementById("dlgSort").open)setDlg("sortBody",sortDialogHtml(kind));else rerenderKind(kind);}return;}
   if(ds.sortset){const [kind,slot,k]=ds.sortset.split("|");if(!k)SORTS[kind][+slot]=null;else{const def=SORTDEF[kind].find(([a])=>a===k);SORTS[kind][+slot]={k,dir:def?def[2]:1};}setDlg("sortBody",sortDialogHtml(kind));return;}
   if(ds.sortreset){const kind=ds.sortreset;SORTS[kind]=JSON.parse(JSON.stringify(SORTS_DEF[kind]));setDlg("sortBody",sortDialogHtml(kind));return;}
   if(ds.sortclose){document.getElementById("dlgSort").close();rerenderKind(ds.sortclose);return;}
@@ -1900,8 +1932,8 @@ function renderChars(){
   list=sortList("chars",list.filter(c=>cfMatch(c,CFS.chars)));const cfb=cfBar("chars");
   const card=st.view!=="table";
   let h=`<div class="toolbar"><h2><small>CHARACTERS</small>キャラデータ</h2><input class="search" id="tq" placeholder="スキル効果なども含めて検索" value="${esc(st.q)}"><span class="count">${list.length} / ${CH.length}</span>
-  <span class="tbright">${sortBar("chars")}<button class="btn small" data-sortopen="chars">⇅ 並び替え</button>${cfb.btn}
-  <span class="viewsw"><button data-cview="card" aria-pressed="${card}">カード</button><button data-cview="table" aria-pressed="${!card}">表</button></span></span>
+  <span class="tbright lbar">${cfb.btn}${sortBar("chars")}
+  <span class="viewsw icosw"><button data-cview="card" aria-pressed="${card}" title="カード" aria-label="カードで表示">${svgI("grid")}</button><button data-cview="table" aria-pressed="${!card}" title="表" aria-label="表で表示">${svgI("rows")}</button></span></span>
   ${qbarChars()}
   ${cfb.chips}
   ${card?"":`<button class="btn small" data-act="allcols">${st.all?"主要な列だけ表示":"全部の列を表示"}</button>`}</div>`;
@@ -1937,8 +1969,9 @@ function renderScripts(){
   const list=sortList("scripts",scFiltered());
   const roles=[...new Set(SC.map(s=>s.role).filter(Boolean))];
   let h=`<div class="toolbar"><h2><small>SCRIPTS</small>スクリプト</h2><input class="search" id="sq" placeholder="名前・効果・条件で検索" value="${esc(st.q)}"><span class="count">${list.length} / ${SC.length}</span>
-  <span class="tbright">${sortBar("scripts")}<button class="btn small" data-sortopen="scripts">⇅ 並び替え</button><button class="btn primary small cfbtn" data-sfopen>▼ 絞り込み${sfActive().length?` <b>${sfActive().length}</b>`:""}</button>
-  <span class="viewsw"><button data-sview="card" aria-pressed="${st.view!=="table"}">カード</button><button data-sview="table" aria-pressed="${st.view==="table"}">表</button></span></span>
+  <span class="tbright lbar"><button class="btn primary small cfbtn" data-sfopen>${svgI("filter")} 絞り込み${sfActive().length?` <b>${sfActive().length}</b>`:""}</button>
+${sortBar("scripts")}
+  <span class="viewsw icosw"><button data-sview="card" aria-pressed="${st.view!=="table"}" title="カード" aria-label="カードで表示">${svgI("grid")}</button><button data-sview="table" aria-pressed="${st.view==="table"}" title="表" aria-label="表で表示">${svgI("rows")}</button></span></span>
   ${qbarScripts()}
   ${sfActive().length?`<div class="chips cfactive">${sfActive().map(([k,v])=>`<button class="chip" data-sfrm="${k}" aria-pressed="true">${esc(v)} ✕</button>`).join("")}</div>`:""}</div>
 `;
@@ -2059,7 +2092,7 @@ function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById(
   <div class="team tv-c tbteam">${teamCardsHtml(TB.ms,{slot:true,sel:TB.sel})}</div>${ed}${pick}
   ${P?postExtraHtml():""}
   <label class="tbcm">${P?`自由記述（${PLIM.body}文字まで。運用のコツ・育成の目安など）`:"コメント（運用のコツなど）"}<textarea data-tbf="comment" maxlength="${P?PLIM.body:600}" placeholder="例：1番目にタンクを出して、ゲージが溜まったら〇〇のBLADE">${esc(TB.comment)}</textarea></label>
-  <div class="foot"><button class="btn" data-tbreset="1">最初から</button><span style="flex:1"></span>${P?`<button class="btn primary" data-postsave="1" ${(n||(P.tl&&P.tl.length))&&!P.busy?"":"disabled"}>${P.busy?"送信中…":P.id?"更新する":"投稿する"}</button>`:`<button class="btn primary" data-tbshare="1" ${n?"":"disabled"}>🔗 リンクで共有</button>`}</div>`);
+  <div class="foot"><button class="btn" data-tbreset="1">最初から</button><span style="flex:1"></span>${P?`<button class="btn primary" data-postsave="1" ${(n||(P.tl&&P.tl.length))&&!P.busy?"":"disabled"}>${P.busy?"送信中…":P.id?"更新する":"投稿する"}</button>`:`<button class="btn primary" data-tbshare="1" ${n?"":"disabled"}>${svgI("link")} リンクで共有</button>`}</div>`);
   const qi=document.getElementById("tbQ");if(qi)liveInput(qi,()=>{TB.q=qi.value;const p=qi.selectionStart;tbRender();const nq=document.getElementById("tbQ");if(nq){nq.focus();nq.setSelectionRange(p,p);}});
 }
 // 同じキャラ（スタイル違いも同じ騎士）がほかの枠にいれば、その枠の番号（いなければ -1）
@@ -2147,8 +2180,19 @@ async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e)
    投稿は編成ビルダーの「投稿モード」（TB.post）で作る：6枠（キャラ・★・覚醒Lv・BLADE Lv・スクリプト・凸・ランク・出撃順）・タイトル・WAVEごとのメモ・自由記述・動画のURL。
    ★・スクリプトの凸は所持の記録から入れておき、そのあと自由に直せる（投稿に書き込むので、あとで所持の記録が変わっても投稿は変わらない） */
 const PLIM={title:40,body:500,wave:300,waves:10};
-let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=4").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
+let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=5").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
 const PST={f:"",list:null,busy:false,sort:"new",err:""};
+/* 画面に入ったら読み込む（階層ページの「みんなの攻略」・ホームの新着）。押さなくても見てもらえるように。読み取りは見えたときだけ */
+let LAZYOB=null;
+function armLazy(){const els=document.querySelectorAll("[data-pslazy]:not([data-armed]),[data-hposts]:not([data-armed]),[data-feedmore-s]:not([data-armed])");if(!els.length)return;
+  if(!("IntersectionObserver" in window)){els.forEach(lazyGo);return;}
+  if(!LAZYOB)LAZYOB=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){LAZYOB.unobserve(e.target);lazyGo(e.target);}}),{rootMargin:"200px"});
+  els.forEach(el=>{el.dataset.armed="1";LAZYOB.observe(el);});}
+function lazyGo(el){if(el.dataset.feedmoreS){if(tab==="feed"&&!FEED.busy&&!FEED.end)loadFeed(true);return;}if(el.dataset.pslazy){if(PST.f!==el.dataset.pslazy&&!PST.busy)loadFloorPosts(el.dataset.pslazy);}else if(el.dataset.hposts!=null)loadHomePosts();}
+const HP={list:null,busy:false};
+async function loadHomePosts(){if(HP.list||HP.busy)return fillHomePosts();HP.busy=true;try{const pm=await loadPosts();HP.list=await pm.latest(4);}catch(e){HP.list=[];}HP.busy=false;fillHomePosts();}
+function fillHomePosts(){const el=document.querySelector("[data-hposts]");if(!el||!HP.list)return;
+  el.innerHTML=HP.list.length?`<div class="pslist">${HP.list.map(p=>postCardHtml(p,true)).join("")}</div>`:'<p class="count">まだ投稿がありません。</p>';}
 const lvSel=(k,l,v)=>`<label>${l} <select data-tbf="${k}"><option value="">—</option>${Array.from({length:13},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>`;
 function postExtraHtml(){const P=TB.post,f=floorObj(TB.floor),nw=Math.max(P.w.length,(f&&f.waves||[]).length);
   return `<div class="pswaves"><p class="note-h">WAVEごとのメモ（任意・1つ${PLIM.wave}文字まで）
@@ -2191,19 +2235,22 @@ document.addEventListener("click",e=>{if(e.target.closest("[data-postsave]"))pos
 // 階層ページの「みんなの攻略」
 function postsBoxHtml(f){if(MODE==="admin"||!f||f.all)return "";const on=PST.f===f.key&&PST.list;
   const l=on?PST.list.slice().sort((a,b)=>PST.sort==="like"?(b.likes-a.likes)||(b.at-a.at):b.at-a.at):[];
-  return `<div class="floorcard postsbox" id="postsbox"><div class="pshead"><p class="note-h">📝 みんなの攻略${on?` <small class="count">${l.length}件</small>`:""}</p><span style="flex:1"></span>
+  return `<div class="floorcard postsbox" id="postsbox"><div class="pshead"><p class="note-h">${svgI("pen")} みんなの攻略${on?` <small class="count">${l.length}件</small>`:""}</p><span style="flex:1"></span>
     ${on&&l.length>1?`<span class="viewsw"><button data-psort="new" aria-pressed="${PST.sort==="new"}">新しい順</button><button data-psort="like" aria-pressed="${PST.sort==="like"}">いいね順</button></span>`:""}
-    <button class="btn small" data-pbmlist="1">🔖 ブックマーク ${Object.keys(PBM()).length}</button><button class="btn small" data-mypage="1">マイページ</button><button class="btn small primary" data-postnew="${esc(f.key)}">＋ 攻略を投稿する</button></div>
-    ${on?(l.length?`<div class="pslist">${l.map(postCardHtml).join("")}</div>`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
-      :`<button class="btn" data-postload="${esc(f.key)}" ${PST.busy?"disabled":""}>${PST.busy?"読み込み中…":"みんなの攻略を見る"}</button>${PST.err?`<p class="err">${esc(PST.err)}</p>`:""}`}</div>`;}
+    ${psTools(f.key)}</div>
+    ${on?(l.length?`<div class="pslist">${l.map(p=>postCardHtml(p)).join("")}</div>`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
+      :PST.err?`<p class="err">${esc(PST.err)}</p><button class="btn small" data-postload="${esc(f.key)}">もう一度読み込む</button>`:`<p class="count" data-pslazy="${esc(f.key)}">${PST.busy?"読み込み中…":"みんなの攻略を読み込んでいます…"}</p>`}</div>`;}
 const pdate=t=>{if(!t)return "";const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;};
 const pdtime=t=>{if(!t)return "";const d=new Date(t);return `${pdate(t)} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;};
 const pEdited=p=>p.t&&p.at&&p.t-p.at>60000;
 /* 投稿のブックマーク（S.pbm＝{投稿ID:{t:タイトル,f:階層キー,n:投稿者名,at}}。ブラウザに保存し、ログインしていればアカウントにも） */
 const PBM=()=>S.pbm||(S.pbm={});
+const pbmLabel=on=>`${svgI(on?"bookmarked":"bookmark")} ${on?"ブックマーク済み":"ブックマーク"}`;
+// みんなの攻略の道具：ブックマーク（数）・マイページはアイコンだけ、投稿は文字も
+const psTools=fk=>`<span class="pstools"><button class="ibtn" data-pbmlist="1" title="ブックマークした攻略" aria-label="ブックマークした攻略">${svgI("bookmark")}<b>${Object.keys(PBM()).length}</b></button><button class="ibtn" data-mypage="1" title="マイページ" aria-label="マイページ">${svgI("user")}</button><button class="btn small primary" data-postnew="${esc(fk)}">${svgI("pen")} 投稿する</button></span>`;
 function postCardHtml(p,showFloor){const ms=postMs(p.m).filter(x=>x.id);
   return `<button class="pscard" data-post="${esc(p.id)}">${showFloor&&floorObj(p.f)?`<small class="psfl">${esc(floorName(p.f))}</small>`:""}<b class="pst">${esc(p.title||"（タイトルなし）")}</b><span class="psfaces">${ms.map(x=>{const c=CHMAP[x.id];return c?cth(c):"";}).join("")}</span>
-    <span class="psmeta">${PBM()[p.id]?"<span>🔖</span>":""}<span>${esc(p.name)}</span><span>投稿 ${pdate(p.at)}</span>${pEdited(p)?`<span>更新 ${pdate(p.t)}</span>`:""}<span>♥ ${p.likes}</span><span>👁 ${p.views}</span>${p.v?"<span>▶ 動画</span>":""}${p.w.some(Boolean)?"<span>WAVEメモ</span>":""}${p.tl&&p.tl.length?"<span>Tier表</span>":""}</span></button>`;}
+    <span class="psmeta">${PBM()[p.id]?`<span class="psbm">${svgI("bookmarked")}</span>`:""}<span>${esc(p.name)}</span><span>投稿 ${pdate(p.at)}</span>${pEdited(p)?`<span>更新 ${pdate(p.t)}</span>`:""}<span>${svgI("heart")}${p.likes}</span><span>${svgI("eye")}${p.views}</span>${p.v?`<span>${svgI("play")}動画</span>`:""}${p.w.some(Boolean)?"<span>WAVEメモ</span>":""}${p.tl&&p.tl.length?"<span>Tier表</span>":""}</span></button>`;}
 /* ================= バベル →「みんなの投稿」：バベル（リバース・アナザー・リビルドなど。封印戦は除く）の攻略の投稿を新しい順に（20件ずつ） ================= */
 const FEED={list:null,busy:false,end:false,err:""};
 const isSealKey=f=>/^封印戦\|/.test(f||"");
@@ -2213,17 +2260,17 @@ async function loadFeed(more){if(FEED.busy)return;FEED.busy=true;FEED.err="";if(
   FEED.busy=false;if(tab==="feed")renderFeed();}
 function renderFeed(){if(!FEED.list&&!FEED.busy&&!FEED.err){loadFeed(false);return;}
   const l=FEED.list||[];
-  main.innerHTML=`<div class="toolbar"><h2><small>POSTS</small>みんなの投稿</h2><span style="flex:1"></span><button class="btn small" data-pbmlist="1">🔖 ブックマーク ${Object.keys(PBM()).length}</button><button class="btn small" data-mypage="1">マイページ</button><button class="btn small primary" data-postnew="*">＋ 攻略を投稿する</button></div>
+  main.innerHTML=`<div class="toolbar fdbar"><h2><small>POSTS</small>みんなの投稿</h2>${psTools("*")}</div>
   <p class="hint">みんなが投稿したバベル攻略（クリア編成・WAVEごとの立ち回り・Tier表）の新しい順です。投稿にはログインが必要です。</p>
   <div class="floorcard postsbox">${l.length?`<div class="pslist">${l.map(p=>postCardHtml(p,true)).join("")}</div>`:FEED.busy?"":`<p class="count">${FEED.err?"":"まだ投稿がありません。クリアした編成やTier表を投稿してみてください。"}</p>`}
   ${FEED.err?`<p class="err">${esc(FEED.err)}</p>`:""}${FEED.busy?'<p class="count">読み込み中…</p>':""}
-  <p class="psbtns">${l.length&&!FEED.end&&!FEED.busy?'<button class="btn" data-feedmore="1">もっと見る</button>':""}<button class="btn small" data-feedreload="1" ${FEED.busy?"disabled":""}>↻ 最新にする</button></p></div>`;}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-feedmore],[data-feedreload]");if(!b)return;loadFeed(!!b.dataset.feedmore);});
+  ${l.length&&!FEED.end&&!FEED.busy&&!FEED.err?'<div data-feedmore-s="1" class="feedsent"></div>':""}<p class="psbtns"><button class="btn small" data-feedreload="1" ${FEED.busy?"disabled":""}>${svgI("refresh")} 最新にする</button></p></div>`;armLazy();}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-feedreload]");if(!b)return;loadFeed(false);});
 async function loadFloorPosts(fk){PST.busy=true;PST.err="";PST.f=fk;PST.list=null;render();
   try{const pm=await loadPosts();PST.list=await pm.listByFloor(fk);}catch(er){console.warn(er);PST.err="読み込めませんでした。時間をおいてもう一度お試しください";PST.f="";}
   PST.busy=false;render();}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],[data-postnew],[data-psort],[data-post],[data-plike],[data-preport],[data-pedit],[data-pdel],[data-pshare],[data-mypage],[data-pprof],[data-pbm],[data-pbmlist],[data-pbmrm]");if(!b)return;const ds=b.dataset;
-  if(ds.pbm){const o=PBM();if(o[ds.pbm])delete o[ds.pbm];else if(PCUR&&PCUR.id===ds.pbm)o[ds.pbm]={t:PCUR.title,f:PCUR.f,n:PCUR.name,at:Date.now()};save();const on=!!o[ds.pbm];b.textContent=on?"🔖 ブックマーク済み":"🔖 ブックマーク";b.classList.toggle("primary",on);toast(on?"ブックマークしました":"ブックマークを外しました");if(tab==="tier"||tab==="seal")render();return;}
+  if(ds.pbm){const o=PBM();if(o[ds.pbm])delete o[ds.pbm];else if(PCUR&&PCUR.id===ds.pbm)o[ds.pbm]={t:PCUR.title,f:PCUR.f,n:PCUR.name,at:Date.now()};save();const on=!!o[ds.pbm];b.innerHTML=pbmLabel(on);b.classList.toggle("primary",on);toast(on?"ブックマークしました":"ブックマークを外しました");if(tab==="tier"||tab==="seal")render();return;}
   if(ds.pbmlist){openBookmarks();return;}
   if(ds.pbmrm){delete PBM()[ds.pbmrm];save();openBookmarks();if(tab==="tier"||tab==="seal")render();return;}
   if(ds.postload){loadFloorPosts(ds.postload);return;}
@@ -2240,7 +2287,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],
 });
 // 動画：YouTube はサムネイル付き、ほかはリンク
 function videoHtml(u){if(!u||!/^https?:\/\//i.test(u))return "";const m=/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/.exec(u);
-  return m?`<a class="psvid" href="${esc(u)}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg" alt="" loading="lazy"><span>▶ YouTube で見る</span></a>`:`<a class="psvlink" href="${esc(u)}" target="_blank" rel="noopener nofollow">▶ 動画を見る（${esc(u.replace(/^https?:\/\//,"").split("/")[0])}）</a>`;}
+  return m?`<a class="psvid" href="${esc(u)}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg" alt="" loading="lazy"><span>▶ YouTube で見る</span></a>`:`<a class="psvlink" href="${esc(u)}" target="_blank" rel="noopener nofollow">${svgI("play")} 動画を見る（${esc(u.replace(/^https?:\/\//,"").split("/")[0])}）</a>`;}
 let PCUR=null;
 async function openPostById(pid){let pm,p;try{pm=await loadPosts();p=await pm.get(pid);}catch(er){toast("投稿を読み込めませんでした");return;}
   if(!p||p.hidden){toast("この投稿は見つかりませんでした（削除されたか、非表示になっています）");return;}
@@ -2249,7 +2296,7 @@ async function openPostById(pid){let pm,p;try{pm=await loadPosts();p=await pm.ge
   const f=floorObj(p.f),ms=postMs(p.m),ho=hasOwn(),hs=Object.keys(S.sown||{}).length>0;
   const nc=id=>ho&&id&&!OWN()[id]?" tmnot":"",ns=n=>hs&&n&&!SOWN()[n]?" tmnot":"";
   const h=`<h2>${esc(p.title||"（タイトルなし）")}</h2>
-  <p class="psby"><button class="aclink2" data-pprof="${esc(p.uid)}">${esc(p.name)}</button> ・ 投稿 ${pdtime(p.at)}${pEdited(p)?` ・ 最終更新 ${pdtime(p.t)}`:""} ・ 👁 ${p.views}</p>
+  <p class="psby"><button class="aclink2" data-pprof="${esc(p.uid)}">${esc(p.name)}</button> ・ 投稿 ${pdtime(p.at)}${pEdited(p)?` ・ 最終更新 ${pdtime(p.t)}`:""} ・ ${svgI("eye")} ${p.views}</p>
   ${f?`<p class="tbfloor">${esc(floorName(p.f))}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ</button></p>`:""}
   ${ms.some(x=>x.id||x.sc)?`<div class="teams" style="border:0;margin:0;padding:0"><div class="team tv-c">${teamCardsHtml(ms,{nc,ns})}</div></div>`:""}
   ${ho?'<p class="hint">グレー＝あなたが持っていないキャラ・スクリプト</p>':""}
@@ -2257,13 +2304,13 @@ async function openPostById(pid){let pm,p;try{pm=await loadPosts();p=await pm.ge
   ${p.w.some(Boolean)?`<div class="pswvs"><p class="note-h">WAVEごとの立ち回り</p>${p.w.map((x,i)=>x?`<div class="wv"><b class="wvn">WAVE ${i+1}</b><p class="note-b">${esc(x)}</p></div>`:"").join("")}</div>`:""}
   ${p.body?`<p class="note-h">コメント</p><p class="note-b">${esc(p.body)}</p>`:""}
   ${videoHtml(p.v)}
-  <div class="psacts"><button class="btn${lk?" primary":""}" data-plike="${esc(p.id)}">♥ いいね ${p.likes}</button><button class="btn${PBM()[p.id]?" primary":""}" data-pbm="${esc(p.id)}">${PBM()[p.id]?"🔖 ブックマーク済み":"🔖 ブックマーク"}</button><button class="btn" data-pshare="${esc(p.id)}">🔗 リンクを共有</button>
+  <div class="psacts"><button class="btn${lk?" primary":""}" data-plike="${esc(p.id)}">${svgI(lk?"hearted":"heart")} いいね ${p.likes}</button><button class="btn${PBM()[p.id]?" primary":""}" data-pbm="${esc(p.id)}">${pbmLabel(!!PBM()[p.id])}</button><button class="btn" data-pshare="${esc(p.id)}">${svgI("link")} リンクを共有</button>
     ${mine?`<button class="btn" data-pedit="${esc(p.id)}">編集</button><button class="btn" data-pdel="${esc(p.id)}">削除</button>`:`<button class="btn small" data-preport="${esc(p.id)}">通報</button>`}</div>
   <div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();dl.scrollTop=0;}
 async function postLike(pid){const pm=await loadPosts();if(!pm.user()){needLogin();return;}
   try{const on=await pm.toggleLike(pid);if(PCUR&&PCUR.id===pid)PCUR.likes+=on?1:-1;if(PST.list){const x=PST.list.find(y=>y.id===pid);if(x)x.likes+=on?1:-1;}
-    const b=document.querySelector(`[data-plike="${CSS.escape(pid)}"]`);if(b&&PCUR){b.textContent=`♥ いいね ${PCUR.likes}`;b.classList.toggle("primary",on);}}catch(er){console.warn(er);toast("いいねできませんでした");}}
+    const b=document.querySelector(`[data-plike="${CSS.escape(pid)}"]`);if(b&&PCUR){b.innerHTML=`${svgI(on?"hearted":"heart")} いいね ${PCUR.likes}`;b.classList.toggle("primary",on);}}catch(er){console.warn(er);toast("いいねできませんでした");}}
 async function postReport(pid){const pm=await loadPosts();if(!pm.user()){needLogin();return;}
   const reasons=["不適切な表現・誹謗中傷","公序良俗に反する内容","虚偽・ネタバレなど","スパム・宣伝","その他"];
   document.getElementById("detailBody").insertAdjacentHTML("beforeend",`<div class="psrep" id="psrep"><p class="note-h">通報する理由</p>${reasons.map((r,i)=>`<label><input type="radio" name="psr" value="${esc(r)}" ${i?"":"checked"}> ${esc(r)}</label>`).join("")}<textarea id="psrt" maxlength="500" placeholder="くわしく（任意）"></textarea><div class="row2"><button class="btn primary" id="psrgo">通報する</button><button class="btn" onclick="this.closest('.psrep').remove()">やめる</button></div></div>`);
@@ -2273,8 +2320,8 @@ async function postReport(pid){const pm=await loadPosts();if(!pm.user()){needLog
 async function postDelete(pid){if(!confirm("この投稿を削除しますか？（元に戻せません）"))return;const pm=await loadPosts();
   try{await pm.remove(pid);toast("削除しました");const dl=document.getElementById("dlgDetail");if(dl.open)dl.close();if(PST.list)PST.list=PST.list.filter(x=>x.id!==pid);if(tab==="tier"||tab==="seal")render();}catch(er){toast("削除できませんでした");}}
 function bookmarksHtml(){const l=Object.entries(PBM()).sort((a,b)=>(b[1].at||0)-(a[1].at||0));
-  return l.length?`<div class="pslist">${l.map(([id,x])=>`<div class="pbmrow"><button class="pscard" data-post="${esc(id)}"><b class="pst">${esc(x.t||"（タイトルなし）")}</b><span class="psmeta"><span>${esc(floorName(x.f)||"")}</span><span>${esc(x.n||"")}</span></span></button><button class="btn small" data-pbmrm="${esc(id)}" aria-label="ブックマークを外す">✕</button></div>`).join("")}</div>`:'<p class="count">まだありません。投稿の詳細の「🔖 ブックマーク」で追加できます。</p>';}
-function openBookmarks(){document.getElementById("detailBody").innerHTML=`<h2>🔖 ブックマークした攻略</h2><p class="hint">このブラウザに保存されます（ログインしていればアカウントにも保存され、ほかの端末でも見られます）。</p>${bookmarksHtml()}<div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
+  return l.length?`<div class="pslist">${l.map(([id,x])=>`<div class="pbmrow"><button class="pscard" data-post="${esc(id)}"><b class="pst">${esc(x.t||"（タイトルなし）")}</b><span class="psmeta"><span>${esc(floorName(x.f)||"")}</span><span>${esc(x.n||"")}</span></span></button><button class="btn small" data-pbmrm="${esc(id)}" aria-label="ブックマークを外す">✕</button></div>`).join("")}</div>`:'<p class="count">まだありません。投稿の詳細の「ブックマーク」で追加できます。</p>';}
+function openBookmarks(){document.getElementById("detailBody").innerHTML=`<h2>${svgI("bookmark")} ブックマークした攻略</h2><p class="hint">このブラウザに保存されます（ログインしていればアカウントにも保存され、ほかの端末でも見られます）。</p>${bookmarksHtml()}<div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
 // 投稿者のページ（フレンドIDは本人が公開にしたときだけ）
 async function openProfile(uid){let pm,pr,l;try{pm=await loadPosts();[pr,l]=await Promise.all([pm.getProfile(uid),pm.listByUser(uid)]);}catch(er){toast("読み込めませんでした");return;}
   const h=`<h2>${esc((pr&&pr.name)||"投稿者")}</h2>${pr&&pr.fpub&&pr.fid?`<p class="psfid">フレンドID：<b>${esc(pr.fid)}</b> <button class="btn small" onclick="navigator.clipboard.writeText(${esc(JSON.stringify(pr.fid))}).then(()=>RXR.toast('コピーしました'))">コピー</button></p>`:""}
@@ -2287,7 +2334,7 @@ async function openMyPage(){let pm;try{pm=await loadPosts();}catch(er){return;}c
   const h=`<h2>マイページ</h2><div class="psprof"><label>投稿者名 <input id="mpName" maxlength="20" value="${esc(pr.name||"")}" placeholder="投稿に表示される名前"></label>
     <label>フレンドID（任意） <input id="mpFid" maxlength="40" value="${esc(pr.fid||"")}" placeholder="ゲームのフレンドID"></label>
     <label class="ck"><input type="checkbox" id="mpPub" ${pr.fpub?"checked":""}> フレンドIDを投稿者のページで公開する（公開しないときは保存しません）</label><button class="btn primary small" id="mpSave">保存</button></div>
-  <p class="note-h">🔖 ブックマーク（${Object.keys(PBM()).length}件）</p>${bookmarksHtml()}
+  <p class="note-h">${svgI("bookmark")} ブックマーク（${Object.keys(PBM()).length}件）</p>${bookmarksHtml()}
   <p class="note-h" style="margin-top:12px">自分の投稿（${l.length}件・閲覧 ${tv}・いいね ${tl}）</p>
   <div class="pslist">${l.sort((a,b)=>b.at-a.at).map(p=>`<div class="psmine">${postCardHtml(p)}${p.hidden||p.rc>=3?`<small class="err">${p.hidden?"運営が非表示にしています":"通報が多いため確認中です"}</small>`:""}</div>`).join("")||'<p class="count">まだ投稿がありません。階層のページの「＋ 攻略を投稿する」から投稿できます。</p>'}</div>
   <div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
@@ -2788,7 +2835,7 @@ async function showShare(make,text,link,name,title){
   const canFile=!!(navigator.canShare&&navigator.canShare({files:[file]}));
   const canCopy=!!(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write);
   document.getElementById("shareBtns").innerHTML=(canFile?`<button class="btn primary" data-share="native">画像を共有（X・LINEなど）</button>`:"")+
-    `<button class="btn ${canFile?"":"primary"}" data-share="x">Xに投稿</button><button class="btn" data-share="save">画像を保存</button>${canCopy?`<button class="btn" data-share="copyimg">画像をコピー</button>`:""}<button class="btn" data-share="copytext">文とURLをコピー</button>`;
+    `<button class="btn ${canFile?"":"primary"}" data-share="x">Xに投稿</button><button class="btn" data-share="save">画像を保存</button>${canCopy?`<button class="btn" data-share="copyimg">画像をコピー</button>`:""}<button class="btn" data-share="copytext">文とURLをコピー</button><button class="btn" data-share="copylink">${svgI("link")} リンクだけコピー</button>`;
   document.getElementById("shareHint").textContent=canFile?"「画像を共有」から X や LINE を選ぶと、画像と URL がいっしょに投稿できます。":"「Xに投稿」は文と URL が入った投稿画面が開きます。画像は「画像を保存」または「画像をコピー」してから、投稿に貼り付けてください。";
 }
 
@@ -2921,7 +2968,7 @@ function renderOwn(){
   const attrs=K==="s"?["SSR","SR","R"].filter(a=>items.some(c=>c.rar===a)):ATTRS.filter(a=>items.some(c=>c.attr===a)),roles=[...new Set(ROLES.concat(K==="s"?["ワイルド"]:[]))].filter(a=>items.some(c=>c.role===a)),ords=K==="s"?[]:ORDERS.filter(a=>items.some(c=>c.order===a));
   const by=(a)=>items.filter(c=>(K==="s"?c.rar:c.attr)===a);
   let sub="";if(K==="c"){const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;sub=`<span>キャラクター ${bOwned} / ${bases.length}</span>`;const un=CH.filter(c=>c.unrel).length;if(un)sub+=`<span>未実装の${un}スタイルは数えません</span>`;}
-  let h=`${OSH.ret!=null?`<div class="oshback">${K==="s"?"スクリプト":"キャラ"}の所持を設定したら → <button class="btn small primary" data-ownret="1">編成を組んでもらうに戻る</button>${K==="c"?`<button class="aclink2" data-owngo="sown">スクリプトの所持も設定する</button>`:`<button class="aclink2" data-owngo="own">キャラの所持を設定する</button>`}</div>`:""}<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span>${K==="c"?`<button class="btn small primary" data-act="ownlink">🔗 所持キャラを共有</button><button class="btn small" data-tbopen="own">🛠 所持キャラで編成を組む</button>`:""}<button class="btn small" data-act="ownshare">画像で共有</button></div>
+  let h=`${OSH.ret!=null?`<div class="oshback">${K==="s"?"スクリプト":"キャラ"}の所持を設定したら → <button class="btn small primary" data-ownret="1">編成を組んでもらうに戻る</button>${K==="c"?`<button class="aclink2" data-owngo="sown">スクリプトの所持も設定する</button>`:`<button class="aclink2" data-owngo="own">キャラの所持を設定する</button>`}</div>`:""}<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span>${K==="c"?`<button class="btn small primary" data-act="ownlink">${svgI("link")} 所持キャラを共有</button><button class="btn small" data-tbopen="own">🛠 所持キャラで編成を組む</button>`:""}<button class="btn small" data-act="ownshare">画像で共有</button></div>
   <details class="ownheadbox"${OWNHEADOPEN?" open":""}><summary><span>所持率 <b>${all.p}%</b>（${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}）</span><span class="count">グラフを見る</span></summary>
   <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}</span>${sub}</div>
   <div class="ownstars">${stars.map((n,i)=>`<div><span class="st">${"★".repeat(i+1)}</span><b>${n}</b></div>`).reverse().join("")}</div>
@@ -2978,12 +3025,13 @@ document.getElementById("dlgShare").addEventListener("click",async e=>{
   if(k==="x"){window.open(`https://x.com/intent/post?text=${encodeURIComponent(SHARE.text)}&url=${encodeURIComponent(SHARE.link)}`,"_blank","noopener");return;}
   if(k==="save"){const a=document.createElement("a");a.href=SHARE.url;a.download=SHARE.name;document.body.appendChild(a);a.click();a.remove();return;}
   if(k==="copyimg"){try{await navigator.clipboard.write([new ClipboardItem({"image/png":SHARE.blob})]);toast("画像をコピーしました。投稿欄に貼り付けられます");}catch(er){toast("コピーできませんでした。「画像を保存」を使ってください");}return;}
+  if(k==="copylink"){navigator.clipboard.writeText(SHARE.link).then(()=>toast("リンクをコピーしました"),()=>toast("コピーできませんでした"));return;}
   if(k==="copytext"){navigator.clipboard.writeText(SHARE.text+"\n"+SHARE.link).then(()=>toast("コピーしました"),()=>toast("コピーできませんでした"));return;}
 });
 /* 共有リンク（?floor=種類|階層）で開いたときはその階層を表示 */
 /* ---------- リンクで共有：?char=キャラID ／ ?script=スクリプト名 ／ ?event=イベント名 ／ ?knight=騎士名 ／ ?floor=バベル種類|階層（封印戦は 封印戦|名前）／ ?tab=ctier ---------- */
 const LINKP={char:"char",script:"script",event:"event",knight:"knight",floor:"floor",tab:"tab"};
-const shareBtn=(k,v)=>`<button class="btn small linkbtn2" data-sharelink="${k}|${esc(v)}">🔗 リンクを共有</button>`;
+const shareBtn=(k,v)=>`<button class="ibtn linkbtn2" data-sharelink="${k}|${esc(v)}" title="リンクを共有" aria-label="リンクを共有">${svgI("link")}<span class="lbl">リンクを共有</span></button>`;
 function pageLinkBtn(){if(MODE==="admin")return "";if(ALLCTX())return shareBtn("tab","ctier");const f=curFloor();return f?shareBtn("floor",f.key):"";}
 function linkTitle(k,v){if(k==="char")return (CHMAP[v]?CHMAP[v].name:v);if(k==="floor"){const f=FLOORS.find(x=>x.key===v);return f?(f.seal?`封印戦 ${f.floor}`:`${f.type} ${f.floor}F`):v;}if(k==="tab")return "キャラクター全体Tier";if(k==="script"){const x=scOf(v);return x?x.name:v;}if(k==="event"){const x=eventOf(v);return x?x.name:v;}if(k==="knight"){const x=personOf(v);return x?x.name:v;}return v;}
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-sharelink]");if(!b)return;e.preventDefault();e.stopPropagation();
@@ -3034,7 +3082,7 @@ function oshRender(){const types=TYPES.concat(SEALS.length?["封印戦"]:[]);con
   ${Object.keys(S.sown||{}).length?"":`<div class="oshinfo">スクリプトの所持は未設定です（任意）。設定すると、組む人が持っているスクリプトから選べます。<button class="aclink2" data-owngo="sown">スクリプトの所持をここから設定する</button></div>`}
   ${Object.keys(S.sown||{}).length?`<label class="oshchk"><input type="checkbox" id="oshSc" ${OSH.sc?"checked":""}> 所持スクリプト（${Object.keys(S.sown).length}種類）も入れる <small class="count">編成を組む人がスクリプトも持っているものから選べます</small></label>`:""}
   <label class="oshl">課題（任意）<input id="oshMsg" maxlength="80" value="${esc(OSH.msg)}" placeholder="例：ボスの全体攻撃で前線が崩れます"></label>
-  <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" data-oshgo="1">🔗 リンクを作って共有</button></div>`);}
+  <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" data-oshgo="1">${svgI("link")} リンクを作って共有</button></div>`);}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-oshtype],[data-oshfloor],[data-oshgo],[data-ownhelp],[data-oshpick],[data-owngo],[data-ownret]");if(!b)return;const ds=b.dataset;
   const keep=()=>{const n=document.getElementById("oshName"),m=document.getElementById("oshMsg"),sc=document.getElementById("oshSc");if(sc)OSH.sc=sc.checked;if(n)S.ownName=n.value.trim().slice(0,20);if(m)OSH.msg=m.value.trim().slice(0,80);};
   if(ds.ownhelp!==undefined){const f=curFloor();shareOwnLink(f?f.key:"");return;}
@@ -3160,7 +3208,7 @@ function renderNewsBadge(){
   const seen=newsSeen();const unread=NEWS.filter(n=>(n.at||0)>seen).length;
   const c=document.getElementById("newsCount");if(c){c.hidden=!unread;c.textContent=unread;}
   const bar=document.getElementById("newsbar");const latest=newsSorted().filter(n=>(n.at||0)>seen)[0];
-  if(bar){if(latest&&MODE!=="admin"){bar.innerHTML=`<button class="nbmain" data-news><span class="ncat cat-${esc(latest.cat||"info")}">${esc(NCAT[latest.cat]||NCAT.info)}</span><span class="ndate">${fmtDate(latest.date)}</span><b>${esc(latest.title||"")}</b>${unread>1?`<span class="count">ほか${unread-1}件</span>`:""}</button><button class="nbx" data-newsx aria-label="閉じる">✕</button>`;bar.hidden=false;}else bar.hidden=true;}
+  if(bar){if(latest&&MODE!=="admin"&&tab==="home"){bar.innerHTML=`<button class="nbmain" data-news><span class="ncat cat-${esc(latest.cat||"info")}">${esc(NCAT[latest.cat]||NCAT.info)}</span><span class="ndate">${fmtDate(latest.date)}</span><b>${esc(latest.title||"")}</b>${unread>1?`<span class="count">ほか${unread-1}件</span>`:""}</button><button class="nbx" data-newsx aria-label="閉じる">✕</button>`;bar.hidden=false;}else bar.hidden=true;}
 }
 function openNews(){
   const seen=newsSeen();const list=newsSorted();
