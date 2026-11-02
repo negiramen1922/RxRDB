@@ -1028,7 +1028,7 @@ const ATTRS=["破壊","衝撃","爆発"];
 const ROLES=["アタッカー","シューター","ブレイカー","ヒーラー","トリックスター","サポーター"];
 const ROLE_SHORT={"アタッカー":"アタ","シューター":"シュ","ブレイカー":"ブレ","ヒーラー":"ヒラ","トリックスター":"トリ","サポーター":"サポ"};
 const RANKS=["KING","QUEEN","FORTRESS","KNIGHT","WIZARD","JOKER"];
-const ORDERS=["ブレイドライン","千紫","Mazlab","第六起源魔術教会","リンドブルム","オッター貿易","アクシオンゲート","ORANGE"];
+const ORDERS=["ブレイドライン","千紫","MAZE LABORATORY","第六起源魔術教会","リンドヴルム","オッター貿易","アクシオンゲート","ORANGE","星の夢の終わりに"];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 /* ---------- state ---------- */
@@ -1351,7 +1351,7 @@ function floorIntoView(){const b=main.querySelector('.floorbtn[aria-current="tru
 /* ---------- Tier表の絞り込み（Tier表と未配置の両方にかかる） ---------- */
 /* アナザーバベル・バベルリビルドは使える騎士団が決まっているので、使えないキャラは Tier表・未配置から自動で外す（騎士団が未登録のキャラは残す） */
 const floorGrp=f=>f&&!f.seal?(/アナザー/.test(f.type)?"アナザー":/リビルド/.test(f.type)?"リビルド":""):"";
-function grpOk(c,f){const g=floorGrp(f||curFloor());return !g||!c.order||BABELGRP[g].includes(c.order);}
+function grpOk(c,f){const g=floorGrp(f||curFloor());return !g||!c.order||inGrp(g,c.order);}
 function tierShow(c){return grpOk(c)&&cfMatch(c,CFS.tier);}
 function tierFilterBar(){
   const b=cfBar("tier");
@@ -1419,8 +1419,11 @@ function cfCtx(k){CFK=CFS[k]?k:"chars";CF=CFS[CFK];}
 const cfBase=()=>[["ロール","role",ROLES.map(x=>[x,ic(x)])],["攻撃属性","attr",ATTRS.map(x=>[x,ic(x)])],["騎士団","order",ORDERS.map(x=>[x,ic(x,"ord")])],["階級","rank",RANKS.map(x=>[x,ic(x)])],
   ["攻撃種","dtype",[["物理",""],["特殊",""],["その他",""]]],["レアリティ","rar",[["★★★",""],["★★",""],["★",""]]],["限定","limit",[["限定",""],["周年限定",""],["通常",""]]],["バベル","babel",[["アナザー",""],["リビルド",""]]],["実装","rel",[["実装済み",""],["未実装",""]]],["所持","own",[["持っている",""],["持っていない",""]]]];
 /* アナザーバベル・バベルリビルドで使える騎士団（その騎士団のキャラしか出せない縛り） */
-const BABELGRP={"アナザー":["ブレイドライン","第六起源魔術教会","リンドブルム","千紫","ほしゆめ"],"リビルド":["ORANGE","アクシオンゲート","オッター貿易","Mazlab"]};
-const babelKind=c=>BABELGRP["アナザー"].includes(c.order)?"アナザー":BABELGRP["リビルド"].includes(c.order)?"リビルド":"";
+/* 騎士団の名前を直したときの旧名（古いデータでも同じ騎士団として扱う） */
+const BABELGRP={"アナザー":["ブレイドライン","第六起源魔術教会","リンドヴルム","千紫","星の夢の終わりに"],"リビルド":["ORANGE","アクシオンゲート","オッター貿易","MAZE LABORATORY"]};
+const ORDOLD={"リンドブルム":"リンドヴルム","ほしゆめ":"星の夢の終わりに","Mazlab":"MAZE LABORATORY"};
+const inGrp=(g,o)=>BABELGRP[g].includes(ORDOLD[o]||o);
+const babelKind=c=>inGrp("アナザー",c.order)?"アナザー":inGrp("リビルド",c.order)?"リビルド":"";
 const unrelBadge=(c,cls)=>c.unrel?`<span class="limb unrel ${cls||""}">未実装</span>`:"";
 function cfMatch(c,st){st=st||CFS.chars;
   for(const [k,vals] of Object.entries(st.sel)){if(!vals.length)continue;
@@ -1803,7 +1806,7 @@ function renderTier(){
   /* 全体Tierでは未実装のキャラは未配置に出さない */list=list.filter(c=>grpOk(c)&&!(all&&c.unrel)&&cfMatch(c,CFS.pool));const pcf=cfBar("pool");
   if(pool.sort==="fit")list.sort((a,b)=>fits[b.id]-fits[a.id]||b.date-a.date);
   else if(pool.sort==="new")list.sort((a,b)=>b.date-a.date);
-  else list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));
+  else list.sort((a,b)=>String(sortVal("chars",a,"name")).localeCompare(String(sortVal("chars",b,"name")),"ja"));
   h+=`<div class="pool"><div class="poolhead"><h3>未配置 <span class="count">${list.length}</span></h3>
     <input class="search" id="poolQ" placeholder="キャラ名で絞り込み" value="${esc(pool.q)}">
     <div class="seg"><button data-psort="fit" aria-pressed="${pool.sort==="fit"}">適性順</button><button data-psort="new" aria-pressed="${pool.sort==="new"}">新しい順</button><button data-psort="name" aria-pressed="${pool.sort==="name"}">名前順</button></div>
@@ -2279,8 +2282,10 @@ function sth(s){return SIMG[s.id]?`<img src="${SIMG[s.id]}" alt="" class="rowth"
 const RKDEF={chars:[["完凸 HP","HP（完凸）","desc"],["完凸 攻撃力","攻撃力（完凸）","desc"],["Lv200 HP","HP（Lv200）","desc"],["Lv200 攻撃力","攻撃力（Lv200）","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"],["攻撃速度","攻撃速度","desc"],["抵抗値","抵抗値","desc"],["初期コスト","出撃コスト","asc"],["育成後コスト","育成後コスト","asc"],["再出撃時間(S)","再出撃時間","asc"],["スキルクールタイム","スキルCT","asc"],["BLADEゲージ","BLADEゲージ","asc"],["HP初期値","HP初期値","desc"],["攻撃力初期値","攻撃力初期値","desc"]],
   scripts:[["Lv200 HP","HP（Lv200）","desc"],["Lv200 攻撃力","攻撃力（Lv200）","desc"],["完凸 HP","HP（完凸）","desc"],["完凸 攻撃力","攻撃力（完凸）","desc"],["物理防御","物理防御","desc"],["特殊防御","特殊防御","desc"]]};
 const RK={t:"chars",stat:"完凸 HP",dir:"desc",attr:null,role:null,focus:null};
-const SPEED={"S":5,"Aplus":4,"APlus":4,"A+":4,"A":3,"Bplus":2,"BPlus":2,"B+":2,"B":1,"C":0};
-function rkVal(stat,v){if(stat==="攻撃速度"){const k=String(v||"").trim();return k in SPEED?SPEED[k]:null;}return num(v);}
+// 攻撃速度のランク（「Aplus」「APlus」「A+」は同じ。大文字小文字・空白は問わない）
+const SPEED={"S+":6,"S":5,"A+":4,"A":3,"B+":2,"B":1,"C":0};
+const speedKey=v=>String(v||"").replace(/\s/g,"").replace(/plus$/i,"+").toUpperCase();
+function rkVal(stat,v){if(stat==="攻撃速度"){const k=speedKey(v);return k in SPEED?SPEED[k]:null;}return num(v);}
 function renderRank(){
   const isC=RK.t==="chars";const d=data(RK.t);const ci=d.headers.indexOf(RK.stat);
   const defs=RKDEF[RK.t].filter(x=>d.headers.includes(x[0]));
@@ -2864,7 +2869,7 @@ function renderOwn(){
   if(q)list=list.filter(c=>(c.name+c.id+(c.bname||c.base||"")).toLowerCase().includes(q));
   if(F.attr)list=list.filter(c=>(K==="s"?c.rar:c.attr)===F.attr);if(F.role)list=list.filter(c=>c.role===F.role);
   if(F.show==="own")list=list.filter(c=>o[c.id]);else if(F.show==="not")list=list.filter(c=>!o[c.id]);
-  if(F.sort==="date")list.sort((a,b)=>b.date-a.date);else if(F.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));else list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
+  if(F.sort==="date")list.sort((a,b)=>b.date-a.date);else if(F.sort==="name")list.sort(K==="s"?(a,b)=>a.name.localeCompare(b.name,"ja"):(a,b)=>String(sortVal("chars",a,"name")).localeCompare(String(sortVal("chars",b,"name")),"ja"));else list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
   const attrs=K==="s"?["SSR","SR","R"].filter(a=>items.some(c=>c.rar===a)):ATTRS.filter(a=>items.some(c=>c.attr===a)),roles=[...new Set(ROLES.concat(K==="s"?["ワイルド"]:[]))].filter(a=>items.some(c=>c.role===a)),ords=K==="s"?[]:ORDERS.filter(a=>items.some(c=>c.order===a));
   const by=(a)=>items.filter(c=>(K==="s"?c.rar:c.attr)===a);
   let sub="";if(K==="c"){const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;sub=`<span>キャラクター ${bOwned} / ${bases.length}</span>`;const un=CH.filter(c=>c.unrel).length;if(un)sub+=`<span>未実装の${un}スタイルは数えません</span>`;}
