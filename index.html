@@ -194,7 +194,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .sortdirb{margin-left:8px;font-size:12px;vertical-align:middle}
 .fdbar{flex-wrap:nowrap}.fdbar h2{flex:none}.pshead{flex-wrap:wrap}
 @media (max-width:640px){.fdbar h2{font-size:21px}.pstools{gap:4px}.pstools .ibtn{padding:6px 9px}.pstools .btn{padding-left:10px;padding-right:10px}}
-.hposts{margin:12px 0}.hphead{display:flex;align-items:center;gap:8px;justify-content:space-between}.hphead h3{margin:0}.hposts .pslist{margin-top:8px}
+.feedsent{height:1px}.hposts{margin:12px 0}.hphead{display:flex;align-items:center;gap:8px;justify-content:space-between}.hphead h3{margin:0}.hposts .pslist{margin-top:8px}
 .sp{display:none}
 @media (max-width:640px){.vbtools .lbl,.vbtools .pc,.viewseg .pc{display:none}.viewseg .sp{display:inline}.vbtools .ibtn{padding:6px 10px}.viewbar .viewseg button{padding:7px 12px;font-size:13px}.viewbar.viewbar{flex-wrap:nowrap;gap:6px}.vbtools{gap:4px}
   .lbar{width:100%}.toolbar .count{order:9}}
@@ -1236,7 +1236,7 @@ function reorder(key,tier,before){const f=curFloor();if(!f)return;const P=place(
   const i=before?row.indexOf(before):-1;row.splice(i<0?row.length:i,0,key);
   const all=[];TIERS.forEach(t=>{if(t===tier)all.push(...row);else all.push(...rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k));});setOrder(f.key,all);}
 function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(!t)return;const fits={};CH.forEach(c=>fits[c.id]=fit(c,f).score);const row=rowSort(f.key,entries(P).filter(e=>e.t===t),fits).map(e=>e.k);const i=row.indexOf(key),j=i+d;if(i<0||j<0||j>=row.length)return;reorder(key,t,d<0?row[j]:row[j+1]);}
-function viewSeg(){if(MODE==="admin")return "";const m=MINE(),tf=tab==="tier"||tab==="seal";return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分<span class="pc">のTier表</span><span class="sp">用</span></button></div><span class="vbtools">${tf?`<button class="ibtn" data-act="share" title="画像で共有" aria-label="画像で共有">${svgI("camera")}<span class="lbl">画像で共有</span></button>`:""}${m?(tf||ALLCTX()?`<button class="ibtn" data-act="mylink" title="自分のTier表をリンクで共有" aria-label="自分のTier表をリンクで共有">${svgI("link")}<span class="lbl">リンクで共有</span></button>`:""):pageLinkBtn()}${tf&&!ALLCTX()&&curFloor()?`<button class="ibtn helpbtn" data-ownhelp="1" title="所持キャラで編成を組んでもらう">${svgI("team")}<span class="lbl2"><span class="pc">編成を</span>相談</span></button>`:""}</span>${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
+function viewSeg(){if(MODE==="admin")return "";const m=MINE(),tf=tab==="tier"||tab==="seal";return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分<span class="pc">のTier表</span><span class="sp">用</span></button></div><span class="vbtools">${tf||ALLCTX()?`<button class="ibtn" data-act="share" title="画像で共有（リンクも付きます）" aria-label="画像で共有">${svgI("camera")}<span class="lbl">画像で共有</span></button>`:""}${tf&&!ALLCTX()&&curFloor()?`<button class="ibtn helpbtn" data-ownhelp="1" title="所持キャラで編成を組んでもらう">${svgI("team")}<span class="lbl2"><span class="pc">編成を</span>相談</span></button>`:""}</span>${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
 const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
@@ -1264,7 +1264,7 @@ function switchTab(t){track("tab",{tab:t});NAVSEQ++;tab=t;sel=null;HEROKEY=null;
 /* 日本語入力（IME）の変換中は再描画しない */
 function liveInput(el,fn){if(!el)return;el.addEventListener("input",e=>{if(e.isComposing||el._comp)return;fn();});el.addEventListener("compositionstart",()=>{el._comp=true;});el.addEventListener("compositionend",()=>{el._comp=false;fn();});}
 let main=document.getElementById("main");
-function render(){renderMain();syncUrl();armLazy();}
+function render(){renderMain();syncUrl();armLazy();renderNewsBadge();}
 function renderMain(){
   if(MODE==="admin"){if(ADMIN_LIST)ADMIN_LIST();return;}
   if(!SITE_LOADED){main.innerHTML=`<div class="empty"><h2>読み込み中…</h2><p>データを読み込んでいます。</p></div>`;return;}
@@ -1315,7 +1315,7 @@ function renderHome(){
   ${card("seal",sealImg,"SEAL BATTLE","封印戦","封印戦ごとのTier表・ステージ効果・過去の開催日")}
   ${EVENTS.length?card("events",rnd(EVENTS.map(ev=>EVTF[ev.id]).filter(Boolean)),"EVENTS","イベント","これまでのイベントと復刻・実装キャラ・登場ボス"):""}
   </div>
-  <div class="hbox hposts"><div class="hphead"><h3>${svgI("pen")} 新着のみんなの攻略</h3><button class="aclink2" data-gosub="feed">すべて見る ›</button></div><div data-hposts>${HP.list?"":'<p class="count">読み込んでいます…</p>'}</div></div>
+  <div class="hbox hposts"><div class="hphead"><h3>${svgI("pen")} 新着のみんなの攻略</h3><button class="aclink2" data-gosub="feed">みんなの投稿へ ›</button></div><div data-hposts>${HP.list?"":'<p class="count">読み込んでいます…</p>'}</div></div>
   <div class="hgrid2">
     <div class="hbox"><h3>お知らせ</h3>${news.length?news.map(n=>`<button class="hnews" data-news><span class="ndate">${fmtDate(n.date)}</span><b>${n.pin?"📌 ":""}${esc(n.title||"")}</b></button>`).join(""):'<p class="count">お知らせはまだありません。</p>'}<button class="btn small" data-news>すべて見る</button></div>
     <div class="hbox hlinks"><h3>はじめての方へ・サポート</h3>
@@ -2181,14 +2181,14 @@ async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e)
    ★・スクリプトの凸は所持の記録から入れておき、そのあと自由に直せる（投稿に書き込むので、あとで所持の記録が変わっても投稿は変わらない） */
 const PLIM={title:40,body:500,wave:300,waves:10};
 let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=5").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
-const PST={f:"",list:null,busy:false,sort:"new",err:"",more:false};
+const PST={f:"",list:null,busy:false,sort:"new",err:""};
 /* 画面に入ったら読み込む（階層ページの「みんなの攻略」・ホームの新着）。押さなくても見てもらえるように。読み取りは見えたときだけ */
 let LAZYOB=null;
-function armLazy(){const els=document.querySelectorAll("[data-pslazy]:not([data-armed]),[data-hposts]:not([data-armed])");if(!els.length)return;
+function armLazy(){const els=document.querySelectorAll("[data-pslazy]:not([data-armed]),[data-hposts]:not([data-armed]),[data-feedmore-s]:not([data-armed])");if(!els.length)return;
   if(!("IntersectionObserver" in window)){els.forEach(lazyGo);return;}
   if(!LAZYOB)LAZYOB=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){LAZYOB.unobserve(e.target);lazyGo(e.target);}}),{rootMargin:"200px"});
   els.forEach(el=>{el.dataset.armed="1";LAZYOB.observe(el);});}
-function lazyGo(el){if(el.dataset.pslazy){if(PST.f!==el.dataset.pslazy&&!PST.busy)loadFloorPosts(el.dataset.pslazy);}else if(el.dataset.hposts!=null)loadHomePosts();}
+function lazyGo(el){if(el.dataset.feedmoreS){if(tab==="feed"&&!FEED.busy&&!FEED.end)loadFeed(true);return;}if(el.dataset.pslazy){if(PST.f!==el.dataset.pslazy&&!PST.busy)loadFloorPosts(el.dataset.pslazy);}else if(el.dataset.hposts!=null)loadHomePosts();}
 const HP={list:null,busy:false};
 async function loadHomePosts(){if(HP.list||HP.busy)return fillHomePosts();HP.busy=true;try{const pm=await loadPosts();HP.list=await pm.latest(4);}catch(e){HP.list=[];}HP.busy=false;fillHomePosts();}
 function fillHomePosts(){const el=document.querySelector("[data-hposts]");if(!el||!HP.list)return;
@@ -2238,7 +2238,7 @@ function postsBoxHtml(f){if(MODE==="admin"||!f||f.all)return "";const on=PST.f==
   return `<div class="floorcard postsbox" id="postsbox"><div class="pshead"><p class="note-h">${svgI("pen")} みんなの攻略${on?` <small class="count">${l.length}件</small>`:""}</p><span style="flex:1"></span>
     ${on&&l.length>1?`<span class="viewsw"><button data-psort="new" aria-pressed="${PST.sort==="new"}">新しい順</button><button data-psort="like" aria-pressed="${PST.sort==="like"}">いいね順</button></span>`:""}
     ${psTools(f.key)}</div>
-    ${on?(l.length?`<div class="pslist">${(PST.more?l:l.slice(0,3)).map(p=>postCardHtml(p)).join("")}</div>${!PST.more&&l.length>3?`<button class="btn small" data-psmore="1">残り ${l.length-3}件を見る</button>`:""}`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
+    ${on?(l.length?`<div class="pslist">${l.map(p=>postCardHtml(p)).join("")}</div>`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
       :PST.err?`<p class="err">${esc(PST.err)}</p><button class="btn small" data-postload="${esc(f.key)}">もう一度読み込む</button>`:`<p class="count" data-pslazy="${esc(f.key)}">${PST.busy?"読み込み中…":"みんなの攻略を読み込んでいます…"}</p>`}</div>`;}
 const pdate=t=>{if(!t)return "";const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;};
 const pdtime=t=>{if(!t)return "";const d=new Date(t);return `${pdate(t)} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;};
@@ -2264,19 +2264,18 @@ function renderFeed(){if(!FEED.list&&!FEED.busy&&!FEED.err){loadFeed(false);retu
   <p class="hint">みんなが投稿したバベル攻略（クリア編成・WAVEごとの立ち回り・Tier表）の新しい順です。投稿にはログインが必要です。</p>
   <div class="floorcard postsbox">${l.length?`<div class="pslist">${l.map(p=>postCardHtml(p,true)).join("")}</div>`:FEED.busy?"":`<p class="count">${FEED.err?"":"まだ投稿がありません。クリアした編成やTier表を投稿してみてください。"}</p>`}
   ${FEED.err?`<p class="err">${esc(FEED.err)}</p>`:""}${FEED.busy?'<p class="count">読み込み中…</p>':""}
-  <p class="psbtns">${l.length&&!FEED.end&&!FEED.busy?'<button class="btn" data-feedmore="1">もっと見る</button>':""}<button class="btn small" data-feedreload="1" ${FEED.busy?"disabled":""}>${svgI("refresh")} 最新にする</button></p></div>`;}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-feedmore],[data-feedreload]");if(!b)return;loadFeed(!!b.dataset.feedmore);});
-async function loadFloorPosts(fk){PST.busy=true;PST.err="";PST.f=fk;PST.list=null;PST.more=false;render();
+  ${l.length&&!FEED.end&&!FEED.busy&&!FEED.err?'<div data-feedmore-s="1" class="feedsent"></div>':""}<p class="psbtns"><button class="btn small" data-feedreload="1" ${FEED.busy?"disabled":""}>${svgI("refresh")} 最新にする</button></p></div>`;armLazy();}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-feedreload]");if(!b)return;loadFeed(false);});
+async function loadFloorPosts(fk){PST.busy=true;PST.err="";PST.f=fk;PST.list=null;render();
   try{const pm=await loadPosts();PST.list=await pm.listByFloor(fk);}catch(er){console.warn(er);PST.err="読み込めませんでした。時間をおいてもう一度お試しください";PST.f="";}
   PST.busy=false;render();}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-psmore],[data-postload],[data-postnew],[data-psort],[data-post],[data-plike],[data-preport],[data-pedit],[data-pdel],[data-pshare],[data-mypage],[data-pprof],[data-pbm],[data-pbmlist],[data-pbmrm]");if(!b)return;const ds=b.dataset;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],[data-postnew],[data-psort],[data-post],[data-plike],[data-preport],[data-pedit],[data-pdel],[data-pshare],[data-mypage],[data-pprof],[data-pbm],[data-pbmlist],[data-pbmrm]");if(!b)return;const ds=b.dataset;
   if(ds.pbm){const o=PBM();if(o[ds.pbm])delete o[ds.pbm];else if(PCUR&&PCUR.id===ds.pbm)o[ds.pbm]={t:PCUR.title,f:PCUR.f,n:PCUR.name,at:Date.now()};save();const on=!!o[ds.pbm];b.innerHTML=pbmLabel(on);b.classList.toggle("primary",on);toast(on?"ブックマークしました":"ブックマークを外しました");if(tab==="tier"||tab==="seal")render();return;}
   if(ds.pbmlist){openBookmarks();return;}
   if(ds.pbmrm){delete PBM()[ds.pbmrm];save();openBookmarks();if(tab==="tier"||tab==="seal")render();return;}
   if(ds.postload){loadFloorPosts(ds.postload);return;}
   if(ds.postnew){postNew(ds.postnew).catch(()=>{});return;}
   if(ds.psort){PST.sort=ds.psort;render();return;}
-  if(ds.psmore){PST.more=true;render();return;}
   if(ds.post){openPostById(ds.post);return;}
   if(ds.plike){postLike(ds.plike);return;}
   if(ds.preport){postReport(ds.preport);return;}
@@ -2836,7 +2835,7 @@ async function showShare(make,text,link,name,title){
   const canFile=!!(navigator.canShare&&navigator.canShare({files:[file]}));
   const canCopy=!!(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write);
   document.getElementById("shareBtns").innerHTML=(canFile?`<button class="btn primary" data-share="native">画像を共有（X・LINEなど）</button>`:"")+
-    `<button class="btn ${canFile?"":"primary"}" data-share="x">Xに投稿</button><button class="btn" data-share="save">画像を保存</button>${canCopy?`<button class="btn" data-share="copyimg">画像をコピー</button>`:""}<button class="btn" data-share="copytext">文とURLをコピー</button>`;
+    `<button class="btn ${canFile?"":"primary"}" data-share="x">Xに投稿</button><button class="btn" data-share="save">画像を保存</button>${canCopy?`<button class="btn" data-share="copyimg">画像をコピー</button>`:""}<button class="btn" data-share="copytext">文とURLをコピー</button><button class="btn" data-share="copylink">${svgI("link")} リンクだけコピー</button>`;
   document.getElementById("shareHint").textContent=canFile?"「画像を共有」から X や LINE を選ぶと、画像と URL がいっしょに投稿できます。":"「Xに投稿」は文と URL が入った投稿画面が開きます。画像は「画像を保存」または「画像をコピー」してから、投稿に貼り付けてください。";
 }
 
@@ -3026,6 +3025,7 @@ document.getElementById("dlgShare").addEventListener("click",async e=>{
   if(k==="x"){window.open(`https://x.com/intent/post?text=${encodeURIComponent(SHARE.text)}&url=${encodeURIComponent(SHARE.link)}`,"_blank","noopener");return;}
   if(k==="save"){const a=document.createElement("a");a.href=SHARE.url;a.download=SHARE.name;document.body.appendChild(a);a.click();a.remove();return;}
   if(k==="copyimg"){try{await navigator.clipboard.write([new ClipboardItem({"image/png":SHARE.blob})]);toast("画像をコピーしました。投稿欄に貼り付けられます");}catch(er){toast("コピーできませんでした。「画像を保存」を使ってください");}return;}
+  if(k==="copylink"){navigator.clipboard.writeText(SHARE.link).then(()=>toast("リンクをコピーしました"),()=>toast("コピーできませんでした"));return;}
   if(k==="copytext"){navigator.clipboard.writeText(SHARE.text+"\n"+SHARE.link).then(()=>toast("コピーしました"),()=>toast("コピーできませんでした"));return;}
 });
 /* 共有リンク（?floor=種類|階層）で開いたときはその階層を表示 */
@@ -3208,7 +3208,7 @@ function renderNewsBadge(){
   const seen=newsSeen();const unread=NEWS.filter(n=>(n.at||0)>seen).length;
   const c=document.getElementById("newsCount");if(c){c.hidden=!unread;c.textContent=unread;}
   const bar=document.getElementById("newsbar");const latest=newsSorted().filter(n=>(n.at||0)>seen)[0];
-  if(bar){if(latest&&MODE!=="admin"){bar.innerHTML=`<button class="nbmain" data-news><span class="ncat cat-${esc(latest.cat||"info")}">${esc(NCAT[latest.cat]||NCAT.info)}</span><span class="ndate">${fmtDate(latest.date)}</span><b>${esc(latest.title||"")}</b>${unread>1?`<span class="count">ほか${unread-1}件</span>`:""}</button><button class="nbx" data-newsx aria-label="閉じる">✕</button>`;bar.hidden=false;}else bar.hidden=true;}
+  if(bar){if(latest&&MODE!=="admin"&&tab==="home"){bar.innerHTML=`<button class="nbmain" data-news><span class="ncat cat-${esc(latest.cat||"info")}">${esc(NCAT[latest.cat]||NCAT.info)}</span><span class="ndate">${fmtDate(latest.date)}</span><b>${esc(latest.title||"")}</b>${unread>1?`<span class="count">ほか${unread-1}件</span>`:""}</button><button class="nbx" data-newsx aria-label="閉じる">✕</button>`;bar.hidden=false;}else bar.hidden=true;}
 }
 function openNews(){
   const seen=newsSeen();const list=newsSorted();
