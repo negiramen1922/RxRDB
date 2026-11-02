@@ -2,13 +2,13 @@
 // 画面は index.html が作る（ここは Firestore の読み書きだけ）。
 // posts/{pid}：uid・name（投稿したときの投稿者名）・f（階層キー）・title・body（自由記述）・m（編成の JSON 文字列
 //   [[キャラID,★,覚醒Lv,BLADE Lv,スクリプトID,スクリプト凸,スクリプトランク,出撃順]…]）・w（WAVEごとのメモの JSON 文字列 [文…]）・v（動画のURL）・
-//   at（投稿時刻）・t（更新時刻）・likes・views・rc（通報の数）・hidden（運営が非表示）
+//   tl（付けた Tier表の JSON 文字列 [[Tier,[キャラID または キャラID~星…]]…]。任意）・at（投稿時刻）・t（更新時刻）・likes・views・rc（通報の数）・hidden（運営が非表示）
 // posts/{pid}/hist/{id}：編集する前の内容（運営だけが読める）。posts/{pid}/likes/{uid}：いいね（1人1回）。reports/{pid_uid}：通報（1人1回）。profiles/{uid}：投稿者名・フレンドID・公開するか。banned/{uid}：投稿停止
 import * as F from "./fb.js";
-import { collection, query, where, limit, getDocs, getDoc, doc, writeBatch, runTransaction, serverTimestamp, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, query, where, limit, orderBy, startAfter, getDocs, getDoc, doc, writeBatch, runTransaction, serverTimestamp, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const db = F.db;
-export const LIM = { title: 40, body: 500, wave: 300, waves: 10, name: 20, fid: 40, video: 300 };
+export const LIM = { title: 40, body: 500, wave: 300, waves: 10, name: 20, fid: 40, video: 300, tl: 4000 };
 export const HIDE_AT = 3;   // 通報がこの数になったら一覧に出さない（運営が確認する）
 const me = () => F.auth.currentUser;
 export const user = () => { const u = me(); return u ? { uid: u.uid } : null; };
@@ -16,15 +16,24 @@ export function onUser(fn) { return F.onAuthStateChanged(F.auth, u => fn(u ? { u
 
 const ts = v => v && v.toMillis ? v.toMillis() : 0;
 function toPost(d) {
-  const x = d.data(); let m = [], w = [];
+  const x = d.data(); let m = [], w = [], tl = [];
   try { m = JSON.parse(x.m || "[]"); } catch (e) { }
   try { w = JSON.parse(x.w || "[]"); } catch (e) { }
-  return { id: d.id, uid: x.uid, name: x.name || "", f: x.f || "", title: x.title || "", body: x.body || "", m: Array.isArray(m) ? m : [], w: Array.isArray(w) ? w : [], v: x.v || "", at: ts(x.at), t: ts(x.t), likes: x.likes || 0, views: x.views || 0, rc: x.rc || 0, hidden: !!x.hidden };
+  try { tl = JSON.parse(x.tl || "[]"); } catch (e) { }
+  return { id: d.id, uid: x.uid, name: x.name || "", f: x.f || "", title: x.title || "", body: x.body || "", m: Array.isArray(m) ? m : [], w: Array.isArray(w) ? w : [], tl: Array.isArray(tl) ? tl : [], v: x.v || "", at: ts(x.at), t: ts(x.t), likes: x.likes || 0, views: x.views || 0, rc: x.rc || 0, hidden: !!x.hidden };
 }
 const visible = p => !p.hidden && p.rc < HIDE_AT;
 
 export async function listByFloor(f) { const q = await getDocs(query(collection(db, "posts"), where("f", "==", f), limit(100))); return q.docs.map(toPost).filter(visible); }
 export async function listByUser(uid, all) { const q = await getDocs(query(collection(db, "posts"), where("uid", "==", uid), limit(100))); return q.docs.map(toPost).filter(p => all || visible(p)); }
+// 新しい順の一覧（みんなの投稿）。more＝続きを読む。skip(f)＝出さない階層（封印戦など）。1回に20件読む
+let LAST = null;
+export async function listRecent(more, skip) {
+  if (!more) LAST = null; else if (!LAST) return { list: [], end: true };
+  const qs = [collection(db, "posts"), orderBy("at", "desc")]; if (more && LAST) qs.push(startAfter(LAST)); qs.push(limit(20));
+  const q = await getDocs(query(...qs)); LAST = q.docs.length ? q.docs[q.docs.length - 1] : LAST;
+  return { list: q.docs.map(toPost).filter(p => visible(p) && !(skip && skip(p.f))), end: q.docs.length < 20 };
+}
 export async function get(pid) { const s = await getDoc(doc(db, "posts", pid)); return s.exists() ? toPost(s) : null; }
 
 const clip = (s, n) => String(s || "").trim().slice(0, n);
@@ -34,14 +43,15 @@ export async function save(o) {
   const prof = await getProfile(u.uid);
   const name = clip(prof && prof.name, LIM.name); if (!name) throw new Error("name");
   const v = clip(o.v, LIM.video); if (v && !/^https?:\/\//i.test(v)) throw new Error("video");
-  const body = { name, f: clip(o.f, 80), title: clip(o.title, LIM.title), body: clip(o.body, LIM.body), m: JSON.stringify(o.m || []).slice(0, 3000), w: JSON.stringify((o.w || []).slice(0, LIM.waves).map(x => clip(x, LIM.wave))), v, t: serverTimestamp() };
+  const tl = o.tl && o.tl.length ? JSON.stringify(o.tl) : ""; if (tl.length > LIM.tl) throw new Error("tl");
+  const body = { name, f: clip(o.f, 80), title: clip(o.title, LIM.title), body: clip(o.body, LIM.body), m: JSON.stringify(o.m || []).slice(0, 3000), w: JSON.stringify((o.w || []).slice(0, LIM.waves).map(x => clip(x, LIM.wave))), v, tl, t: serverTimestamp() };
   // 編集したときは、直す前の内容を posts/{pid}/hist に残す（運営だけが読める）
   if (o.id) {
     const pr = doc(db, "posts", o.id);
     await runTransaction(db, async tx => {
       const s = await tx.get(pr); if (!s.exists()) throw new Error("gone");
       const x = s.data();
-      tx.set(doc(collection(db, "posts", o.id, "hist")), { uid: u.uid, name: x.name || "", title: x.title || "", body: x.body || "", m: x.m || "", w: x.w || "", v: x.v || "", was: x.t || x.at || null, at: serverTimestamp() });
+      tx.set(doc(collection(db, "posts", o.id, "hist")), { uid: u.uid, name: x.name || "", title: x.title || "", body: x.body || "", m: x.m || "", w: x.w || "", v: x.v || "", tl: x.tl || "", was: x.t || x.at || null, at: serverTimestamp() });
       tx.update(pr, body);
     });
     return o.id;
