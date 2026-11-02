@@ -154,6 +154,18 @@ service cloud.firestore {
       allow write: if isEditor();
     }
 
+    // みんなの所持率の集計：公開サイトが所持の記録を匿名で送る（推測できない端末ID。1時間に1回まで）。中身は編集者だけが読める
+    match /ownstat/{id} {
+      allow read, delete: if isEditor();
+      allow create, update: if id.size() >= 20 && id.size() <= 40
+        && request.resource.data.keys().hasOnly(["o", "s", "n", "v", "t"])
+        && request.resource.data.o is string && request.resource.data.o.size() <= 3000
+        && request.resource.data.s is string && request.resource.data.s.size() <= 8000
+        && request.resource.data.n is int && request.resource.data.v is int
+        && request.resource.data.t == request.time
+        && (resource == null || request.time > resource.data.t + duration.value(1, "h"));
+    }
+
     // 一般ユーザーの記録（所持キャラ・自分用Tier表など。本人だけが読み書きできる。d は記録の JSON 文字列）
     match /users/{uid} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
