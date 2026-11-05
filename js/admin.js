@@ -220,7 +220,11 @@ function startListeners() {
     else if (k === "options") { try { OPTS = d && d.json ? JSON.parse(d.json) : null; } catch (e) { OPTS = null; } if (OPTS) R.setOptions(OPTS); softRender(); return; }
     else if (k === "guide") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } GUIDEDOC = v; GUIDEAT = d ? d.at || 0 : 0; if (v) R.setDocs(v); if (!GD.dirty) GD.draft = null; if (S.tab === "guide") softRender(); return; }
     else if (k === "testlist") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } TESTLIST = v; TESTAT = d ? d.at || 0 : 0; if (!TS.dirty) TS.text = null; if (S.tab === "test") softRender(); return; }
-    else if (k === "news") { try { NEWSLIST = d && d.json ? JSON.parse(d.json) : []; } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
+    else if (k === "news") {
+      // Firestore にまだお知らせが無いときは、GitHub の data/news.json（公開のお知らせなど）を元にする（空で上書きしない）
+      if (!d || !d.json) { fetch("data/news.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : []).then(v => { if (PUB.news) return; NEWSLIST = Array.isArray(v) ? v : []; R.setNews(NEWSLIST); if (S.tab === "news" && !NW.edit) renderNews(); }).catch(() => { }); }
+      else { try { NEWSLIST = JSON.parse(d.json); } catch (e) { NEWSLIST = []; } R.setNews(NEWSLIST); }
+    }
     else maybePublish(k);
     softRender();
   }));
@@ -2221,7 +2225,7 @@ async function saveNews() {
   try {
     await F.runTransaction(F.db, async tx => {
       const ref = F.doc(F.db, "public", "news"); const s = await tx.get(ref);
-      let list = []; try { list = s.exists() && s.data().json ? JSON.parse(s.data().json) : []; } catch (er) { }
+      let list = []; try { list = s.exists() && s.data().json ? JSON.parse(s.data().json) : NEWSLIST.slice(); } catch (er) { }
       const old = list.find(x => x.id === item.id);
       item.at = old && !e.renew ? (old.at || now()) : now();
       list = list.filter(x => x.id !== item.id).concat([item]);
@@ -2235,7 +2239,7 @@ async function delNews(id) {
   try {
     await F.runTransaction(F.db, async tx => {
       const ref = F.doc(F.db, "public", "news"); const s = await tx.get(ref);
-      let list = []; try { list = s.exists() && s.data().json ? JSON.parse(s.data().json) : []; } catch (er) { }
+      let list = []; try { list = s.exists() && s.data().json ? JSON.parse(s.data().json) : NEWSLIST.slice(); } catch (er) { }
       const old = list.find(x => x.id === id); if (!old) return;
       list = list.filter(x => x.id !== id);
       tx.set(ref, { json: JSON.stringify(list), at: now(), count: list.length });
