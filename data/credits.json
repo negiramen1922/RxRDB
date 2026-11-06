@@ -1,10 +1,49 @@
-{"groups":[
- {"title":"データ編集班","members":[
-  {"name":"ramisu","kana":"らみす","x":"0_ramisu_0"},
-  {"name":"そふぃ","kana":"そふぃ","x":"S0phi_4545"},
-  {"name":"小惑魔げぇむ","kana":"こあくまげぇむ","x":""},
-  {"name":"カライモン","kana":"からいもん","x":"milikara163"},
-  {"name":"朧","kana":"おぼろ","x":"Oboro_rivariva"},
-  {"name":"キョロ","kana":"きょろ","x":"Kyoro9646"}
- ]}
-]}
+{
+ "groups": [
+  {
+   "title": "運営・管理者",
+   "members": [
+    {
+     "name": "ねぎらーめん",
+     "kana": "ねぎらーめん",
+     "x": "N3G1Ramen"
+    }
+   ]
+  },
+  {
+   "title": "データ編集班",
+   "members": [
+    {
+     "name": "ramisu",
+     "kana": "らみす",
+     "x": "0_ramisu_0"
+    },
+    {
+     "name": "そふぃ",
+     "kana": "そふぃ",
+     "x": "S0phi_4545"
+    },
+    {
+     "name": "小惑魔げぇむ",
+     "kana": "こあくまげぇむ",
+     "x": ""
+    },
+    {
+     "name": "カライモン",
+     "kana": "からいもん",
+     "x": "milikara163"
+    },
+    {
+     "name": "朧",
+     "kana": "おぼろ",
+     "x": "Oboro_rivariva"
+    },
+    {
+     "name": "キョロ",
+     "kana": "きょろ",
+     "x": "Kyoro9646"
+    }
+   ]
+  }
+ ]
+}
