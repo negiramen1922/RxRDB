@@ -191,6 +191,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .pstools{display:flex;gap:6px;align-items:center;margin-left:auto}.pstools .btn{white-space:nowrap}
 .psmeta .ico{width:13px;height:13px;margin-right:2px}.psbm .ico{color:var(--accent,#1a6fe0)}
 .psacts .ico,.btn .ico{width:16px;height:16px}
+.cred .credl{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px}.credl li{display:flex;flex-direction:column;gap:2px;background:var(--field);border:1px solid var(--line);padding:10px 12px}.credl b{font-size:15px}.credx{font-size:13px;color:var(--accent,#1a6fe0)}
 .upd h3{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.updver{font-weight:800;color:var(--accent,#1a6fe0)}.upd.big{border-left:4px solid var(--accent,#1a6fe0)}.upd ul{margin:6px 0 0;padding-left:1.2em}.upd li{margin:3px 0}
 .sortdirb{margin-left:8px;font-size:12px;vertical-align:middle}
 .fdbar{flex-wrap:nowrap}.fdbar h2{flex:none}.pshead{flex-wrap:wrap}
@@ -934,7 +935,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 <main id="main"></main>
 <main id="admin" hidden></main>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<footer class="sitefoot"><p>ファンメイドの非公式ツールです。ゲーム内の画像・テキストの権利は各権利者に帰属します。このサイトはアクセス解析に Google Analytics を使用しています。ログイン・ご意見の送信などは reCAPTCHA で保護されており、Google の<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">プライバシーポリシー</a>と<a href="https://policies.google.com/terms" target="_blank" rel="noopener">利用規約</a>が適用されます。</p><p class="links"><a href="#" data-updates>ver <span id="siteVer"></span>（アップデート内容）</a><a href="#" data-news>お知らせ</a><a href="#" data-feedback>不具合・ご要望を送る</a><a href="#admin">管理者ログイン</a></p></footer>
+<footer class="sitefoot"><p>ファンメイドの非公式ツールです。ゲーム内の画像・テキストの権利は各権利者に帰属します。このサイトはアクセス解析に Google Analytics を使用しています。ログイン・ご意見の送信などは reCAPTCHA で保護されており、Google の<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">プライバシーポリシー</a>と<a href="https://policies.google.com/terms" target="_blank" rel="noopener">利用規約</a>が適用されます。</p><p class="links"><a href="#" data-updates>ver <span id="siteVer"></span>（アップデート内容）</a><a href="#" data-news>お知らせ</a><a href="#" data-credits>制作メンバー</a><a href="#" data-feedback>不具合・ご要望を送る</a><a href="#admin">管理者ログイン</a></p></footer>
 <div id="actionbar" class="actionbar hidden"></div>
 
 
@@ -996,7 +997,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 /* サイト設定：アクセス解析のIDを入れると有効になります */
 /* authX: X（Twitter）ログインのボタンを出す（Firebase コンソールで X を有効にしてから true に） */
 /* ver：サイトのバージョン（大きな節目＝1.1.000→1.2.000、main に入れる細かい調整＝1.1.001→1.1.002。中身は data/updates.json） */
-window.SITE={ver:"1.1.002",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
+window.SITE={ver:"1.1.003",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
   /* 記録の引き継ぎ（旧アドレス negiramen1922.github.io/RxRDB → 新しいドメイン）。hosts で開いた端末に記録が無ければ、一度だけ from（旧アドレスと同じオリジンに置いた引き継ぎページ）へ飛んで記録を持ち帰る。from を空にすると止まる */
   move:{from:"https://negiramen1922.github.io/rxr-move/",hosts:["rxrwiki.com","www.rxrwiki.com"],until:"2027-06-30"}};
 </script>
@@ -1207,7 +1208,7 @@ function fit(c,f){
 
 /* ---------- ui state ---------- */
 /* 最初の画面はホーム。ホームで「前回のページから開く」を選んだ人は、前回見ていたページから */
-const HOMETABS=["home","guide","faq","updates"];
+const HOMETABS=["home","guide","faq","updates","credits"];
 let tab=(S.startLast&&S.lastTab)?(S.lastTab.startsWith("rank:")?S.lastTab.slice(5):S.lastTab):"home",sel=null;
 const pool={q:"",attr:null,role:null,sort:"fit"};
 const tstate={chars:{q:"",sort:-1,dir:1,attr:null,role:null,all:false,view:(()=>{try{return localStorage.getItem("rxr-cview")||"card";}catch(e){return "card";}})()},scripts:{q:"",sort:-1,dir:1,rar:null,role:null,cattr:null,cond:"",eff:null,own:false,view:(()=>{try{return localStorage.getItem("rxr-sview")||"card";}catch(e){return "card";}})()},babel:{q:""}};
@@ -1245,7 +1246,7 @@ function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(
 function viewSeg(){if(MODE==="admin")return "";const m=MINE(),tf=tab==="tier"||tab==="seal";return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分<span class="pc">のTier表</span><span class="sp">用</span></button></div><span class="vbtools">${tf||ALLCTX()?`<button class="ibtn" data-act="share" title="画像で共有（リンクも付きます）" aria-label="画像で共有">${svgI("camera")}<span class="lbl">画像で共有</span></button>`:""}${tf&&!ALLCTX()&&curFloor()?`<button class="ibtn helpbtn" data-ownhelp="1" title="所持キャラで編成を組んでもらう">${svgI("team")}<span class="lbl2"><span class="pc">編成を</span>相談</span></button>`:""}</span>${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
-const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"],["updates","アップデート"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
+const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"],["updates","アップデート"],["credits","制作メンバー"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
 const LASTSUB={};
 function topOf(t){if(t==="rank")return RK.t==="scripts"?"script":"chara";for(const k in TOPS)if(TOPS[k].some(([x])=>x===t))return k;return "chara";}
 function subKey(){return tab==="rank"?"rank:"+RK.t:tab;}
@@ -1279,6 +1280,7 @@ function renderMain(){
   else if(tab==="guide")renderGuide();
   else if(tab==="faq")renderFaq();
   else if(tab==="updates")renderUpdates();
+  else if(tab==="credits")renderCredits();
   else if(tab==="tier"||tab==="seal"||tab==="ctier")renderTier();
   else if(tab==="own"||tab==="sown")renderOwn();
   else if(tab==="knights")renderKnights();
@@ -1298,7 +1300,7 @@ function emptyBlock(kind){
 }
 
 /* ---------- ホーム・使い方ガイド・Q&A ---------- */
-const TABNAME={updates:"アップデート内容",chars:"キャラ一覧",ctier:"キャラクター全体Tier",knights:"騎士",events:"イベント",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",feed:"バベル みんなの投稿",seal:"封印戦 攻略・Tier表"};
+const TABNAME={updates:"アップデート内容",credits:"制作メンバー",chars:"キャラ一覧",ctier:"キャラクター全体Tier",knights:"騎士",events:"イベント",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",feed:"バベル みんなの投稿",seal:"封印戦 攻略・Tier表"};
 function lastLabel(){const k=S.lastTab;if(!k||!TABNAME[k])return "";let t=TABNAME[k];
   if(k==="tier"){const f=FLOORS.find(x=>x.key===S.curFloor);if(f)t+=`（${f.type} ${f.floor}F）`;}
   if(k==="seal"){const f=FLOORS.find(x=>x.key===S.curSeal);if(f)t+=`（${f.floor}）`;}return t;}
@@ -1378,6 +1380,17 @@ function renderUpdates(){
   main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>UPDATES</small>アップデート内容</h2><span class="count">いまのバージョン：ver ${esc(window.SITE.ver||"")}</span></div>
   ${UPD.length?UPD.map(u=>{const big=/\.000$/.test(u.ver||"");return `<article class="docsec upd${big?" big":""}"><h3><span class="updver">ver ${esc(u.ver)}</span><span class="ndate">${fmtDate(u.date)}</span>${big&&u.title?`<b>${esc(u.title)}</b>`:""}</h3><ul>${(u.items||[]).map(t=>`<li>${esc(t)}</li>`).join("")}</ul></article>`;}).join(""):'<div class="empty"><h2>まだありません</h2></div>'}</section>`;
 }
+/* 制作メンバー（data/credits.json＝{groups:[{title,members:[{name,kana,x}]}]}。開いたときだけ読む。各班の中は五十音順＝kana） */
+let CRED=null;
+function renderCredits(){
+  if(!CRED){main.innerHTML='<div class="empty"><h2>読み込み中…</h2></div>';fetch("data/credits.json",{cache:"no-cache"}).then(r=>r.json()).then(d=>{CRED=d&&Array.isArray(d.groups)?d.groups:[];if(tab==="credits")renderCredits();}).catch(()=>{CRED=[];if(tab==="credits")renderCredits();});return;}
+  const xid=v=>String(v||"").replace(/^@/,"").replace(/[^\w]/g,"");
+  main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>CREDITS</small>制作メンバー</h2></div>
+  <p class="hint">RxRwiki は、次のメンバーで作っています。</p>
+  ${CRED.map(g=>`<article class="docsec cred"><h3>${esc(g.title)}</h3><ul class="credl">${(g.members||[]).slice().sort((a,b)=>String(a.kana||a.name).localeCompare(String(b.kana||b.name),"ja")).map(m=>{const x=xid(m.x);return `<li><b>${esc(m.name)}</b>${x?`<a class="credx" href="https://x.com/${x}" target="_blank" rel="noopener nofollow">@${esc(x)}</a>`:""}</li>`;}).join("")}</ul></article>`).join("")||'<div class="empty"><h2>準備中です</h2></div>'}
+  <p class="hint">ご意見・不具合の報告は <a href="#" data-feedback>こちら</a> から。</p></section>`;
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-credits]");if(!b||MODE==="admin")return;e.preventDefault();switchTab("credits");scrollTo(0,0);});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-updates]");if(!b||MODE==="admin")return;e.preventDefault();switchTab("updates");scrollTo(0,0);});
 function renderFaq(){
   main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>Q&amp;A</small>よくある質問</h2></div>
@@ -3152,7 +3165,7 @@ function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(loc
    いま見ているページ・開いている詳細に合わせて、アドレスバーのURLとタブの題名を変える。
    キャラ詳細 ?char=ID／スクリプト ?script=名前／イベント ?event=名前／騎士 ?knight=名前／バベル・封印戦 ?floor=キー／ほかのページ ?tab=名前（ランキングは &rk=chars|scripts）。ホームは何も付けない。
    人が押して移ったときは履歴を足し（戻るボタンで前のページへ）、それ以外は置き換える。戻る・進むでは URL のページを開き直す */
-const URLTABS=["home","guide","faq","updates","own","sown","ctier","knights","events","chars","scripts","rank","tier","sum","babel","feed","seal"];
+const URLTABS=["home","guide","faq","updates","credits","own","sown","ctier","knights","events","chars","scripts","rank","tier","sum","babel","feed","seal"];
 const TITLE0=document.title;let DETAIL=null,URLPOP=false,NAVPUSH=false,DETPUSHED=false,IGNOREPOP=false;
 const isDetQ=q=>/^\?(char|script|event|knight|post)=/.test(q||"");
 document.addEventListener("click",()=>{NAVPUSH=true;},true);
@@ -3166,7 +3179,7 @@ function urlState(){
 }
 /* 検索エンジン向け：ページごとの題名・説明文（meta description）・正規の URL（canonical）。sitemap.xml は管理画面が data/all.json と一緒に作る */
 const DESC0=(document.querySelector('meta[name="description"]')||{}).content||"";
-const TABDESC={updates:"RxRwiki のアップデート内容（バージョンごとの更新・修正の一覧）。",guide:"RxRwiki の使い方ガイド。Tier表・所持率チェッカー・編成ビルダー・みんなの攻略の使い方。",faq:"RxRwiki のよくある質問（Q&A）。",
+const TABDESC={credits:"RxRwiki の制作メンバー（データ編集班など）の紹介。",updates:"RxRwiki のアップデート内容（バージョンごとの更新・修正の一覧）。",guide:"RxRwiki の使い方ガイド。Tier表・所持率チェッカー・編成ビルダー・みんなの攻略の使い方。",faq:"RxRwiki のよくある質問（Q&A）。",
   chars:"キャラクター一覧。ロール・属性・騎士団・スタイル・効果で絞り込み、性能を比べられます。",rank:"キャラ・スクリプトのステータスランキング。",knights:"騎士の一覧（騎士団・階級ごと）と誕生日。",
   own:"キャラ所持率チェッカー。持っているキャラと★を記録して、リンクで共有できます。",sown:"スクリプト所持率チェッカー。持っているスクリプトと凸を記録できます。",
   ctier:"キャラクター全体Tier。メインストーリー・バベル・封印戦などでの出番の多さ・使いやすさの総合評価。",scripts:"スクリプト一覧。ロール・レアリティで絞り込み、効果を比べられます。",
