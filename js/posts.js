@@ -2,7 +2,7 @@
 // 画面は index.html が作る（ここは Firestore の読み書きだけ）。
 // posts/{pid}：uid・name（投稿したときの投稿者名）・f（階層キー）・title・body（自由記述）・m（編成の JSON 文字列
 //   [[キャラID,★,覚醒Lv,BLADE Lv,スクリプトID,スクリプト凸,スクリプトランク,出撃順]…]）・w（WAVEごとのメモの JSON 文字列 [文…]）・v（動画のURL）・
-//   tl（付けた Tier表の JSON 文字列 [[Tier,[キャラID または キャラID~星…]]…]。任意）・at（投稿時刻）・t（更新時刻）・likes・views・rc（通報の数）・hidden（運営が非表示）
+//   sw（魔剣の ID。編成ごとに1本）・tl（付けた Tier表の JSON 文字列 [[Tier,[キャラID または キャラID~星…]]…]。任意）・at（投稿時刻）・t（更新時刻）・likes・views・rc（通報の数）・hidden（運営が非表示）
 // posts/{pid}/hist/{id}：編集する前の内容（運営だけが読める）。posts/{pid}/likes/{uid}：いいね（1人1回）。reports/{pid_uid}：通報（1人1回）。profiles/{uid}：投稿者名・フレンドID・公開するか。banned/{uid}：投稿停止
 import * as F from "./fb.js";
 import { collection, query, where, limit, orderBy, startAfter, getDocs, getDoc, doc, writeBatch, runTransaction, serverTimestamp, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -20,7 +20,7 @@ function toPost(d) {
   try { m = JSON.parse(x.m || "[]"); } catch (e) { }
   try { w = JSON.parse(x.w || "[]"); } catch (e) { }
   try { tl = JSON.parse(x.tl || "[]"); } catch (e) { }
-  return { id: d.id, uid: x.uid, name: x.name || "", f: x.f || "", title: x.title || "", body: x.body || "", m: Array.isArray(m) ? m : [], w: Array.isArray(w) ? w : [], tl: Array.isArray(tl) ? tl : [], v: x.v || "", at: ts(x.at), t: ts(x.t), likes: x.likes || 0, views: x.views || 0, rc: x.rc || 0, hidden: !!x.hidden };
+  return { id: d.id, uid: x.uid, name: x.name || "", f: x.f || "", title: x.title || "", body: x.body || "", m: Array.isArray(m) ? m : [], w: Array.isArray(w) ? w : [], tl: Array.isArray(tl) ? tl : [], sw: x.sw || "", v: x.v || "", at: ts(x.at), t: ts(x.t), likes: x.likes || 0, views: x.views || 0, rc: x.rc || 0, hidden: !!x.hidden };
 }
 const visible = p => !p.hidden && p.rc < HIDE_AT;
 
@@ -46,14 +46,14 @@ export async function save(o) {
   const name = clip(prof && prof.name, LIM.name); if (!name) throw new Error("name");
   const v = clip(o.v, LIM.video); if (v && !/^https?:\/\//i.test(v)) throw new Error("video");
   const tl = o.tl && o.tl.length ? JSON.stringify(o.tl) : ""; if (tl.length > LIM.tl) throw new Error("tl");
-  const body = { name, f: clip(o.f, 80), title: clip(o.title, LIM.title), body: clip(o.body, LIM.body), m: JSON.stringify(o.m || []).slice(0, 3000), w: JSON.stringify((o.w || []).slice(0, LIM.waves).map(x => clip(x, LIM.wave))), v, tl, t: serverTimestamp() };
+  const body = { name, f: clip(o.f, 80), title: clip(o.title, LIM.title), body: clip(o.body, LIM.body), m: JSON.stringify(o.m || []).slice(0, 3000), w: JSON.stringify((o.w || []).slice(0, LIM.waves).map(x => clip(x, LIM.wave))), v, tl, sw: clip(o.sw, 80), t: serverTimestamp() };
   // 編集したときは、直す前の内容を posts/{pid}/hist に残す（運営だけが読める）
   if (o.id) {
     const pr = doc(db, "posts", o.id);
     await runTransaction(db, async tx => {
       const s = await tx.get(pr); if (!s.exists()) throw new Error("gone");
       const x = s.data();
-      tx.set(doc(collection(db, "posts", o.id, "hist")), { uid: u.uid, name: x.name || "", title: x.title || "", body: x.body || "", m: x.m || "", w: x.w || "", v: x.v || "", tl: x.tl || "", was: x.t || x.at || null, at: serverTimestamp() });
+      tx.set(doc(collection(db, "posts", o.id, "hist")), { uid: u.uid, name: x.name || "", title: x.title || "", body: x.body || "", m: x.m || "", w: x.w || "", v: x.v || "", tl: x.tl || "", sw: x.sw || "", was: x.t || x.at || null, at: serverTimestamp() });
       tx.update(pr, body);
     });
     return o.id;
