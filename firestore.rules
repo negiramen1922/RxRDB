@@ -101,16 +101,17 @@ service cloud.firestore {
         && d.w is string && d.w.size() <= 9000
         && d.v is string && d.v.size() <= 300
         && d.get("tl", "") is string && d.get("tl", "").size() <= 4000
+        && d.get("sw", "") is string && d.get("sw", "").size() <= 80
         && d.t == request.time;
     }
     match /posts/{pid} {
       allow read: if true;
       allow create: if authed() && !exists(/databases/$(database)/documents/banned/$(request.auth.uid))
-        && request.resource.data.keys().hasOnly(["uid", "name", "f", "title", "body", "m", "w", "v", "tl", "at", "t", "likes", "views", "rc", "hidden"])
+        && request.resource.data.keys().hasOnly(["uid", "name", "f", "title", "body", "m", "w", "v", "tl", "sw", "at", "t", "likes", "views", "rc", "hidden"])
         && okPost(request.resource.data) && request.resource.data.at == request.time
         && request.resource.data.likes == 0 && request.resource.data.views == 0 && request.resource.data.rc == 0 && request.resource.data.hidden == false;
       allow update: if authed() && resource.data.uid == request.auth.uid && !exists(/databases/$(database)/documents/banned/$(request.auth.uid))
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "title", "body", "m", "w", "v", "tl", "t"]) && okPost(request.resource.data);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "title", "body", "m", "w", "v", "tl", "sw", "t"]) && okPost(request.resource.data);
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(["views"]) && request.resource.data.views == resource.data.views + 1;
       allow update: if authed() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likes"])
         && ((request.resource.data.likes == resource.data.likes + 1 && !exists(/databases/$(database)/documents/posts/$(pid)/likes/$(request.auth.uid)) && existsAfter(/databases/$(database)/documents/posts/$(pid)/likes/$(request.auth.uid)))
@@ -123,7 +124,7 @@ service cloud.firestore {
       match /hist/{hid} {
         allow create: if authed() && get(/databases/$(database)/documents/posts/$(pid)).data.uid == request.auth.uid
           && request.resource.data.uid == request.auth.uid
-          && request.resource.data.keys().hasOnly(["uid", "name", "title", "body", "m", "w", "v", "tl", "was", "at"])
+          && request.resource.data.keys().hasOnly(["uid", "name", "title", "body", "m", "w", "v", "tl", "sw", "was", "at"])
           && request.resource.data.at == request.time;
         allow read, delete: if isEditor();
       }

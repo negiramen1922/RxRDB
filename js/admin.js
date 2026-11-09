@@ -44,7 +44,7 @@ const SCHEMA = {
   ],
   teams: [
     { g: "基本", f: [["バベル種類", "floor"], ["階層", "hide"], ["編成名", "text"]] },
-    { g: "編成", note: "最大6人。星の数はキャラのレアリティ（R=★1・SR=★2・SSR=★3 から）に合わせて選べます。スクリプトはキャラごとに1枚です。枠の1〜6はゲームの編成画面の左からの並びです。「出撃順」はゲームの「出撃AUTOカスタマイズ」の順番です（同じ番号を選ぶと入れ替わります）。", f: [["メンバー", "team"]] },
+    { g: "編成", note: "最大6人。星の数はキャラのレアリティ（R=★1・SR=★2・SSR=★3 から）に合わせて選べます。スクリプトはキャラごとに1枚です。枠の1〜6はゲームの編成画面の左からの並びです。「出撃順」はゲームの「出撃AUTOカスタマイズ」の順番です（同じ番号を選ぶと入れ替わります）。", f: [["メンバー", "team"], ["魔剣", "swordref"]] },
     { g: "コメント", f: [["コメント", "long"]] },
   ],
   people: [
@@ -1303,6 +1303,8 @@ function fieldHtml(name, type, i, both) {
     inner = dv || !v ? `<input id="${id}" type="date" data-field="${esc(name)}" value="${esc(dv)}">` : `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}">`;
   } else if (type === "cond") {
     inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_cond" placeholder="属性・騎士団・階級・スタイル・キャラ名・女性/男性">`;
+  } else if (type === "swordref") {   // 魔剣（編成ごとに1本。ID を入れる）
+    inner = selectHtml(id, name, rowsOf("swords").filter(c => c["名前"]).map(c => [idOf("swords", c), c["名前"]]), v, "なし");
   } else if (type.startsWith("sel:")) {
     inner = selectHtml(id, name, type.slice(4).split("|"), v, name === "実装" ? "実装済み" : name === "よみ確認" ? "確認済み" : "");
   } else if (type === "datelist") {
