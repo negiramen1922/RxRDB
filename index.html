@@ -192,6 +192,8 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .psmeta .ico{width:13px;height:13px;margin-right:2px}.psbm .ico{color:var(--accent,#1a6fe0)}
 .psacts .ico,.btn .ico{width:16px;height:16px}
 .cred .credl{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px}.credl li{display:flex;flex-direction:column;gap:2px;background:var(--field);border:1px solid var(--line);padding:10px 12px}.credl b{font-size:15px}.credx{font-size:13px;color:var(--accent,#1a6fe0)}
+.swgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}.swcard{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow);padding:8px;cursor:pointer;color:var(--ink)}.swcard img,.swcard .noimg{width:64px;height:64px;object-fit:cover;flex:none}.swcard b{display:block}.swcard small{color:var(--sub);font-size:12px}
+.swimgs{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.swimgs figure{margin:0;flex:1 1 200px}.swimgs img{width:100%;max-height:420px;object-fit:contain;background:var(--field)}.swimgs figcaption{font-size:12px;color:var(--sub);text-align:center}
 .upd h3{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.updver{font-weight:800;color:var(--accent,#1a6fe0)}.upd.big{border-left:4px solid var(--accent,#1a6fe0)}.upd ul{margin:6px 0 0;padding-left:1.2em}.upd li{margin:3px 0}
 .sortdirb{margin-left:8px;font-size:12px;vertical-align:middle}
 .fdbar{flex-wrap:nowrap}.fdbar h2{flex:none}.pshead{flex-wrap:wrap}
@@ -997,7 +999,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 /* サイト設定：アクセス解析のIDを入れると有効になります */
 /* authX: X（Twitter）ログインのボタンを出す（Firebase コンソールで X を有効にしてから true に） */
 /* ver：サイトのバージョン（大きな節目＝1.1.000→1.2.000、main に入れる細かい調整＝1.1.001→1.1.002。中身は data/updates.json） */
-window.SITE={ver:"1.1.003",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
+window.SITE={ver:"1.1.004",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
   /* 記録の引き継ぎ（旧アドレス negiramen1922.github.io/RxRDB → 新しいドメイン）。hosts で開いた端末に記録が無ければ、一度だけ from（旧アドレスと同じオリジンに置いた引き継ぎページ）へ飛んで記録を持ち帰る。from を空にすると止まる */
   move:{from:"https://negiramen1922.github.io/rxr-move/",hosts:["rxrwiki.com","www.rxrwiki.com"],until:"2027-06-30"}};
 </script>
@@ -1038,8 +1040,8 @@ const PRISTINE="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
 const SEED=JSON.parse(document.getElementById("seed").textContent);
 const ASSETS=JSON.parse(document.getElementById("assets").textContent);
 const IMG=Object.assign({},ASSETS.thumbs),BANNER=Object.assign({},ASSETS.banners),ICON=Object.assign({},ASSETS.icons),SIMG=Object.assign({},ASSETS.sthumbs),SFULL=Object.assign({},ASSETS.sfull);
-const BOSS={},BOSSF={},EVT={},EVTF={},SEAL={},SEALF={},KN={},KNF={};
-const BASE={SIMG:ASSETS.sthumbs||{},SFULL:ASSETS.sfull||{},IMG:ASSETS.thumbs||{},BANNER:ASSETS.banners||{},ICON:ASSETS.icons||{},HERO:ASSETS.hero||"",BOSS:{},BOSSF:{},EVT:{},EVTF:{},SEAL:{},SEALF:{},KN:{},KNF:{}};let HERO=BASE.HERO;
+const BOSS={},BOSSF={},EVT={},EVTF={},SEAL={},SEALF={},KN={},KNF={},SWD={},SWDF={},FATE={},FATEF={};
+const BASE={SIMG:ASSETS.sthumbs||{},SFULL:ASSETS.sfull||{},IMG:ASSETS.thumbs||{},BANNER:ASSETS.banners||{},ICON:ASSETS.icons||{},HERO:ASSETS.hero||"",BOSS:{},BOSSF:{},EVT:{},EVTF:{},SEAL:{},SEALF:{},KN:{},KNF:{},SWD:{},SWDF:{},FATE:{},FATEF:{}};let HERO=BASE.HERO;
 const ic=(k,cls)=>ICON[k]?`<img class="ic ${cls||""}" src="${ICON[k]}" alt="${esc(k)}" title="${esc(k)}">`:"";
 const KEY="babel-tier-v2";
 const TIERS=["SSS","SS","S","A","B","C","D"];
@@ -1085,7 +1087,7 @@ const data=k=>{const d=LIVE[k]||SEED[k]||{headers:[],rows:[]};const m=COLREN[k];
   let n=NORMD.get(d);if(!n){n=d.headers.some(h=>m[h]&&!d.headers.includes(m[h]))?{headers:d.headers.map(h=>m[h]&&!d.headers.includes(m[h])?m[h]:h),rows:d.rows}:d;NORMD.set(d,n);}return n;};
 
 /* ---------- models ---------- */
-let CH=[],CHMAP={},FLOORS=[],TYPES=[],STYLES=[],SC=[],SEALS=[],TEAMS={},PEOPLE=[],PMAP={},EVENTS=[],BOSSES=[],SCMAP={},BMAP={},EVMAP={};
+let SWORDS=[],SWMAP={},CH=[],CHMAP={},FLOORS=[],TYPES=[],STYLES=[],SC=[],SEALS=[],TEAMS={},PEOPLE=[],PMAP={},EVENTS=[],BOSSES=[],SCMAP={},BMAP={},EVMAP={};
 /* スクリプト・ボス・封印戦・騎士・イベントは列「ID」（作ったときの名前。あとで名前を直しても変わらない）でつながる。
    画像・Tier表・編成例・共有リンク・所持の記録などのキーは ID。ID が無い古いデータは名前を ID として使う。
    参照（キャラの持ちスク、バベルのボスなど）は ID で探し、見つからなければ名前で探す */
@@ -1125,14 +1127,16 @@ function buildModels(){
      const kind=v("re")||(/復刻/.test(name)?"復刻":/常設/.test(name)?"常設":"");
      return {i,id:v("id")||name,name,start:v("start"),end:v("end"),s:parseDate(v("start")),e:parseDate(v("end")),chars:sp(v("chars")),bosses:sp(v("boss")),desc:v("desc"),kind};}).filter(x=>x.name);EVMAP={};EVENTS.forEach(x=>{if(!EVMAP[x.id])EVMAP[x.id]=x;});
    const bd=data("bosses");const bi=n=>colOf(bd,[n]);BOSSES=(bd.rows||[]).map(r=>({name:(r[bi("名前")]||"").trim(),id:(bi("ID")>=0&&(r[bi("ID")]||"").trim())||(r[bi("名前")]||"").trim(),yomi:bi("よみ")>=0?(r[bi("よみ")]||"").trim():"",desc:bi("説明")>=0?(r[bi("説明")]||"").trim():""})).filter(b=>b.name);BMAP={};BOSSES.forEach(b=>{if(!BMAP[b.id])BMAP[b.id]=b;});}
+  /* 魔剣（swords）：名前・ID・メイン効果・サブ効果・入手方法。画像は images.json の swords/swordfull（魔剣本体）と fates/fatefull（運命の立ち絵） */
+  {const sd=data("swords");const si=n=>colOf(sd,[n]);SWORDS=(sd.rows||[]).map((r,i)=>{const v=n=>{const j=si(n);return j>=0?String(r[j]||"").trim():"";};const name=v("名前");return{i,row:r,id:v("ID")||name,name,yomi:v("よみ"),main:v("メイン効果"),sub:v("サブ効果"),get:v("入手方法")};}).filter(x=>x.name);SWMAP={};SWORDS.forEach(x=>{if(!SWMAP[x.id])SWMAP[x.id]=x;});}
   {const pd=data("people");const pi=n=>colOf(pd,[n]);const P={id:pi("ID"),name:pi("名前"),kana:pi("ふりがな"),gender:pi("性別"),bday:pi("誕生日"),order:pi("騎士団"),rank:pi("階級"),cv:pi("CV"),profile:pi("プロフィール")};
    PEOPLE=[];PMAP={};(pd.rows||[]).forEach((r,i)=>{const v=k=>P[k]>=0?(r[P[k]]||"").trim():"";const name=v("name"),id=v("id")||name;if(!name||PMAP[id])return;
      const m=/(\d{1,2})\s*月\s*(\d{1,2})/.exec(v("bday"))||/^(?:\d{4}[-\/])?(\d{1,2})[-\/](\d{1,2})$/.exec(v("bday"));
      const k={i,id,name,kana:v("kana"),gender:v("gender"),bday:v("bday"),bm:m?+m[1]:0,bd:m?+m[2]:0,order:v("order"),rank:v("rank"),cv:v("cv"),profile:v("profile")};PEOPLE.push(k);PMAP[id]=k;});
    CH.forEach(c=>{const p=personOf(c.base);if(p)c.base=p.id;c.bname=p?p.name:c.base;});}
   const sd=data("scripts");const si=n=>colOf(sd,[n]);
-  const SI={id:si("ID"),name:si("名前"),role:si("ロール"),rar:si("レアリティ"),date:si("実装日"),c2:si("条件2"),c3:si("条件3"),lim:si("限定"),rel:si("実装")};
-  SC=sd.rows.map((r,i)=>{const v=k=>SI[k]>=0?(r[SI[k]]||"").trim():"";const name=v("name")||r[0];return{i,row:r,id:v("id")||name,name,role:v("role"),rar:v("rar"),date:parseDate(v("date")),limit:v("lim"),unrel:v("rel")==="未実装",conds:[v("c2"),v("c3")].filter(Boolean)};});SCMAP={};SC.forEach(x=>{if(!SCMAP[x.id])SCMAP[x.id]=x;});
+  const SI={id:si("ID"),name:si("名前"),yomi:si("よみ"),role:si("ロール"),rar:si("レアリティ"),date:si("実装日"),c2:si("条件2"),c3:si("条件3"),lim:si("限定"),rel:si("実装")};
+  SC=sd.rows.map((r,i)=>{const v=k=>SI[k]>=0?(r[SI[k]]||"").trim():"";const name=v("name")||r[0];return{i,row:r,id:v("id")||name,name,yomi:v("yomi"),role:v("role"),rar:v("rar"),date:parseDate(v("date")),limit:v("lim"),unrel:v("rel")==="未実装",conds:[v("c2"),v("c3")].filter(Boolean)};});SCMAP={};SC.forEach(x=>{if(!SCMAP[x.id])SCMAP[x.id]=x;});
   const b=data("babel");const bi=n=>colOf(b,[n]);
   const B={wave:bi("WAVE"),type:bi("バベル種類"),floor:bi("階層"),boss:bi("ボス"),attr:bi("推奨属性"),eff:bi("解析データ"),point:colOf(b,["攻略のコツ","ポイント"]),rec:bi("おすすめキャラID"),comment:bi("コメント")};
   FLOORS=[];TYPES=[];
@@ -1246,7 +1250,7 @@ function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(
 function viewSeg(){if(MODE==="admin")return "";const m=MINE(),tf=tab==="tier"||tab==="seal";return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分<span class="pc">のTier表</span><span class="sp">用</span></button></div><span class="vbtools">${tf||ALLCTX()?`<button class="ibtn" data-act="share" title="画像で共有（リンクも付きます）" aria-label="画像で共有">${svgI("camera")}<span class="lbl">画像で共有</span></button>`:""}${tf&&!ALLCTX()&&curFloor()?`<button class="ibtn helpbtn" data-ownhelp="1" title="所持キャラで編成を組んでもらう">${svgI("team")}<span class="lbl2"><span class="pc">編成を</span>相談</span></button>`:""}</span>${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
-const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"],["updates","アップデート"],["credits","制作メンバー"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
+const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"],["updates","アップデート"],["credits","制作メンバー"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"],["swords","魔剣"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
 const LASTSUB={};
 function topOf(t){if(t==="rank")return RK.t==="scripts"?"script":"chara";for(const k in TOPS)if(TOPS[k].some(([x])=>x===t))return k;return "chara";}
 function subKey(){return tab==="rank"?"rank:"+RK.t:tab;}
@@ -1285,6 +1289,7 @@ function renderMain(){
   else if(tab==="own"||tab==="sown")renderOwn();
   else if(tab==="knights")renderKnights();
   else if(tab==="events")renderEvents();
+  else if(tab==="swords")renderSwords();
   else if(tab==="sum")renderSum();
   else if(tab==="chars")renderChars();
   else if(tab==="babel")renderBabel();
@@ -1300,7 +1305,7 @@ function emptyBlock(kind){
 }
 
 /* ---------- ホーム・使い方ガイド・Q&A ---------- */
-const TABNAME={updates:"アップデート内容",credits:"制作メンバー",chars:"キャラ一覧",ctier:"キャラクター全体Tier",knights:"騎士",events:"イベント",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",feed:"バベル みんなの投稿",seal:"封印戦 攻略・Tier表"};
+const TABNAME={swords:"魔剣",updates:"アップデート内容",credits:"制作メンバー",chars:"キャラ一覧",ctier:"キャラクター全体Tier",knights:"騎士",events:"イベント",own:"キャラ所持率チェッカー",sown:"スクリプト所持率チェッカー","rank:chars":"キャラのランキング",scripts:"スクリプト一覧","rank:scripts":"スクリプトのランキング",tier:"バベル 攻略・Tier表",sum:"バベル 全階層まとめ",babel:"バベル 階層一覧",feed:"バベル みんなの投稿",seal:"封印戦 攻略・Tier表"};
 function lastLabel(){const k=S.lastTab;if(!k||!TABNAME[k])return "";let t=TABNAME[k];
   if(k==="tier"){const f=FLOORS.find(x=>x.key===S.curFloor);if(f)t+=`（${f.type} ${f.floor}F）`;}
   if(k==="seal"){const f=FLOORS.find(x=>x.key===S.curSeal);if(f)t+=`（${f.floor}）`;}return t;}
@@ -1553,7 +1558,7 @@ document.addEventListener("click",e=>{
 document.addEventListener("change",e=>{if(e.target.id==="cfAll"){CF.tagAll=e.target.checked;setDlg("cfBody",cfDialogHtml());}});
 /* ---------- 並び替え（ゲーム内と同じく ①②の2段階。キャラ・スクリプト共通）---------- */
 const SORTDEF={
-  chars:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["order","騎士団順",1],["no","No順",1],["role","ロール順",1],["attr","属性順",1],["name","名前順",1]],
+  chars:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["order","騎士団順",1],["rank","階級順",1],["no","No順",1],["role","ロール順",1],["attr","属性順",1],["name","名前順",1]],
   scripts:[["rar","レア度",-1],["hp","HP",-1],["atk","攻撃力",-1],["pdef","物理防御",-1],["sdef","特殊防御",-1],["date","実装日順",-1],["role","ロール順",1],["name","名前順",1]]};
 const SORTS={chars:[{k:"order",dir:1},{k:"name",dir:1}],scripts:[{k:"rar",dir:-1},null]};
 /* 並び替えはブラウザに覚える（キャラ一覧・共有された所持キャラ・編成ビルダーの一覧で同じ並び） */
@@ -1570,9 +1575,10 @@ function sortVal(kind,x,k){
   if(k==="date")return x.date||null;
   if(k==="role"){const i=ROLES.indexOf(x.role);return i>=0?i:x.role==="ワイルド"?ROLES.length:null;}
   if(k==="attr"){const i=ATTRS.indexOf(x.attr);return i>=0?i:null;}
+  if(k==="rank"){const i=RANKS.indexOf(x.rank);return i>=0?i:null;}
   if(k==="order"){const i=ORDERS.indexOf(x.order);return i>=0?i:null;}
   // キャラの名前順は、キャラ本人（騎士のふりがな）→ スタイル の順（「スペース トロイメライ」もトロイメライの所に並ぶ）
-  if(k==="name")return kind==="chars"&&x.base?((PMAP[x.base]&&PMAP[x.base].kana)||(PMAP[x.base]&&PMAP[x.base].name)||x.base)+"\u0001"+(x.style==="DEFAULT"?"":x.style||""):x.name||null;
+  if(k==="name")return kind==="chars"&&x.base?((PMAP[x.base]&&PMAP[x.base].kana)||(PMAP[x.base]&&PMAP[x.base].name)||x.base)+"\u0001"+(x.style==="DEFAULT"?"":x.style||""):kind==="scripts"?(kq(x.yomi||x.name)||null):x.name||null;
   return null;
 }
 function sortList(kind,list){
@@ -2100,7 +2106,7 @@ function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById(
     <div class="tbgrid">${L.map(x=>{const st=TB.pool?+TB.pool[x.id]||0:0;const u=tbUsedChar(x);return `<button class="tbch${x.id===m.id?" on":""}${u>=0?" tbused":""}" data-tbpick="${esc(x.id)}" ${u>=0?"disabled":""} title="${esc(x.name)}${u>=0?`（枠${u+1}で使用中）`:""}">${cth(x)}<span>${esc(x.name)}</span>${st?`<i>★${st}</i>`:""}${u>=0?`<em>枠${u+1}</em>`:""}</button>`;}).join("")||'<p class="count">使えるキャラがいません</p>'}</div>`;}
   else if(c){const q=TB.q.trim().toLowerCase();const sp=TB.spool;
     // 所持スクリプトの記録があれば、所持だけ（切り替えで全部・未所持はグレー）。持っているものを先に
-    const L=SC.filter(x=>x.name&&!x.unrel&&(!x.role||!c.role||x.role===c.role||x.role==="ワイルド")&&(!q||khit(x.name,q))&&(!sp||!TB.sonly||sp[x.id])).sort((a,b)=>(sp?(sp[b.id]?1:0)-(sp[a.id]?1:0):0)||(RAR[b.rar]||0)-(RAR[a.rar]||0)||b.date-a.date);
+    const L=SC.filter(x=>x.name&&!x.unrel&&(!x.role||!c.role||x.role===c.role||x.role==="ワイルド")&&(!q||khit(x.name+" "+(x.yomi||""),q))&&(!sp||!TB.sonly||sp[x.id])).sort((a,b)=>(sp?(sp[b.id]?1:0)-(sp[a.id]?1:0):0)||(RAR[b.rar]||0)-(RAR[a.rar]||0)||b.date-a.date);
     pick=`<div class="tbpk"><input class="search" id="tbQ" placeholder="スクリプト名で絞り込み" value="${esc(TB.q)}"><span class="count">${esc(c.role||"")}・ワイルドのスクリプト ${L.length}枚</span>${sp?`<span class="viewsw"><button data-tbsonly="1" aria-pressed="${TB.sonly}">所持だけ</button><button data-tbsonly="0" aria-pressed="${!TB.sonly}">すべて</button></span>`:`<span class="count">（スクリプトの所持の記録なし）</span>`}${m.sc?`<button class="btn small" data-tbsc="">スクリプトを外す</button>`:""}</div>
     <div class="tbgrid">${L.map(x=>{const v=sp?+sp[x.id]||0:0;const u=TB.ms.findIndex((y,j)=>j!==TB.sel&&y.sc===x.id);return `<button class="tbch${x.id===m.sc?" on":""}${sp&&!v?" tmnot":""}${u>=0?" tbused":""}" data-tbsc="${esc(x.id)}" ${u>=0?"disabled":""} title="${esc(x.name)}${u>=0?`（枠${u+1}で使用中）`:""}">${sth(x)}<span>${esc(x.name)}</span>${v?`<i>${lbLabel(v)}</i>`:""}${u>=0?`<em>枠${u+1}</em>`:""}</button>`;}).join("")||'<p class="count">該当するスクリプトがありません</p>'}</div>`;}
   const min=rarMin(c);
@@ -2567,6 +2573,7 @@ document.addEventListener("click",e=>{
   else if(a==="myclear"){const fk=curFloor().key;if(!Object.keys(place(fk)).length)return;if(!confirm("この階層の自分の配置をすべて外しますか？"))return;delete S.tiers[fk];if(S.tord)delete S.tord[fk];sel=null;save();render();toast("リセットしました");}
   else if(a==="share")openShare();
   else if(a==="ownshare"){const K=OKIND(),W=K==="s"?"スクリプト":"キャラ";const st=ownStats(ownItems(K),K==="s"?SOWN():OWN());if(!st.k){toast(`まず持っている${W}を選んでください`);return;}showShare(makeOwnImage,`リバリバの${W}所持率は ${st.p}%（${st.k}/${st.n}）でした！\n#リバリバ #RxRwiki`,SITE_URL+"?tab="+tab,`rxr-collection${K==="s"?"-script":""}.png`,"所持率を共有");track("share_open",{floor:tab});}
+  else if(a==="ownlow"){const o=OWN();const l=CH.filter(c=>!c.unrel&&(RAR[c.rar]||3)<=2&&!o[c.id]);if(!l.length){toast("★1・★2のキャラはすべて所持になっています");return;}l.forEach(c=>{o[c.id]=ownMin("c",c.id);});save();renderOwn();toast(`★1・★2のキャラ ${l.length}人を所持にしました`);}
   else if(a==="ownall"){const o=OKIND()==="s"?SOWN():OWN();main.querySelectorAll("[data-owntoggle]").forEach(b=>{const id=b.dataset.owntoggle;if(!o[id])o[id]=ownMin(OKIND(),id);});save();renderOwn();}
   else if(a==="ownreset"){if(!confirm(`${OKIND()==="s"?"スクリプト":"キャラ"}の所持の記録をすべて消しますか？`))return;if(OKIND()==="s")S.sown={};else S.own={};save();renderOwn();}
   else if(a==="onlyown"){if(!hasOwn()){toast("先に「キャラクター」→「所持率チェッカー」で持っているキャラを登録してください",4000);return;}S.onlyOwn=!S.onlyOwn;save();render();}
@@ -2675,7 +2682,7 @@ function applyMedia(){
   for(const k in BANNER)delete BANNER[k];Object.assign(BANNER,BASE.BANNER);
   for(const k in ICON)delete ICON[k];Object.assign(ICON,BASE.ICON);
   for(const k in SIMG)delete SIMG[k];Object.assign(SIMG,BASE.SIMG);for(const k in SFULL)delete SFULL[k];Object.assign(SFULL,BASE.SFULL);
-  [[BOSS,"BOSS"],[BOSSF,"BOSSF"],[EVT,"EVT"],[EVTF,"EVTF"],[SEAL,"SEAL"],[SEALF,"SEALF"],[KN,"KN"],[KNF,"KNF"]].forEach(([m,k])=>{for(const x in m)delete m[x];Object.assign(m,BASE[k]);});
+  [[BOSS,"BOSS"],[BOSSF,"BOSSF"],[EVT,"EVT"],[EVTF,"EVTF"],[SEAL,"SEAL"],[SEALF,"SEALF"],[KN,"KN"],[KNF,"KNF"],[SWD,"SWD"],[SWDF,"SWDF"],[FATE,"FATE"],[FATEF,"FATEF"]].forEach(([m,k])=>{for(const x in m)delete m[x];Object.assign(m,BASE[k]);});
   HERO=BASE.HERO;setHero();applyCrops();
 }
 let rerenderT=null,ADMIN_RENDER=null,ADMIN_LIST=null;
@@ -2683,8 +2690,8 @@ function rerender(){clearTimeout(rerenderT);rerenderT=setTimeout(()=>{buildModel
 function enterAdmin(){location.hash="#admin";}
 function canvasBlob(im,sx,sy,sw,sh,dw,dh,type,q){const c=document.createElement("canvas");c.width=Math.round(dw);c.height=Math.round(dh);const x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(im,sx,sy,sw,sh,0,0,c.width,c.height);
   return new Promise(r=>c.toBlob(b=>{if(b&&b.type===type)r(b);else c.toBlob(r,"image/png");},type,q));}
-function cropSrc(kind,key){return kind==="char"?BANNER[key]:kind==="boss"?BOSSF[key]:kind==="event"?EVTF[key]:kind==="seal"?SEALF[key]:kind==="knight"?KNF[key]:SFULL[key];}
-const thumbMap=kind=>kind==="char"?IMG:kind==="boss"?BOSS:kind==="event"?EVT:kind==="seal"?SEAL:kind==="knight"?KN:SIMG;
+function cropSrc(kind,key){return kind==="sword"?SWDF[key]:kind==="fate"?FATEF[key]:kind==="char"?BANNER[key]:kind==="boss"?BOSSF[key]:kind==="event"?EVTF[key]:kind==="seal"?SEALF[key]:kind==="knight"?KNF[key]:SFULL[key];}
+const thumbMap=kind=>kind==="sword"?SWD:kind==="fate"?FATE:kind==="char"?IMG:kind==="boss"?BOSS:kind==="event"?EVT:kind==="seal"?SEAL:kind==="knight"?KN:SIMG;
 function loadImgSrc(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=src;});}
 async function cropBlob(src,c,size){const im=await loadImgSrc(src);const W=im.naturalWidth,H=im.naturalHeight;const side=c.cs*H;return canvasBlob(im,c.cx*W,c.cy*H,side,side,size,size,"image/webp",.85);}
 let cropRun=0;
@@ -2771,7 +2778,7 @@ async function loadSite(){
   let all=null;try{all=await get("data/all.json");if(!all||!all.chars)all=null;}catch(e){}
   if(!all&&FBC){try{all=await fsGetJson("public/all");}catch(e){}}
   const part=k=>all?(all[k]!=null?Promise.resolve(all[k]):Promise.reject(new Error("none"))):FBC?fsGetJson("public/"+k):Promise.reject(new Error("no firebase"));
-  await Promise.all(["chars","scripts","babel","teams","seals","people","events","bosses"].map(async k=>{
+  await Promise.all(["chars","scripts","babel","teams","seals","people","events","bosses","swords"].map(async k=>{
     try{const v=await part(k);if(v&&v.rows){st[k]=v;return;}}catch(e){}
     st[k]=await get(`data/${k}.json`).catch(()=>null);
   }).concat([
@@ -2786,7 +2793,7 @@ async function loadSite(){
   if(crops)CROPS=crops;
   renderNewsBadge();
   const im=await imP;
-  if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});Object.assign(BASE.SEAL,im.seals||{});Object.assign(BASE.SEALF,im.sealfull||{});Object.assign(BASE.KN,im.knights||{});Object.assign(BASE.KNF,im.knightfull||{});if(im.hero)BASE.HERO=im.hero;}
+  if(im){Object.assign(BASE.IMG,im.thumbs||{});Object.assign(BASE.BANNER,im.banners||{});Object.assign(BASE.ICON,im.icons||{});Object.assign(BASE.SIMG,im.sthumbs||{});Object.assign(BASE.SFULL,im.sfull||{});Object.assign(BASE.BOSS,im.bosses||{});Object.assign(BASE.BOSSF,im.bossfull||{});Object.assign(BASE.EVT,im.events||{});Object.assign(BASE.EVTF,im.eventfull||{});Object.assign(BASE.SEAL,im.seals||{});Object.assign(BASE.SEALF,im.sealfull||{});Object.assign(BASE.KN,im.knights||{});Object.assign(BASE.KNF,im.knightfull||{});Object.assign(BASE.SWD,im.swords||{});Object.assign(BASE.SWDF,im.swordfull||{});Object.assign(BASE.FATE,im.fates||{});Object.assign(BASE.FATEF,im.fatefull||{});if(im.hero)BASE.HERO=im.hero;}
   SITE_LOADED=true;applyMedia();buildModels();applyFloorParam();render();runOpenLink();ownStatQueue();
   if(!st.chars||!st.babel)main.insertAdjacentHTML("afterbegin",'<div class="astatus warn">データの読み込みに失敗しました。ページを再読み込みしてください。</div>');
   if(location.hash==="#admin")openAdminModule();
@@ -2891,6 +2898,25 @@ function renderEvents(){
   main.innerHTML=h;
   const qi=document.getElementById("evQ");liveInput(qi,()=>{EVF.q=qi.value;const p=qi.selectionStart;renderEvents();const n=document.getElementById("evQ");n.focus();n.setSelectionRange(p,p);});
 }
+/* ================= 魔剣 ================= */
+const SWF={q:""};
+function swordCard(x){const im=SWD[x.id]||SWDF[x.id];return `<button class="swcard" data-sword="${x.i}">${im?`<img src="${im}" alt="" loading="lazy">`:'<span class="noimg"></span>'}<span><b>${esc(x.name)}</b>${x.main?`<small>${esc(x.main.split("\n")[0].slice(0,60))}</small>`:""}</span></button>`;}
+function renderSwords(){
+  if(!SWORDS.length){main.innerHTML=`<div class="empty"><h2>魔剣は準備中です</h2><p>データを入力中です。もう少しお待ちください。</p></div>`;return;}
+  const list=SWORDS.filter(x=>!SWF.q||khit(x.name+" "+x.yomi+" "+x.main+" "+x.sub+" "+x.get,SWF.q));
+  main.innerHTML=`<div class="toolbar"><h2><small>DEMON SWORDS</small>魔剣</h2><input class="search" id="swq" placeholder="名前・効果・入手方法で検索" value="${esc(SWF.q)}"><span class="count">${list.length} / ${SWORDS.length}</span></div>
+  <div class="swgrid">${list.map(swordCard).join("")||'<p class="count">該当する魔剣がありません</p>'}</div>`;
+  liveInput(document.getElementById("swq"),()=>{SWF.q=document.getElementById("swq").value;const p=document.getElementById("swq").selectionStart;renderSwords();const n=document.getElementById("swq");n.focus();n.setSelectionRange(p,p);});
+}
+function openSword(i){document.getElementById("dlgDetail").classList.remove("cmpdlg");
+  const x=SWORDS.find(y=>y.i===i);if(!x)return;const sw=SWDF[x.id]||SWD[x.id],ft=FATEF[x.id]||FATE[x.id];
+  let h=`<h2>${esc(x.name)}</h2><div class="cdlinks">${shareBtn("sword",x.id)}</div>`;
+  if(sw||ft)h+=`<div class="swimgs">${sw?`<figure><img src="${sw}" alt=""><figcaption>魔剣</figcaption></figure>`:""}${ft?`<figure><img src="${ft}" alt=""><figcaption>運命の立ち絵</figcaption></figure>`:""}</div>`;
+  [["メイン効果",x.main],["サブ効果",x.sub],["入手方法",x.get]].forEach(([t,v])=>{if(v)h+=`<h3>${t}</h3><p class="note-b">${kwHtml(v)}</p>`;});
+  h+=`<div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
+  document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");if(!dl.open)dl.showModal();dl.scrollTop=0;
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-sword]");if(!b)return;openSword(+b.dataset.sword);});
 function openEvent(i){document.getElementById("dlgDetail").classList.remove("cmpdlg");
   const ev=EVENTS.find(x=>x.i===i);if(!ev)return;const cs=ev.chars.map(id=>CHMAP[id]).filter(Boolean);
   let h=EVTF[ev.id]?`<img class="banner" src="${EVTF[ev.id]}" alt="">`:"";
@@ -2977,7 +3003,7 @@ const ownMin=(K,id)=>{if(K==="s")return 1;const c=CHMAP[id];return c&&RARSTAR[c.
 const OKIND=()=>tab==="sown"?"s":"c";
 const RARCOL={SSR:"#ff8a3c",SR:"#9b6bff",R:"#4c9be8"};
 /* チェッカーで数える一覧（未実装のキャラは数えない）。id＝キャラID／スクリプト名 */
-function ownItems(k){return k==="s"?SC.filter(x=>x.name&&!x.unrel).map(x=>({id:x.id,name:x.name,img:SIMG[x.id],rar:x.rar,role:x.role,date:x.date,col:RARCOL[x.rar]||"var(--line)"}))
+function ownItems(k){return k==="s"?SC.filter(x=>x.name&&!x.unrel).map(x=>({id:x.id,name:x.name,yomi:x.yomi,img:SIMG[x.id],rar:x.rar,role:x.role,date:x.date,col:RARCOL[x.rar]||"var(--line)"}))
   :CH.filter(c=>!c.unrel).map(c=>({id:c.id,name:c.name,img:IMG[c.id],attr:c.attr,role:c.role,order:c.order,base:c.base,bname:c.bname,date:c.date,col:attrColor(c.attr)}));}
 function ownStats(list,o){o=o||OWN();const n=list.length,k=list.filter(c=>o[c.id]).length;return{n,k,p:n?Math.round(k/n*1000)/10:0};}
 function bar(label,st,icon){return `<div class="obar"><span class="obl">${icon||""}${esc(label)}</span><span class="obt"><i style="width:${st.n?st.k/st.n*100:0}%"></i></span><span class="obn">${st.k}/${st.n}</span></div>`;}
@@ -2992,7 +3018,7 @@ function renderOwn(){
   if(q)list=list.filter(c=>khit(c.name+c.id+(c.bname||c.base||"")+charKana(c),q));
   if(F.attr)list=list.filter(c=>(K==="s"?c.rar:c.attr)===F.attr);if(F.role)list=list.filter(c=>c.role===F.role);
   if(F.show==="own")list=list.filter(c=>o[c.id]);else if(F.show==="not")list=list.filter(c=>!o[c.id]);
-  if(F.sort==="date")list.sort((a,b)=>b.date-a.date);else if(F.sort==="name")list.sort(K==="s"?(a,b)=>a.name.localeCompare(b.name,"ja"):(a,b)=>String(sortVal("chars",a,"name")).localeCompare(String(sortVal("chars",b,"name")),"ja"));else list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
+  if(F.sort==="date")list.sort((a,b)=>b.date-a.date);else if(F.sort==="name")list.sort(K==="s"?(a,b)=>kq(a.yomi||a.name).localeCompare(kq(b.yomi||b.name),"ja"):(a,b)=>String(sortVal("chars",a,"name")).localeCompare(String(sortVal("chars",b,"name")),"ja"));else list.sort((a,b)=>(o[b.id]||0)-(o[a.id]||0)||b.date-a.date);
   const attrs=K==="s"?["SSR","SR","R"].filter(a=>items.some(c=>c.rar===a)):ATTRS.filter(a=>items.some(c=>c.attr===a)),roles=[...new Set(ROLES.concat(K==="s"?["ワイルド"]:[]))].filter(a=>items.some(c=>c.role===a)),ords=K==="s"?[]:ORDERS.filter(a=>items.some(c=>c.order===a));
   const by=(a)=>items.filter(c=>(K==="s"?c.rar:c.attr)===a);
   let sub="";if(K==="c"){const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;sub=`<span>キャラクター ${bOwned} / ${bases.length}</span>`;const un=CH.filter(c=>c.unrel).length;if(un)sub+=`<span>未実装の${un}スタイルは数えません</span>`;}
@@ -3007,7 +3033,7 @@ function renderOwn(){
    <div class="seg"><button data-ownsort="date" aria-pressed="${F.sort==="date"}">新しい順</button><button data-ownsort="name" aria-pressed="${F.sort==="name"}">名前順</button><button data-ownsort="star" aria-pressed="${F.sort==="star"}">${K==="s"?"凸順":"★順"}</button></div>
    <div class="chips">${attrs.map(a=>`<button class="chip" data-ownattr="${a}" aria-pressed="${F.attr===a}">${K==="s"?"":ic(a)}${a}</button>`).join("")}</div>
    <div class="chips">${roles.map(a=>`<button class="chip" data-ownrole="${a}" aria-pressed="${F.role===a}">${ic(a)}${a}</button>`).join("")}</div>
-   <span style="flex:1"></span><button class="btn small" data-act="ownall">表示中をすべて所持に</button><button class="btn small" data-act="ownreset">リセット</button></div>
+   <span style="flex:1"></span>${K==="c"?`<button class="btn small" data-act="ownlow" title="★1・★2（R・SR）のキャラをまとめて所持にします">★1・★2をまとめて所持に</button>`:""}<button class="btn small" data-act="ownall">表示中をすべて所持に</button><button class="btn small" data-act="ownreset">リセット</button></div>
   <div class="owngrid">${list.map(c=>{const st=o[c.id]||0;return `<div class="ocard${st?" on":""}" style="--gc:${c.col}"><button class="oimg" data-owntoggle="${esc(c.id)}" aria-pressed="${!!st}" title="${esc(c.name)}">${c.img?`<img src="${c.img}" alt="" loading="lazy">`:`<span class="noimg"></span>`}${st?'<span class="ock">✓</span>':""}</button><span class="onm">${esc(c.name)}</span>${K==="s"?`<select class="olb" data-ownlb="${esc(c.id)}" aria-label="限界突破"><option value="">未所持</option>${Array.from({length:SLB_MAX},(_,i)=>i+1).map(n=>`<option value="${n}" ${+st===n?"selected":""}>${lbLabel(n)}</option>`).join("")}</select>`:`<span class="ostars">${[1,2,3,4,5].map(n=>`<button data-ownstar="${esc(c.id)}|${n}" class="${n<=st?"on":""}${n<ownMin(K,c.id)?" omin":""}" aria-label="★${n}">★</button>`).join("")}</span>`}</div>`;}).join("")||`<p class="count">該当する${W}がありません</p>`}</div>`;
   main.innerHTML=h;
   const qi=document.getElementById("ownQ");liveInput(qi,()=>{F.q=qi.value;const p=qi.selectionStart;renderOwn();const n=document.getElementById("ownQ");n.focus();n.setSelectionRange(p,p);});
@@ -3153,6 +3179,7 @@ function applyLinkParam(){try{const q=new URLSearchParams(location.search);let h
   const sn=q.get("script");if(sn){const x=scOf(sn);if(x){tab="scripts";OPENLINK=()=>openScript(x.i);hit=true;}}
   const en=q.get("event");if(en){const x=eventOf(en);if(x){tab="events";OPENLINK=()=>openEvent(x.i);hit=true;}}
   const kn=q.get("knight");if(kn&&personOf(kn)){tab="knights";OPENLINK=()=>openKnight(kn);hit=true;}
+  const sw=q.get("sword");if(sw){const x=SWMAP[sw]||SWORDS.find(y=>y.name===sw);if(x){tab="swords";OPENLINK=()=>openSword(x.i);hit=true;}}
   const tm=q.get("team");if(tm){OPENLINK=()=>openSharedTeam(tm);hit=true;}
   const tl=q.get("tl");if(tl){OPENLINK=()=>openSharedTier(tl);hit=true;}
   const pp=q.get("post");if(pp){OPENLINK=()=>openPostById(pp);hit=true;}
@@ -3165,9 +3192,9 @@ function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(loc
    いま見ているページ・開いている詳細に合わせて、アドレスバーのURLとタブの題名を変える。
    キャラ詳細 ?char=ID／スクリプト ?script=名前／イベント ?event=名前／騎士 ?knight=名前／バベル・封印戦 ?floor=キー／ほかのページ ?tab=名前（ランキングは &rk=chars|scripts）。ホームは何も付けない。
    人が押して移ったときは履歴を足し（戻るボタンで前のページへ）、それ以外は置き換える。戻る・進むでは URL のページを開き直す */
-const URLTABS=["home","guide","faq","updates","credits","own","sown","ctier","knights","events","chars","scripts","rank","tier","sum","babel","feed","seal"];
+const URLTABS=["home","guide","faq","updates","credits","own","sown","ctier","knights","events","chars","scripts","swords","rank","tier","sum","babel","feed","seal"];
 const TITLE0=document.title;let DETAIL=null,URLPOP=false,NAVPUSH=false,DETPUSHED=false,IGNOREPOP=false;
-const isDetQ=q=>/^\?(char|script|event|knight|post)=/.test(q||"");
+const isDetQ=q=>/^\?(char|script|event|knight|post|sword)=/.test(q||"");
 document.addEventListener("click",()=>{NAVPUSH=true;},true);
 function urlState(){
   if(DETAIL&&document.getElementById("dlgDetail").open&&DETAIL.n===document.getElementById("detailBody").firstElementChild){const k=DETAIL.k,v=DETAIL.v;return {q:`?${k}=${encodeURIComponent(v)}`,t:DETAIL.t};}
@@ -3179,14 +3206,15 @@ function urlState(){
 }
 /* 検索エンジン向け：ページごとの題名・説明文（meta description）・正規の URL（canonical）。sitemap.xml は管理画面が data/all.json と一緒に作る */
 const DESC0=(document.querySelector('meta[name="description"]')||{}).content||"";
-const TABDESC={credits:"RxRwiki の制作メンバー（データ編集班など）の紹介。",updates:"RxRwiki のアップデート内容（バージョンごとの更新・修正の一覧）。",guide:"RxRwiki の使い方ガイド。Tier表・所持率チェッカー・編成ビルダー・みんなの攻略の使い方。",faq:"RxRwiki のよくある質問（Q&A）。",
+const TABDESC={swords:"魔剣の一覧。メイン効果・サブ効果・入手方法と、魔剣本体・運命の立ち絵の画像。",credits:"RxRwiki の制作メンバー（データ編集班など）の紹介。",updates:"RxRwiki のアップデート内容（バージョンごとの更新・修正の一覧）。",guide:"RxRwiki の使い方ガイド。Tier表・所持率チェッカー・編成ビルダー・みんなの攻略の使い方。",faq:"RxRwiki のよくある質問（Q&A）。",
   chars:"キャラクター一覧。ロール・属性・騎士団・スタイル・効果で絞り込み、性能を比べられます。",rank:"キャラ・スクリプトのステータスランキング。",knights:"騎士の一覧（騎士団・階級ごと）と誕生日。",
   own:"キャラ所持率チェッカー。持っているキャラと★を記録して、リンクで共有できます。",sown:"スクリプト所持率チェッカー。持っているスクリプトと凸を記録できます。",
   ctier:"キャラクター全体Tier。メインストーリー・バベル・封印戦などでの出番の多さ・使いやすさの総合評価。",scripts:"スクリプト一覧。ロール・レアリティで絞り込み、効果を比べられます。",
   babel:"バベルの階層一覧と攻略（階層別Tier表・おすすめキャラ・クリア編成例）。",feed:"みんなのバベル攻略の投稿（新しい順）。クリア編成・WAVEごとの立ち回り・Tier表。",seal:"封印戦の一覧と攻略・Tier表。",events:"イベント一覧（開催中・予定・新規・復刻・常設）と実装キャラ・登場ボス。"};
 function seoMeta(st){try{const q=new URLSearchParams(st.q),W="リバリバ（リバースブルー×リバースエンド）バベル攻略wiki RxRwiki";let d="",t=st.t;
-  const c=q.get("char"),sc=q.get("script"),ev=q.get("event"),kn=q.get("knight"),fl=q.get("floor"),po=q.get("post"),tb=q.get("tab");
-  if(c){const x=CHMAP[c];if(x){t=`${x.name}の性能・評価`;d=`${x.name}の性能・評価。${[x.order,x.role,x.attr,x.dtype].filter(Boolean).join("・")}。全体Tier・スキル・おすすめスクリプト・おすすめセット・強いところ／弱いところ。`;}}
+  const sw=q.get("sword"),c=q.get("char"),sc=q.get("script"),ev=q.get("event"),kn=q.get("knight"),fl=q.get("floor"),po=q.get("post"),tb=q.get("tab");
+  if(sw){const x=SWMAP[sw];if(x){t=`${x.name}（魔剣）の効果・入手方法`;d=`魔剣「${x.name}」のメイン効果・サブ効果・入手方法。`;}}
+  else if(c){const x=CHMAP[c];if(x){t=`${x.name}の性能・評価`;d=`${x.name}の性能・評価。${[x.order,x.role,x.attr,x.dtype].filter(Boolean).join("・")}。全体Tier・スキル・おすすめスクリプト・おすすめセット・強いところ／弱いところ。`;}}
   else if(sc){const x=scOf(sc);if(x){t=`${x.name}（スクリプト）の効果・評価`;d=`スクリプト「${x.name}」の効果・ステータス・評価。${x.role?x.role+"向け。":""}おすすめのキャラ。`;}}
   else if(ev){const x=eventOf(ev);if(x)d=`イベント「${x.name}」の開催期間・実装キャラ・登場ボス。`;}
   else if(kn){const x=personOf(kn);if(x)d=`${x.name}のプロフィール・誕生日・CV・騎士団と、スタイル（キャラ）の一覧。`;}
@@ -3209,19 +3237,20 @@ new MutationObserver(()=>{if(DETAIL)queueMicrotask(syncUrl);}).observe(document.
  const os=openScript;openScript=function(i){const r=os.apply(this,arguments);const x=SC.find(y=>y.i===i);if(x)setDetail("script",x.id,x.name);return r;};
  const oe=openEvent;openEvent=function(i){const r=oe.apply(this,arguments);const x=EVENTS.find(y=>y.i===i);if(x)setDetail("event",x.id,x.name);return r;};
  const ok=openKnight;openKnight=function(n){const r=ok.apply(this,arguments);const k=personOf(n);if(k)setDetail("knight",k.id,k.name);return r;};
+ const osw=openSword;openSword=function(i){const r=osw.apply(this,arguments);const x=SWORDS.find(y=>y.i===i);if(x)setDetail("sword",x.id,x.name);return r;};
  const opp=openPostById;openPostById=async function(pid){const r=await opp.apply(this,arguments);if(PCUR&&PCUR.id===pid&&document.getElementById("dlgDetail").open)setDetail("post",pid,PCUR.title||"攻略");return r;};}
 document.getElementById("dlgDetail").addEventListener("close",()=>{DETAIL=null;if(URLPOP)return;if(DETPUSHED&&isDetQ(location.search)){DETPUSHED=false;IGNOREPOP=true;history.back();return;}syncUrl();});
 // 戻る・進む
 addEventListener("popstate",()=>{if(MODE==="admin"||!SITE_LOADED)return;if(IGNOREPOP){IGNOREPOP=false;const st=urlState();seoMeta(st);if(location.search!==st.q)history.replaceState(null,"",location.pathname+st.q+location.hash);return;}DETPUSHED=false;URLPOP=true;try{
   const q=new URLSearchParams(location.search),dl=document.getElementById("dlgDetail");
-  const det=["char","script","event","knight","post"].find(k=>q.get(k));
+  const det=["char","script","event","knight","post","sword"].find(k=>q.get(k));
   if(dl.open){DETAIL=null;dl.close();}
   const fl=q.get("floor"),tp=q.get("tab");
   if(fl){const f=FLOORS.find(x=>x.key===fl);if(f){if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}}}
   else if(tp&&URLTABS.includes(tp)){tab=tp;if(tp==="rank"){const rk=q.get("rk");if(rk==="chars"||rk==="scripts")RK.t=rk;}}
   else if(!det)tab="home";
   sel=null;HEROKEY=null;render();
-  if(det){const v=q.get(det);if(det==="char"&&CHMAP[v])openChar(v);else if(det==="script"){const x=scOf(v);if(x)openScript(x.i);}else if(det==="event"){const x=eventOf(v);if(x)openEvent(x.i);}else if(det==="knight"&&personOf(v))openKnight(v);else if(det==="post")openPostById(v);}
+  if(det){const v=q.get(det);if(det==="char"&&CHMAP[v])openChar(v);else if(det==="script"){const x=scOf(v);if(x)openScript(x.i);}else if(det==="event"){const x=eventOf(v);if(x)openEvent(x.i);}else if(det==="knight"&&personOf(v))openKnight(v);else if(det==="post")openPostById(v);else if(det==="sword"){const x=SWMAP[v]||SWORDS.find(y=>y.name===v);if(x)openSword(x.i);}}
 }catch(e){}finally{URLPOP=false;seoMeta(urlState());}});
 
 /* ================= お知らせ ================= */
@@ -3250,7 +3279,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=66");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=68");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -3299,7 +3328,7 @@ window.RXR={
   get testlist(){return TESTLIST;},login(){loadUser().then(m=>m.open()).catch(()=>{});},openMyPage(){openMyPage();},SITE_URL,scOf,personOf,bossOf,eventOf,sealOf,get BOSSES(){return BOSSES;},get PEOPLE(){return PEOPLE;},get EVENTS(){return EVENTS;},
   encU,get CFS(){return CFS;},cfBar,cfMatch,qbarChars,sfBar,scFiltered,PKSF,setPickRerender,sortList,get LIVE(){return LIVE;},setLive(k,v){LIVE[k]=v;},data,SEED,colOf,esc,ic,toast,parseDelimited,num,hashId,
   KEYWORDS,tagCats,autoTagsOf,applyTagEdits,effCols,get CH(){return CH;},get CHMAP(){return CHMAP;},get SC(){return SC;},get FLOORS(){return FLOORS;},get TYPES(){return TYPES;},
-  IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,SEAL,SEALF,KN,KNF,BASE,ATTRS,ROLES,RANKS,ORDERS,
+  IMG,BANNER,SIMG,SFULL,ICON,BOSS,BOSSF,EVT,EVTF,SEAL,SEALF,KN,KNF,SWD,SWDF,FATE,FATEF,BASE,ATTRS,ROLES,RANKS,ORDERS,
   get CROPS(){return CROPS;},setCrops(m){CROPS=m||{};applyCrops();},applyMedia,cropSrc,canvasBlob,cropBlob,cropPos,
   rebuild(){buildModels();},renderUser(){render();},
   setMode(m,fn){MODE=m;ADMIN_RENDER=fn||null;if(m!=="admin"){ADMIN_LIST=null;main=document.getElementById("main");}},
