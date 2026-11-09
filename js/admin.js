@@ -5,11 +5,14 @@ import * as F from "./fb.js";
 let R = null;            // index.html 側の橋渡し (window.RXR)
 const AM = document.getElementById("admin");
 const NAV = document.getElementById("adminTabs");
-const TABLES = ["chars", "scripts", "babel", "teams", "seals", "people", "styles", "bosses", "events"];
-const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル", teams: "編成例", seals: "封印戦", people: "騎士", styles: "スタイル", bosses: "ボス", events: "イベント", options: "選択肢" };
-const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"], teams: ["バベル種類", "階層", "編成名"], seals: ["封印戦名"], people: ["名前"], styles: ["スタイル"], bosses: ["名前"], events: ["イベント名"] };
+const TABLES = ["chars", "scripts", "babel", "teams", "seals", "people", "styles", "bosses", "events", "swords"];
+const TLABEL = { chars: "キャラ", scripts: "スクリプト", babel: "バベル", teams: "編成例", seals: "封印戦", people: "騎士", styles: "スタイル", bosses: "ボス", events: "イベント", swords: "魔剣", options: "選択肢" };
+const KEYCOLS = { chars: ["ID"], scripts: ["名前"], babel: ["バベル種類", "階層"], teams: ["バベル種類", "階層", "編成名"], seals: ["封印戦名"], people: ["名前"], styles: ["スタイル"], bosses: ["名前"], events: ["イベント名"], swords: ["名前"] };
 // 画像を持つ表：種類と、画像のキーになる列
-const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["seal", "封印戦名"], people: ["knight", "名前"], bosses: ["boss", "名前"], events: ["event", "イベント名"] };
+const IMGOF = { chars: ["char", "ID"], scripts: ["script", "名前"], seals: ["seal", "封印戦名"], people: ["knight", "名前"], bosses: ["boss", "名前"], events: ["event", "イベント名"], swords: ["sword", "名前"] };
+// 画像が2種類ある表（編集画面で切り替える）：[種類, 表示名]
+const IMGSLOTS = { swords: [["sword", "魔剣（本体）"], ["fate", "運命の立ち絵"]] };
+const edIk = () => IMGSLOTS[ED.k] ? IMGSLOTS[ED.k][Math.min(ED.imslot || 0, IMGSLOTS[ED.k].length - 1)][0] : IMGOF[ED.k][0];
 /* ---- 入力フォームの設計（列名 → 入力の種類）。ここにない列は「その他の列」に出る ---- */
 // t: text / num / auto（自動で入る・編集不可） / floor（バベルの階層を選ぶ） / hide（フォームに出さない） / team（編成のキャラ6人） / long / big / date / opt:選択肢キー / people / style / id / master / cond / charpick
 const SCHEMA = {
@@ -27,7 +30,7 @@ const SCHEMA = {
     { g: "特性", f: [["特性名称", "text"], ["Lv1 特性効果", "long"], ["Lv3 特性効果", "long"], ["Lv5 特性効果", "long"], ["特性開放 ★4", "long"], ["特性開放 ★5", "long"]] },
   ],
   scripts: [
-    { g: "基本", f: [["名前", "text"], ["ID", "id"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"], ["実装", "sel:未実装"], ["限定", "sel:限定|周年限定"]] },
+    { g: "基本", note: "よみ＝ひらがなで（英語・漢字の名前も読みを入れる）。スクリプト一覧の名前順と、ひらがなでの検索に使います。", f: [["名前", "text"], ["ID", "id"], ["よみ", "text"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"], ["実装", "sel:未実装"], ["限定", "sel:限定|周年限定"]] },
     { g: "ステータス", note: "スクリプトの Lv200 のステータスは星で変わりません。完凸（限界突破しきった状態）の値は分かるものだけ入れてください。", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
     { g: "スキル1", f: [["スキル1効果", "long"]] },
     { g: "スキル2", f: [["条件2", "cond"], ["スキル2効果", "long"]] },
@@ -56,6 +59,11 @@ const SCHEMA = {
   ],
   bosses: [
     { g: "基本", f: [["名前", "text"], ["ID", "id"], ["よみ", "text"], ["説明", "long"]] },
+  ],
+  swords: [
+    { g: "基本", note: "画像（魔剣本体・運命の立ち絵）は、保存したあとに上の画像の欄から追加できます（「画像」タブからまとめても入れられます）。", f: [["名前", "text"], ["ID", "id"], ["よみ", "text"]] },
+    { g: "効果", f: [["メイン効果", "long"], ["サブ効果", "long"]] },
+    { g: "入手方法", f: [["入手方法", "long"]] },
   ],
   events: [
     { g: "基本", f: [["イベント名", "text"], ["ID", "id"], ["復刻", "sel:復刻|常設"], ["開始日", "date"], ["終了日", "date"]] },
@@ -328,7 +336,7 @@ async function fillIds(k) {
 }
 function tableChanged(k) {
   if (IDT[k] && seeded(k)) ensureIds(k);
-  if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel" || k === "teams" || k === "seals" || k === "people" || k === "events" || k === "bosses")) { R.setLive(k, publicData(k)); R.rebuild(); }
+  if (seeded(k) && (k === "chars" || k === "scripts" || k === "babel" || k === "teams" || k === "seals" || k === "people" || k === "events" || k === "bosses" || k === "swords")) { R.setLive(k, publicData(k)); R.rebuild(); }
   // 新しく増えた表（編成例など）は、ほかの表が登録済みなら空の表を自動で作る
   if (T[k].hdrReady && T[k].rowsReady && !T[k].hdrExists && seeded("babel") && !AUTOHDR[k]) { AUTOHDR[k] = true; staticJson(`data/${k}.json`).then(d => F.setDoc(F.doc(F.db, "tables", k), { headers: d.headers, t: now(), by: meId() }, { merge: true })).catch(e => { AUTOHDR[k] = false; console.warn(e); }); }
   if (k === "people" && seeded("chars")) { R.setLive("chars", publicData("chars")); R.rebuild(); maybePublish("chars"); }
@@ -415,7 +423,7 @@ async function publish(k, force) {
 }
 /* ---- public/all：公開サイトが読む データ一式（1回の読み取りで済ませ、Firestore の無料枠を節約する） ----
    public/{chars,scripts,babel,teams,seals,crops,options,news,tiers} の json をまとめたもの。どれかが変わるたびに作り直す */
-const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "people", "events", "bosses", "crops", "options", "news", "tiers", "guide", "testlist"];
+const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "people", "events", "bosses", "swords", "crops", "options", "news", "tiers", "guide", "testlist"];
 const PUBRAW = {};       // k -> public/{k} の json（文字列）。ドキュメントがなければ null
 let ALLSIG;              // public/all の sig（undefined = まだ読んでいない）
 const BUNDLE = { t: null, pending: false, busy: false, failed: false };
@@ -474,7 +482,7 @@ const bundleJson = () => "{" + BUNDLE_KEYS.filter(k => PUBRAW[k] != null).map(k 
 const SITE_ORIGIN = "https://rxrwiki.com/";
 function sitemapXml() {
   const tb = k => { try { const d = JSON.parse(PUBRAW[k] || "null"); return d && d.headers ? d : { headers: [], rows: [] }; } catch (e) { return { headers: [], rows: [] }; } };
-  const urls = [""].concat(["guide", "faq", "updates", "credits", "chars", "rank", "knights", "ctier", "scripts", "babel", "feed", "seal", "events"].map(t => "?tab=" + t));
+  const urls = [""].concat(["guide", "faq", "updates", "credits", "chars", "swords", "rank", "knights", "ctier", "scripts", "babel", "feed", "seal", "events"].map(t => "?tab=" + t));
   const add = (k, cols, fn) => { const d = tb(k), ix = c => d.headers.indexOf(c); d.rows.forEach(r => { const v = c => { const i = ix(c); return i >= 0 ? String(r[i] == null ? "" : r[i]).trim() : ""; }; const u = fn(v); if (u) urls.push(u); }); };
   const q = (k, v) => v ? `?${k}=${encodeURIComponent(v)}` : "";
   add("chars", 0, v => v("実装") === "未実装" ? "" : q("char", v("ID")));
@@ -483,6 +491,7 @@ function sitemapXml() {
   add("seals", 0, v => v("封印戦名") ? q("floor", "封印戦|" + (v("ID") || v("封印戦名"))) : "");
   add("events", 0, v => q("event", v("ID") || v("イベント名")));
   add("people", 0, v => q("knight", v("ID") || v("名前")));
+  add("swords", 0, v => q("sword", v("ID") || v("名前")));
   const x = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` + [...new Set(urls)].map(u => `<url><loc>${x(SITE_ORIGIN + u)}</loc></url>`).join("\n") + "\n</urlset>\n";
 }
@@ -630,8 +639,8 @@ function loadRow(k, id) {
   ED.base = Object.assign({}, r.c); ED.draft = Object.assign({}, r.c); ED.baseRev = r.rev;
   ED.dirty = false; ED.confirmDel = false; ED.remote = null; ED.gone = false; ED.conflict = null;
 }
-const EDORDER = ["chars", "scripts", "babel", "seals", "people", "styles", "bosses", "events", "options"];
-const EDGROUP = { babel: "", teams: "", seals: "", chars: "", scripts: "", people: "master", styles: "master", bosses: "master", events: "master", options: "master" };
+const EDORDER = ["chars", "scripts", "swords", "babel", "seals", "people", "styles", "bosses", "events", "options"];
+const EDGROUP = { babel: "", teams: "", seals: "", chars: "", scripts: "", swords: "", people: "master", styles: "master", bosses: "master", events: "master", options: "master" };
 let DLG = null;
 function edDialog() {
   if (DLG) return DLG;
@@ -697,7 +706,7 @@ function renderEdit(soft) {
     AM.innerHTML = userBar() + `<div class="toolbar">${seg}</div><div class="empty seedbox">${base3 ? `<h2>${TLABEL[k]}の表を作ります</h2><p>騎士（名前・ふりがな・性別・騎士団・階級など）・スタイル・ボスの表を、今のデータから自動で作ります（イベントは空の表を作ります）。<br>作ったあとは、キャラの騎士団・階級・性別は騎士の設定から自動で入るようになります。</p>` : `<h2>最初に、今のデータを管理画面に取り込みます</h2><p>公開サイトに出ているデータ（バベル ${countStatic("babel")}・キャラ ${countStatic("chars")}・スクリプト ${countStatic("scripts")}）は、まだ GitHub のファイルから表示している状態です。<br>下のボタンを1回押すと、それを編集用のデータベース（Firestore）に登録して、ここで編集できるようになります。</p>`}<div class="row2" style="justify-content:center"><button class="btn primary big" data-a="seed" ${SEEDING ? "disabled" : ""}>${SEEDING ? "登録中…" : base3 ? "マスターの表を作る" : "今のデータを取り込んで編集を始める"}</button></div><p class="hint">公開サイトの表示は変わりません。</p></div>`;
     return;
   }
-  const custom = ["teams", "seals", "people", "styles", "bosses", "events", "options"].includes(k);
+  const custom = ["teams", "seals", "people", "styles", "bosses", "events", "swords", "options"].includes(k);
   const list = document.getElementById("admlist");
   if (soft && list) {
     const st = document.getElementById("adstatus"); if (st) st.innerHTML = statusBar();
@@ -709,7 +718,7 @@ function renderEdit(soft) {
     return;
   }
   document.getElementById("main").innerHTML = "";   // 同じ id の検索欄が重ならないように
-  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "chars" ? `<button class="btn" data-a="bulkrar">レアリティ・実装をまとめて入力</button>${(n => n ? `<button class="btn" data-a="fixnames">キャラ名の表記をそろえる（${n}人）</button>` : "")(nameOdd().length)}` : ""}${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
+  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "chars" ? `<button class="btn" data-a="bulkrar">レアリティ・実装をまとめて入力</button>${(n => n ? `<button class="btn" data-a="fixnames">キャラ名の表記をそろえる（${n}人）</button>` : "")(nameOdd().length)}` : ""}${k === "scripts" ? (n => n ? `<button class="btn" data-a="fillyomi" title="よみが空のスクリプトに、仮のよみ（data/script-yomi.json）を入れます">よみを仮で入れる（${n}件）</button>` : "")(yomiOdd().length) : ""}${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
   if (custom) { R.setMain(null); bindCustomList(); }
   else { R.setMain(document.getElementById("admlist"), () => { if (S.tab === "edit") R.renderList(ED.k); }); R.renderList(k); }
   if (DLG && DLG.open) refreshForm();
@@ -718,7 +727,7 @@ const CL = { q: "" };
 const bnorm = s => String(s || "").normalize("NFKC").replace(/[\s　：:・【】（）()「」『』＝=]/g, "").toLowerCase();
 /* スクリプト・ボス・封印戦・騎士・イベントは列「ID」でつながる（作ったときの名前。名前を直しても変わらない）。
    画像・Tier表・ほかの表からの参照は ID。ID が空の古い行は名前を ID として扱う。参照は ID → 名前の順で探す */
-const IDT = { scripts: "名前", bosses: "名前", seals: "封印戦名", people: "名前", events: "イベント名" };
+const IDT = { scripts: "名前", swords: "名前", bosses: "名前", seals: "封印戦名", people: "名前", events: "イベント名" };
 const idOf = (k, c) => String((c || {})["ID"] || "").trim() || String((c || {})[IDT[k]] || "").trim();
 const scId = r => { const x = R.scOf(r); return x ? x.id : r; }, scName = r => { const x = R.scOf(r); return x ? x.name : r; };
 const bossId = r => { const x = R.bossOf(r); return x ? x.id : r; }, bossName = r => { const x = R.bossOf(r); return x ? x.name : r; };
@@ -743,6 +752,13 @@ function customList(k) {
       return `<button class="pcard" data-adrow="${esc(r.id)}">${face ? `<img src="${esc(face)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b><small>${esc(c["ふりがな"] || "")}</small>
       <span class="ptags">${c["騎士団"] ? `<span>${R.ic(c["騎士団"], "ord")}${esc(c["騎士団"])}</span>` : '<span class="miss">騎士団未設定</span>'}${c["階級"] ? `<span>${R.ic(c["階級"])}${esc(c["階級"])}</span>` : ""}${c["性別"] ? `<span>${esc(c["性別"])}</span>` : ""}${c["誕生日"] ? `<span>🎂${esc(c["誕生日"])}</span>` : ""}</span>
       <small class="count">スタイル ${us.length}：${esc(us.map(u => u["スタイル"]).join("・"))}</small></span>${who.length ? `<span class="pres">✎ ${esc(who[0].name || "メンバー")}</span>` : ""}</button>`; }).join("")}</div>`;
+  }
+  if (k === "swords") {
+    const list = [...T.swords.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
+    return `<div class="toolbar"><h2><small>DEMON SWORDS</small>魔剣</h2><input class="search" id="clq" placeholder="名前・効果で検索" value="${esc(CL.q)}"><span class="count">${list.length} / ${T.swords.rows.size}</span></div>
+    <p class="hint" style="margin:-6px 0 12px">画像は2種類（魔剣本体・運命の立ち絵）。編集画面の上で切り替えて追加できます。</p>
+    <div class="pgrid">${list.map(r => { const c = r.c || {}; const id = idOf("swords", c); const im = R.SWD[id] || R.FATE[id];
+      return `<button class="pcard" data-adrow="${esc(r.id)}">${im ? `<img src="${esc(im)}" alt="">` : '<span class="noimg"></span>'}<span class="pinfo"><b>${esc(c["名前"] || "")}</b>${c["メイン効果"] ? `<small>${esc(String(c["メイン効果"]).slice(0, 40))}</small>` : ""}<span class="ptags">${R.SWD[id] ? "<span>本体</span>" : ""}${R.FATE[id] ? "<span>立ち絵</span>" : ""}${!R.SWD[id] && !R.FATE[id] ? '<span class="count">画像なし</span>' : ""}</span></span></button>`; }).join("") || '<p class="count">まだありません。右上の「＋ 魔剣を追加」から登録してください。</p>'}</div>`;
   }
   if (k === "bosses") {
     const list = [...T.bosses.rows.values()].sort((a, b) => (a.o - b.o)).filter(r => !q || Object.values(r.c || {}).some(v => String(v).toLowerCase().includes(q)));
@@ -1106,7 +1122,7 @@ function renderForm() {
   }));
   body.querySelectorAll("[data-tm]").forEach(el => el.addEventListener("change", () => { teamInput(el); renderForm(); }));
   body.querySelectorAll("[data-floorsel]").forEach(el => el.addEventListener("change", () => { const i = el.value.indexOf("|"), t = i < 0 ? el.value : el.value.slice(0, i), f = i < 0 ? "" : el.value.slice(i + 1); ED.draft["バベル種類"] = t || ""; ED.draft["階層"] = f || ""; ED.dirty = true; ED.leaveOk = false; renderForm(); }));
-  const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; const io = IMGOF[ED.k]; quickUpload(io[0], imgKeyOf(ED.k, ED.base), f); });
+  const ei = document.getElementById("edimg"); if (ei) ei.addEventListener("change", () => { const f = ei.files[0]; if (!f) return; quickUpload(edIk(), imgKeyOf(ED.k, ED.base), f); });
   body.querySelectorAll(".cpin").forEach(cp => cp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); pickAdd(cp.dataset.cpfield); } }));
   applyLock(body);
 }
@@ -1374,13 +1390,14 @@ function editForm() {
   const hd = T[ED.k].headers;
   const r = T[ED.k].rows.get(ED.id);
   const both = ED.conflict ? ED.conflict.both : [];
-  const io = IMGOF[ED.k]; const ik = io ? io[0] : null;
+  const io = IMGOF[ED.k]; const ik = io ? edIk() : null;
   const ikey = io && !ED.isNew ? imgKeyOf(ED.k, ED.base) : "";
-  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : ik === "boss" ? R.BOSS[ikey] : ik === "event" ? R.EVT[ikey] : ik === "knight" ? R.KN[ikey] : ik === "seal" ? R.SEAL[ikey] : null;
+  const th = ik === "char" ? R.IMG[ikey] : ik === "script" ? R.SIMG[ikey] : ik === "boss" ? R.BOSS[ikey] : ik === "event" ? R.EVT[ikey] : ik === "knight" ? R.KN[ikey] : ik === "seal" ? R.SEAL[ikey] : ik === "sword" ? R.SWD[ikey] : ik === "fate" ? R.FATE[ikey] : null;
   const full = ik && ikey ? R.cropSrc(ik, ikey) : null;
   const adj = ik && ikey && R.CROPS["c_" + ik + "_" + R.hashId(ikey)];
   let h = `<div class="edhead"><h2>${ED.isNew ? `${TLABEL[ED.k]}を追加` : esc(labelOf(ED.k, ED.draft))}</h2><span class="count">${TLABEL[ED.k]}</span></div><div id="edbanner">${bannerHtml()}</div>`;
   if (ik) {
+    if (IMGSLOTS[ED.k] && !ED.isNew && ikey) h += `<div class="seg edimgslot">${IMGSLOTS[ED.k].map(([k2, l], i) => `<button data-imslot="${i}" aria-pressed="${ik === k2}">${l}</button>`).join("")}</div>`;
     h += `<section class="edimgs">${ED.isNew || !ikey ? `<p class="hint" style="margin:0">画像は、保存したあとにここから追加できます。</p>` : `
       <div class="edth">${th ? `<img src="${esc(th)}" alt="">` : `<span class="noimg"></span>`}<small>サムネイル${adj ? "（調整済み）" : ""}</small></div>
       ${full ? `<div class="edfull"><img src="${esc(full)}" alt=""><small>元の画像</small></div>` : ""}
@@ -1701,7 +1718,7 @@ async function ioAction(a, btn) {
 
 /* ================= images ================= */
 const IM = { k: "char", files: [], busy: false, cq: "" };
-const IKIND = { char: "キャラ", script: "スクリプト", knight: "騎士（立ち絵）", seal: "封印戦", boss: "ボス", event: "イベント", icon: "アイコン", hero: "ヘッダー背景" };
+const IKIND = { char: "キャラ", script: "スクリプト", knight: "騎士（立ち絵）", seal: "封印戦", boss: "ボス", event: "イベント", sword: "魔剣（本体）", fate: "魔剣（運命の立ち絵）", icon: "アイコン", hero: "ヘッダー背景" };
 const ICON_ALIAS = { "アタッカー": ["attacker", "attaker", "atk"], "シューター": ["shooter"], "ブレイカー": ["breaker"], "ヒーラー": ["healer"], "トリックスター": ["trickster", "trickstar"], "サポーター": ["supporter", "support"], "ブレイドライン": ["bladeline"], "千紫": ["colors", "senshi"], "Mazlab": ["maze", "mazlab", "mazelab"], "第六起源魔術教会": ["sixth"], "リンドブルム": ["lindwurm", "lindblum"], "オッター貿易": ["otter"], "アクシオンゲート": ["axiongate", "axion"], "ORANGE": ["orange"] };
 function targets(k) {
   if (k === "char") return R.CH.map(c => ({ key: c.id, label: c.name, alts: [c.id, c.name, (c.bname || c.base) + (c.style || "")] }));
@@ -1712,6 +1729,7 @@ function targets(k) {
   if (k === "seal") return L(rowsOf("seals"), "seals", c => [knName(c["キャラ名"] || "")]);
   if (k === "boss") return L(rowsOf("bosses"), "bosses", c => [c["よみ"]]);
   if (k === "event") return L(rowsOf("events"), "events", () => []);
+  if (k === "sword" || k === "fate") return L(rowsOf("swords"), "swords", c => [c["よみ"]]);
   if (k === "icon") return uniq(opts("属性"), opts("ロール"), opts("階級"), opts("騎士団")).map(x => ({ key: x, label: x, alts: [x, ...(ICON_ALIAS[x] || [])] }));
   return [{ key: "main", label: "ヘッダー背景", alts: ["main", "header", "hero"] }];
 }
@@ -1736,7 +1754,7 @@ function sim(a, b) {
   return Math.min(s, 0.99);
 }
 function scoreFile(name, tg) { const n = norm(name); let best = 0; tg.alts.forEach(a => { best = Math.max(best, sim(n, norm(a))); }); return best; }
-function hasImage(k, key) { return k === "char" ? !!R.BASE.IMG[key] : k === "script" ? !!R.BASE.SIMG[key] : k === "boss" ? !!R.BASE.BOSS[key] : k === "seal" ? !!R.BASE.SEAL[key] : k === "knight" ? !!R.BASE.KN[key] : k === "event" ? !!R.BASE.EVT[key] : k === "icon" ? !!R.BASE.ICON[key] : !!R.BASE.HERO; }
+function hasImage(k, key) { return k === "sword" ? !!R.BASE.SWD[key] : k === "fate" ? !!R.BASE.FATE[key] : k === "char" ? !!R.BASE.IMG[key] : k === "script" ? !!R.BASE.SIMG[key] : k === "boss" ? !!R.BASE.BOSS[key] : k === "seal" ? !!R.BASE.SEAL[key] : k === "knight" ? !!R.BASE.KN[key] : k === "event" ? !!R.BASE.EVT[key] : k === "icon" ? !!R.BASE.ICON[key] : !!R.BASE.HERO; }
 function matchAll() {
   const tg = targets(IM.k);
   IM.files.forEach(f => { f.cands = tg.map(t => ({ key: t.key, label: t.label, s: scoreFile(f.name, t) })).sort((a, b) => b.s - a.s).slice(0, 8); });
@@ -1792,7 +1810,7 @@ async function processImage(kind, key, file) {
   if (kind === "icon") { const s = Math.min(1, 96 / Math.max(W, H)); const p = `images/icons/${nm}.png`; const b = await R.canvasBlob(im, 0, 0, W, H, W * s, H * s, "image/png"); files.push({ path: p, blob: b }); set.icons = p; local.icons = b; }
   else if (kind === "hero") { const [dw, dh] = fit(1800); const b = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82); files.push({ path: "images/hero.webp", blob: b }); set.hero = "images/hero.webp"; local.hero = b; }
   else {
-    const dir = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals", knight: "images/knights" }[kind]; const [dw, dh] = fit({ char: 1200, script: 720, boss: 900, event: 1400, seal: 900, knight: 900 }[kind]);
+    const dir = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals", knight: "images/knights", sword: "images/swords", fate: "images/fates" }[kind]; const [dw, dh] = fit({ char: 1200, script: 720, boss: 900, event: 1400, seal: 900, knight: 900, sword: 720, fate: 900 }[kind]);
     const full = await R.canvasBlob(im, 0, 0, W, H, dw, dh, "image/webp", .82);
     let side, sx, sy;
     const cr = R.CROPS["c_" + kind + "_" + R.hashId(key)];   // 切り抜き位置が調整済みなら、それでサムネイルを作る
@@ -1818,7 +1836,7 @@ function applyImagesJson(json, items) {
   return json;
 }
 // アップロード直後は GitHub Pages の反映（1分ほど）を待たずに、手元の画像で表示する
-const MEDIA_MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF", seals: "SEAL", sealfull: "SEALF", knights: "KN", knightfull: "KNF" };
+const MEDIA_MAP = { thumbs: "IMG", banners: "BANNER", icons: "ICON", sthumbs: "SIMG", sfull: "SFULL", bosses: "BOSS", bossfull: "BOSSF", events: "EVT", eventfull: "EVTF", seals: "SEAL", sealfull: "SEALF", knights: "KN", knightfull: "KNF", swords: "SWD", swordfull: "SWDF", fates: "FATE", fatefull: "FATEF" };
 function showLocal(items) {
   const MAP = MEDIA_MAP;
   items.forEach(it => Object.entries(it.local).forEach(([sec, b]) => { const u = URL.createObjectURL(b); if (sec === "hero") R.BASE.HERO = u; else R.BASE[MAP[sec]][it.key] = u; }));
@@ -1875,7 +1893,7 @@ function setProg(text, pct) {
 function startProg(kind, key, text, pct) { QUP = { id: kind + "|" + key, text, pct }; if (DLG && DLG.open) renderForm(); }
 function endProg() { QUP = null; if (DLG && DLG.open) renderForm(); }
 /* ---- 画像の削除: images.json から外し、ほかから使われていないファイルも消す（1コミット） ---- */
-const IMG_SECS = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"], seal: ["sealfull", "seals"], knight: ["knightfull", "knights"] };
+const IMG_SECS = { char: ["banners", "thumbs"], script: ["sfull", "sthumbs"], boss: ["bossfull", "bosses"], event: ["eventfull", "events"], seal: ["sealfull", "seals"], knight: ["knightfull", "knights"], sword: ["swordfull", "swords"], fate: ["fatefull", "fates"] };
 let IMGDEL = null, IMGDEL_BUSY = false;
 async function ghRemove(kind, key) {
   const br = GH.branch || "main"; const secs = IMG_SECS[kind];
@@ -2006,7 +2024,7 @@ async function saveCrop(id, val) {
 }
 /* 切り抜き位置を GitHub のサムネイル画像に焼き込む（公開サイトが元画像から切り出さなくて済むように）。
    焼き込んだ位置は public/crops の各項目の b（"cx|cy|cs"）に記録。c が null なら自動の位置で作り直す */
-const cropDirs = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals", knight: "images/knights" };
+const cropDirs = { char: "images/chars", script: "images/scripts", boss: "images/bosses", event: "images/events", seal: "images/seals", knight: "images/knights", sword: "images/swords", fate: "images/fates" };
 async function cropThumbItem(kind, key, c) {
   const src = R.cropSrc(kind, key); if (!src || !cropDirs[kind]) return null;
   const im = await new Promise((res, rej) => { const x = new Image(); x.crossOrigin = "anonymous"; x.onload = () => res(x); x.onerror = rej; x.src = src; });
@@ -2507,6 +2525,24 @@ async function fixNames() {
     await b.commit(); toast(`${odd.length}人のキャラ名を直しました。公開サイトには数分で反映されます`);
   } catch (e) { toast(fbErr(e), 6000); }
 }
+/* ---- スクリプトのよみを仮で入れる：data/script-yomi.json（ID または名前 → よみ）を、よみが空の行にだけ入れる。読みはあとで直せる ---- */
+let YOMIMAP = null, YOMILOAD = false;
+function yomiOdd() {
+  if (!seeded("scripts")) return [];
+  if (!YOMIMAP) { if (!YOMILOAD) { YOMILOAD = true; fetch("data/script-yomi.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : {}).then(m => { YOMIMAP = m || {}; if (S.tab === "edit" && ED.listK === "scripts" && !(DLG && DLG.open)) renderEdit(false); }).catch(() => { YOMIMAP = {}; }); } return []; }
+  return [...T.scripts.rows.values()].map(r => { const c = r.c || {}; if (String(c["よみ"] || "").trim()) return null; const y = YOMIMAP[idOf("scripts", c)] || YOMIMAP[String(c["名前"] || "").trim()]; return y ? { r, y } : null; }).filter(Boolean);
+}
+async function fillYomi() {
+  const odd = yomiOdd(); if (!odd.length) { toast("よみが空のスクリプトはありません"); return; }
+  if (!confirm(`よみが空のスクリプト ${odd.length}件に、仮のよみを入れます（例：${odd.slice(0, 3).map(x => `${x.r.c["名前"]}→${x.y}`).join("、")}）。読みが違うものは、あとで編集画面で直してください。よろしいですか？`)) return;
+  try {
+    const hd = T.scripts.headers.slice(); let b = F.writeBatch(F.db), n = 0;
+    if (!hd.includes("よみ")) { const i = hd.indexOf("ID") >= 0 ? hd.indexOf("ID") + 1 : 1; hd.splice(i, 0, "よみ"); b.set(F.doc(F.db, "tables", "scripts"), { headers: hd, t: now(), by: meId() }, { merge: true }); n++; }
+    for (const x of odd) { b.set(F.doc(F.db, "tables", "scripts", "rows", x.r.id), { c: Object.assign({}, x.r.c, { "よみ": x.y }), o: x.r.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }); if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; } }
+    b.set(F.doc(F.db, "log", rid()), logDoc({ act: "import", k: "scripts", label: `スクリプトのよみを仮で入れる（${odd.length}件）` }));
+    await b.commit(); toast(`${odd.length}件のよみを入れました。公開サイトには数分で反映されます`);
+  } catch (e) { toast(fbErr(e), 6000); }
+}
 /* ---- キャラの攻撃速度の表記をそろえる（APlus・A+ → Aplus など。S+ は Splus） ---- */
 const SPEED_STD = ["Splus", "S", "Aplus", "A", "Bplus", "B", "C"];
 const speedStd = v => { const t = String(v || "").trim(), k = t.replace(/\s/g, "").replace(/(plus|\+|＋)$/i, "+").toUpperCase(), m = /^([SABC])(\+?)$/.exec(k); return m ? m[1] + (m[2] ? "plus" : "") : t; };
@@ -2769,7 +2805,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-osv],[data-osdays],[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-imslot],[data-osv],[data-osdays],[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2788,6 +2824,7 @@ function onAdminClick(e) {
   if (ds.a === "osreload") { loadOwnStat(); return; }
   if (ds.a === "fixspeed") { fixSpeed(); return; }
   if (ds.a === "fixnames") { fixNames(); return; }
+  if (ds.a === "fillyomi") { fillYomi(); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
@@ -2842,10 +2879,11 @@ function onAdminClick(e) {
   if (ds.a === "ghdel") { IM.ghconfirm = true; renderImg(); return; }
   if (ds.a === "ghdelno") { IM.ghconfirm = false; renderImg(); return; }
   if (ds.a === "ghdelyes") { IM.ghconfirm = false; delGhToken(); return; }
-  if (ds.a === "edimgdel") { const io = IMGOF[ED.k]; IMGDEL = io[0] + "|" + imgKeyOf(ED.k, ED.base); renderForm(); return; }
+  if (ds.imslot != null) { ED.imslot = +ds.imslot; IMGDEL = null; renderForm(); return; }
+  if (ds.a === "edimgdel") { IMGDEL = edIk() + "|" + imgKeyOf(ED.k, ED.base); renderForm(); return; }
   if (ds.a === "edimgdelno") { IMGDEL = null; renderForm(); return; }
-  if (ds.a === "edimgdelyes") { const io = IMGOF[ED.k]; removeImage(io[0], imgKeyOf(ED.k, ED.base)); return; }
-  if (ds.a === "edcrop") { const io = IMGOF[ED.k]; openCrop(io[0], imgKeyOf(ED.k, ED.base), labelOf(ED.k, ED.base)); return; }
+  if (ds.a === "edimgdelyes") { removeImage(edIk(), imgKeyOf(ED.k, ED.base)); return; }
+  if (ds.a === "edcrop") { openCrop(edIk(), imgKeyOf(ED.k, ED.base), labelOf(ED.k, ED.base)); return; }
   if (ds.edk) { ED.k = ds.edk; resetEd(); CL.q = ""; renderEdit(false); return; }
   if (ds.ed) { edAction(ds.ed); return; }
   if (ds.iok) { IO.k = ds.iok; IO.confirm = null; renderIO(); return; }
