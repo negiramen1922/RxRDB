@@ -30,7 +30,7 @@ const SCHEMA = {
     { g: "特性", f: [["特性名称", "text"], ["Lv1 特性効果", "long"], ["Lv3 特性効果", "long"], ["Lv5 特性効果", "long"], ["特性開放 ★4", "long"], ["特性開放 ★5", "long"]] },
   ],
   scripts: [
-    { g: "基本", note: "よみ＝ひらがなで（英語・漢字の名前も読みを入れる）。スクリプト一覧の名前順と、ひらがなでの検索に使います。", f: [["名前", "text"], ["ID", "id"], ["よみ", "text"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"], ["実装", "sel:未実装"], ["限定", "sel:限定|周年限定"]] },
+    { g: "基本", note: "よみ＝ひらがなで（英語・漢字の名前も読みを入れる）。スクリプト一覧の名前順と、ひらがなでの検索に使います。「よみ確認」が「仮」のものは、自動で入れたまま人がまだ確認していないよみです（よみを直して保存するか、「確認済み」にすると外れます）。", f: [["名前", "text"], ["ID", "id"], ["よみ", "text"], ["よみ確認", "sel:仮"], ["レアリティ", "opt:レアリティ"], ["ロール", "opt:ロール"], ["実装日", "date"], ["実装", "sel:未実装"], ["限定", "sel:限定|周年限定"]] },
     { g: "ステータス", note: "スクリプトの Lv200 のステータスは星で変わりません。完凸（限界突破しきった状態）の値は分かるものだけ入れてください。", f: [["HP初期値", "num"], ["Lv200 HP", "num"], ["完凸 HP", "num"], ["攻撃力初期値", "num"], ["Lv200 攻撃力", "num"], ["完凸 攻撃力", "num"], ["物理防御", "num"], ["特殊防御", "num"]] },
     { g: "スキル1", f: [["スキル1効果", "long"]] },
     { g: "スキル2", f: [["条件2", "cond"], ["スキル2効果", "long"]] },
@@ -393,8 +393,12 @@ function sigOf(k) {
 }
 // 公開用のキャラ表には、キャラクター設定（騎士団・階級・性別）を合流させる
 const MASTER_COLS = ["騎士団", "階級", "性別"];
+// 公開しない列（運営用の印）
+const PRIVATE_COLS = { scripts: ["よみ確認"] };
 function publicData(k) {
-  const d = derive(k);
+  const d0 = derive(k), pc = PRIVATE_COLS[k] || [];
+  const keep = d0.headers.map((h, i) => pc.includes(h) ? -1 : i).filter(i => i >= 0);
+  const d = pc.length ? { headers: keep.map(i => d0.headers[i]), rows: d0.rows.map(r => keep.map(i => r[i])) } : d0;
   if (k !== "chars" || !seeded("people")) return { headers: d.headers, rows: d.rows };
   const pm = {}; T.people.rows.forEach(r => { const c = r.c || {}; if (c["名前"]) pm[c["名前"]] = c; }); T.people.rows.forEach(r => { const c = r.c || {}; const id = idOf("people", c); if (id) pm[id] = c; });
   const hd = d.headers.slice(); MASTER_COLS.forEach(h => { if (!hd.includes(h)) hd.push(h); });
@@ -693,6 +697,8 @@ function presHtml() {
   if (!list.length) return "";
   return `<div class="preslist">いま編集中：${list.map(([, e]) => `<span class="pres">✎ ${esc(e.name || "メンバー")}</span> ${esc(TLABEL[e.k])}「${esc(labelOf(e.k, T[e.k].rows.get(e.id).c || {}))}」`).join("　")}</div>`;
 }
+// 一覧の上の、表ごとの道具（件数が変わるので一覧を描き直すたびに更新する）
+function edToolsHtml(k) { return `${k === "chars" ? `<button class="btn" data-a="bulkrar">レアリティ・実装をまとめて入力</button>${(n => n ? `<button class="btn" data-a="fixnames">キャラ名の表記をそろえる（${n}人）</button>` : "")(nameOdd().length)}` : ""}${k === "scripts" ? `${(n => n ? `<button class="btn" data-a="fillyomi" title="よみが空のスクリプトに、仮のよみ（data/script-yomi.json）を入れます">よみを仮で入れる（${n}件）</button>` : "")(yomiOdd().length)}${(n => n ? `<button class="btn" data-a="yomicheck" title="人がまだ確認していない仮のよみを、順に開きます">仮のよみを確認する（未確認 ${n}件）</button>` : "")(yomiUnchecked().length)}` : ""}`; }
 function renderEdit(soft) {
   if (!allReady()) { AM.innerHTML = userBar() + statusBar(); return; }
   // 一覧の表（ED.listK）と、編集ダイアログで開いている表（ED.k）は別のことがある（バベルから編成例を開いたときなど）
@@ -712,13 +718,14 @@ function renderEdit(soft) {
     const st = document.getElementById("adstatus"); if (st) st.innerHTML = statusBar();
     const pr = document.getElementById("edpres"); if (pr) pr.innerHTML = presHtml();
     const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(k);
+    const et = document.getElementById("edtools"); if (et) et.innerHTML = edToolsHtml(k);
     const ae = document.activeElement;
     if (!(ae && ae.closest && ae.closest("#admlist") && /INPUT|TEXTAREA/.test(ae.tagName))) { if (custom) list.innerHTML = customList(k); else R.renderList(k); }
     if (DLG && DLG.open) refreshForm();
     return;
   }
   document.getElementById("main").innerHTML = "";   // 同じ id の検索欄が重ならないように
-  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span>${k === "chars" ? `<button class="btn" data-a="bulkrar">レアリティ・実装をまとめて入力</button>${(n => n ? `<button class="btn" data-a="fixnames">キャラ名の表記をそろえる（${n}人）</button>` : "")(nameOdd().length)}` : ""}${k === "scripts" ? (n => n ? `<button class="btn" data-a="fillyomi" title="よみが空のスクリプトに、仮のよみ（data/script-yomi.json）を入れます">よみを仮で入れる（${n}件）</button>` : "")(yomiOdd().length) : ""}${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
+  AM.innerHTML = userBar() + `<div id="adstatus">${statusBar()}</div><div class="toolbar edtool">${seg}<span style="flex:1"></span><span id="edtools">${edToolsHtml(k)}</span>${k === "options" ? "" : `<button class="btn primary" data-ed="new">＋ ${TLABEL[k]}を追加</button>`}</div><div id="edpres">${presHtml()}</div><div id="ghnew">${ghNewHtml(k)}</div><div id="admlist" class="admlist">${custom ? customList(k) : ""}</div>`;
   if (custom) { R.setMain(null); bindCustomList(); }
   else { R.setMain(document.getElementById("admlist"), () => { if (S.tab === "edit") R.renderList(ED.k); }); R.renderList(k); }
   if (DLG && DLG.open) refreshForm();
@@ -1297,7 +1304,7 @@ function fieldHtml(name, type, i, both) {
   } else if (type === "cond") {
     inner = `<input id="${id}" data-field="${esc(name)}" value="${esc(v)}" list="dl_cond" placeholder="属性・騎士団・階級・スタイル・キャラ名・女性/男性">`;
   } else if (type.startsWith("sel:")) {
-    inner = selectHtml(id, name, type.slice(4).split("|"), v, name === "実装" ? "実装済み" : "");
+    inner = selectHtml(id, name, type.slice(4).split("|"), v, name === "実装" ? "実装済み" : name === "よみ確認" ? "確認済み" : "");
   } else if (type === "datelist") {
     cls += " long"; const ds = splitList(v);
     inner = `<div class="cpchips">${ds.map(d => `<span class="cpchip datechip">${esc(fmtD(d))}<button data-dlrm="${esc(name)}|${esc(d)}" aria-label="外す">✕</button></span>`).join("") || '<span class="count">まだありません</span>'}</div>
@@ -1450,6 +1457,7 @@ async function saveRow(force) {
   normRefs(k, ED.draft);
   if ("WAVE" in ED.draft) ED.draft["WAVE"] = wavesStr(wavesOf(ED.draft["WAVE"]));
   if (k === "chars" && ED.draft["攻撃速度"]) ED.draft["攻撃速度"] = speedStd(ED.draft["攻撃速度"]);
+  if (k === "scripts" && !ED.isNew && String(ED.draft["よみ"] || "") !== String(ED.base["よみ"] || "")) ED.draft["よみ確認"] = "";
   if (IDT[k]) {   // ID：空なら（新しい行は今の名前、古い行は前の名前）で付ける。新しい行はほかと重ならないように
     const D = ED.draft; let v = String(D["ID"] || "").trim() || (!ED.isNew && !ED.gone ? String(ED.base[IDT[k]] || "").trim() : "") || String(D[IDT[k]] || "").trim();
     if (v && (ED.isNew || ED.gone || !String(ED.base["ID"] || "").trim())) { const taken = new Set([...T[k].rows.values()].filter(r => r.id !== ED.id).map(r => idOf(k, r.c))); let n = 2; const b0 = v; while (taken.has(v)) v = b0 + "_" + n++; }
@@ -2306,6 +2314,7 @@ function todoItems() {
     { id: "kimg", g: "公開まで", t: "騎士の画像（立ち絵）のインポート", note: "「立ち絵」を「なし」にした騎士は数えません", r: () => rowsCheck("people", null, c => c["立ち絵"] === "なし" || R.KN[idOf("people", c)] || R.KNF[idOf("people", c)], c => c["名前"]) },
     { id: "csw", g: "追加", t: "各キャラの強いところ・弱いところの入力", note: "キャラ詳細の上の方に出る説明", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
     { id: "cmochi", g: "追加", t: "各キャラの持ちスク・おすすめスクリプトの設定", note: "どちらか1つでも入っていれば設定済み", r: () => rowsCheck("chars", null, c => nonEmpty(c["持ちスク"]) || nonEmpty(c["おすすめスクリプト"]), c => c["キャラ名"] || c["ID"]) },
+    { id: "syomi", g: "追加", t: "スクリプトのよみの確認", note: "自動で入れた仮のよみ（よみ確認＝仮）を人が確認したもの。押して開き、よみを直すか「確認済み」にして保存", r: () => rowsCheck("scripts", ["よみ"], c => String(c["よみ確認"] || "").trim() !== "仮") },
     { id: "misc", g: "追加", t: "もろもろの各データ", note: "進捗は手動で更新してください", manual: true },
   ];
 }
@@ -2532,13 +2541,15 @@ function yomiOdd() {
   if (!YOMIMAP) { if (!YOMILOAD) { YOMILOAD = true; fetch("data/script-yomi.json", { cache: "no-cache" }).then(r => r.ok ? r.json() : {}).then(m => { YOMIMAP = m || {}; if (S.tab === "edit" && ED.listK === "scripts" && !(DLG && DLG.open)) renderEdit(false); }).catch(() => { YOMIMAP = {}; }); } return []; }
   return [...T.scripts.rows.values()].map(r => { const c = r.c || {}; if (String(c["よみ"] || "").trim()) return null; const y = YOMIMAP[idOf("scripts", c)] || YOMIMAP[String(c["名前"] || "").trim()]; return y ? { r, y } : null; }).filter(Boolean);
 }
+// 人がまだ確認していない仮のよみ（並び順）
+function yomiUnchecked() { return seeded("scripts") ? [...T.scripts.rows.values()].filter(r => String((r.c || {})["よみ確認"] || "").trim() === "仮").sort((a, b) => a.o - b.o) : []; }
 async function fillYomi() {
   const odd = yomiOdd(); if (!odd.length) { toast("よみが空のスクリプトはありません"); return; }
   if (!confirm(`よみが空のスクリプト ${odd.length}件に、仮のよみを入れます（例：${odd.slice(0, 3).map(x => `${x.r.c["名前"]}→${x.y}`).join("、")}）。読みが違うものは、あとで編集画面で直してください。よろしいですか？`)) return;
   try {
     const hd = T.scripts.headers.slice(); let b = F.writeBatch(F.db), n = 0;
-    if (!hd.includes("よみ")) { const i = hd.indexOf("ID") >= 0 ? hd.indexOf("ID") + 1 : 1; hd.splice(i, 0, "よみ"); b.set(F.doc(F.db, "tables", "scripts"), { headers: hd, t: now(), by: meId() }, { merge: true }); n++; }
-    for (const x of odd) { b.set(F.doc(F.db, "tables", "scripts", "rows", x.r.id), { c: Object.assign({}, x.r.c, { "よみ": x.y }), o: x.r.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }); if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; } }
+    if (!hd.includes("よみ") || !hd.includes("よみ確認")) { if (!hd.includes("よみ")) { const i = hd.indexOf("ID") >= 0 ? hd.indexOf("ID") + 1 : 1; hd.splice(i, 0, "よみ"); } if (!hd.includes("よみ確認")) hd.splice(hd.indexOf("よみ") + 1, 0, "よみ確認"); b.set(F.doc(F.db, "tables", "scripts"), { headers: hd, t: now(), by: meId() }, { merge: true }); n++; }
+    for (const x of odd) { b.set(F.doc(F.db, "tables", "scripts", "rows", x.r.id), { c: Object.assign({}, x.r.c, { "よみ": x.y, "よみ確認": "仮" }), o: x.r.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }); if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; } }
     b.set(F.doc(F.db, "log", rid()), logDoc({ act: "import", k: "scripts", label: `スクリプトのよみを仮で入れる（${odd.length}件）` }));
     await b.commit(); toast(`${odd.length}件のよみを入れました。公開サイトには数分で反映されます`);
   } catch (e) { toast(fbErr(e), 6000); }
@@ -2825,6 +2836,7 @@ function onAdminClick(e) {
   if (ds.a === "fixspeed") { fixSpeed(); return; }
   if (ds.a === "fixnames") { fixNames(); return; }
   if (ds.a === "fillyomi") { fillYomi(); return; }
+  if (ds.a === "yomicheck") { const l = yomiUnchecked(); if (l.length) openEditor("scripts", l[0].id); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
