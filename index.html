@@ -1000,7 +1000,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 /* サイト設定：アクセス解析のIDを入れると有効になります */
 /* authX: X（Twitter）ログインのボタンを出す（Firebase コンソールで X を有効にしてから true に） */
 /* ver：サイトのバージョン（大きな節目＝1.1.000→1.2.000、main に入れる細かい調整＝1.1.001→1.1.002。中身は data/updates.json） */
-window.SITE={ver:"1.1.005",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
+window.SITE={ver:"1.1.006",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
   /* 記録の引き継ぎ（旧アドレス negiramen1922.github.io/RxRDB → 新しいドメイン）。hosts で開いた端末に記録が無ければ、一度だけ from（旧アドレスと同じオリジンに置いた引き継ぎページ）へ飛んで記録を持ち帰る。from を空にすると止まる */
   move:{from:"https://negiramen1922.github.io/rxr-move/",hosts:["rxrwiki.com","www.rxrwiki.com"],until:"2027-06-30"}};
 </script>
@@ -3285,7 +3285,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=69");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=70");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
