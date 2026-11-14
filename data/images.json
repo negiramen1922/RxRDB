@@ -1080,10 +1080,6 @@
   "類稀なるレンブラングリード": "images/seals/thumb/類稀なるレンブラングリード.webp",
   "偉大なるギルドランゼ": "images/seals/thumb/偉大なるギルドランゼ.webp"
  },
- "swordfull": {
-  "さくら": "images/swords/さくら.webp"
- },
- "swords": {
-  "さくら": "images/swords/thumb/さくら.webp"
- }
+ "swordfull": {},
+ "swords": {}
 }
