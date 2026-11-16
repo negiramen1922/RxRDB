@@ -2318,6 +2318,7 @@ function todoItems() {
     { id: "csw", g: "追加", t: "各キャラの強いところ・弱いところの入力", note: "キャラ詳細の上の方に出る説明", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
     { id: "cmochi", g: "追加", t: "各キャラの持ちスク・おすすめスクリプトの設定", note: "どちらか1つでも入っていれば設定済み", r: () => rowsCheck("chars", null, c => nonEmpty(c["持ちスク"]) || nonEmpty(c["おすすめスクリプト"]), c => c["キャラ名"] || c["ID"]) },
     { id: "syomi", g: "追加", t: "スクリプトのよみの入力", note: "ひらがなで（英語・漢字の名前も読みを入れる）。スクリプト一覧の名前順・ひらがな検索に使います", r: () => rowsCheck("scripts", ["よみ"]) },
+    { id: "swimg", g: "追加", t: "魔剣のスクショ（画像）のアップロード", note: "魔剣本体と運命の立ち絵の両方。データ編集 →「魔剣」の編集画面か「画像」タブから", r: () => rowsCheck("swords", null, c => (R.SWD[idOf("swords", c)] || R.SWDF[idOf("swords", c)]) && (R.FATE[idOf("swords", c)] || R.FATEF[idOf("swords", c)])) },
     { id: "misc", g: "追加", t: "もろもろの各データ", note: "進捗は手動で更新してください", manual: true },
   ];
 }
