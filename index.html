@@ -317,7 +317,19 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tbopenbtn{margin-left:10px;vertical-align:middle}
 #dlgTB{width:min(1100px,calc(100% - 16px));margin-top:3vh;margin-bottom:auto}
 .tbmeta{display:flex;flex-wrap:wrap;gap:8px 16px;margin:8px 0}.tbmeta label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}.tbmeta select,.tbmeta input{border:1px solid var(--line2);background:var(--field);padding:6px 8px;font-size:14px;color:var(--ink);min-width:0}.tbmeta input{width:min(320px,60vw)}
-.tbteam{padding:8px;margin:6px 0}
+.tbteam{padding:8px;margin:6px 0}.tbhint{margin:6px 0 0!important}.tbinfoh{margin:14px 0 4px}
+.tbteam .tm{display:flex;flex-direction:column}.tbteam .tmempty{aspect-ratio:auto;min-height:72px;flex:1 1 auto;height:auto}
+.tbsw label{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;min-width:0}
+.tbsw{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin:6px 0}.tbsw select{min-width:0;flex:0 1 220px}.tbswl{font-weight:700;font-size:13px;flex:none}.tbsw .hint{margin:0;white-space:nowrap}
+#dlgTBS{margin:auto auto 0;width:min(1100px,100%);max-width:100%;height:min(86dvh,760px);max-height:100%;border-radius:12px 12px 0 0;overflow:hidden;background:var(--panel)}
+#dlgTBS::backdrop{background:rgba(3,12,32,.45)}
+#tbsBody{display:flex;flex-direction:column;height:100%;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+.tbsh-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}.tbsh-h b{font-size:15px}
+#tbsBody .tbed{margin:4px 0;padding:6px 8px;display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.tbedh{display:flex;align-items:center;gap:8px;justify-content:space-between}.tbedh b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbedr{display:flex;flex-wrap:wrap;gap:6px 12px}.tbedr label{white-space:nowrap}
+.tbmode{display:flex}.tbmode button{flex:1}
+#tbsBody>*{flex:none}#tbsBody .qbar{align-content:flex-start}#tbsBody .tbpk{margin:4px 0}#tbsBody .tbgrid{flex:1 1 auto;max-height:none;min-height:0}
 .tbed{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--soft);padding:8px 10px;margin:6px 0;font-size:13px}.tbed label{display:flex;align-items:center;gap:4px}.tbed select{border:1px solid var(--line2);background:var(--field);padding:4px 6px;color:var(--ink)}
 .tbpk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 6px}.tbpk .search{flex:1;min-width:160px}
 .tbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;max-height:38vh;overflow:auto;padding:2px}
@@ -2118,12 +2130,18 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tmv]");if(
 /* ---------- 編成ビルダー（所持キャラで編成を組んで、リンクで共有） ----------
    入口：共有された所持キャラ（「この所持キャラで編成を組む」）／所持率チェッカー／階層・封印戦のページ（「自分で編成を組む」）。
    pool＝使えるキャラ（{キャラID:★}。null ならすべて）。リンクは ?team=コード（JSON を deflate して base64url。ブラウザが未対応なら圧縮なし） */
-const TB={pool:null,spool:null,sonly:true,owner:"",floor:"",name:"",comment:"",ms:[],sel:0,pick:"c",q:"",post:null};
+const TB={pool:null,spool:null,sonly:true,owner:"",floor:"",name:"",comment:"",ms:[],sel:0,pick:"c",q:"",post:null,sheet:false};
 const tbBlank=()=>Array.from({length:6},()=>({id:"",star:"",sc:"",ord:""}));
 const rarMin=c=>c&&RARSTAR[c.rar]||1;
-function tbOpen(o){Object.assign(TB,{pool:null,spool:null,sonly:true,owner:"",floor:"",name:"",comment:"",sword:"",ms:tbBlank(),sel:0,pick:"c",q:"",post:null},o||{});if(TB.spool&&!Object.keys(TB.spool).length)TB.spool=null;if(TB.ms.length<6)TB.ms=TB.ms.concat(tbBlank()).slice(0,6);
+function tbOpen(o){Object.assign(TB,{pool:null,spool:null,sonly:true,owner:"",floor:"",name:"",comment:"",sword:"",ms:tbBlank(),sel:0,pick:"c",q:"",post:null,sheet:false},o||{});if(TB.spool&&!Object.keys(TB.spool).length)TB.spool=null;if(TB.ms.length<6)TB.ms=TB.ms.concat(tbBlank()).slice(0,6);
   let dl=document.getElementById("dlgTB");if(!dl){dl=document.createElement("dialog");dl.id="dlgTB";dl.className="wide";dl.innerHTML=`<div class="dlg" id="tbBody"></div>`;document.body.appendChild(dl);}
   tbRender();if(!dl.open)dl.showModal();}
+function tbSheet(html){let dl=document.getElementById("dlgTBS");
+  if(!dl){dl=document.createElement("dialog");dl.id="dlgTBS";dl.innerHTML=`<div id="tbsBody"></div>`;document.body.appendChild(dl);
+    dl.addEventListener("close",()=>{if(TB.sheet){TB.sheet=false;TB.q="";tbRender();}});
+    dl.addEventListener("click",e=>{if(e.target===dl)dl.close();});}
+  if(!html){if(dl.open)dl.close();return;}
+  setDlg("tbsBody",html);if(!dl.open)dl.showModal();}
 function tbPoolList(){const f=floorObj(TB.floor);const q=TB.q.trim().toLowerCase();
   return CH.filter(c=>!c.unrel&&(!TB.pool||TB.pool[c.id])&&(!f||grpOk(c,f))&&cfMatch(c,CFS.tb)&&(!q||khit(c.name+c.id+(c.bname||"")+charKana(c),q)));}
 function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById("tbBody");if(!body)return;const m=TB.ms[TB.sel]||{};const c=CHMAP[m.id];
@@ -2140,22 +2158,23 @@ function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById(
     pick=`<div class="tbpk"><input class="search" id="tbQ" placeholder="スクリプト名で絞り込み" value="${esc(TB.q)}"><span class="count">${esc(c.role||"")}・ワイルドのスクリプト ${L.length}枚</span>${sp?`<span class="viewsw"><button data-tbsonly="1" aria-pressed="${TB.sonly}">所持だけ</button><button data-tbsonly="0" aria-pressed="${!TB.sonly}">すべて</button></span>`:`<span class="count">（スクリプトの所持の記録なし）</span>`}${m.sc?`<button class="btn small" data-tbsc="">スクリプトを外す</button>`:""}</div>
     <div class="tbgrid">${L.map(x=>{const v=sp?+sp[x.id]||0:0;const u=TB.ms.findIndex((y,j)=>j!==TB.sel&&y.sc===x.id);return `<button class="tbch${x.id===m.sc?" on":""}${sp&&!v?" tmnot":""}${u>=0?" tbused":""}" data-tbsc="${esc(x.id)}" ${u>=0?"disabled":""} title="${esc(x.name)}${u>=0?`（枠${u+1}で使用中）`:""}">${sth(x)}<span>${esc(x.name)}</span>${v?`<i>${lbLabel(v)}</i>`:""}${u>=0?`<em>枠${u+1}</em>`:""}</button>`;}).join("")||'<p class="count">該当するスクリプトがありません</p>'}</div>`;}
   const min=rarMin(c);
-  const ed=c?`<div class="tbed"><b>枠${TB.sel+1}：${esc(c.name)}</b>
-    <label>星 <select data-tbf="star">${[1,2,3,4,5].filter(n=>n>=min).map(n=>`<option value="${n}" ${String(n)===String(m.star)?"selected":""}>★${n}</option>`).join("")}</select></label>
+  const ed=c?`<div class="tbed"><div class="tbedh"><b>枠${TB.sel+1}：${esc(c.name)}</b><button class="btn small" data-tbclear="1">空にする</button></div>
+    <div class="tbedr"><label>星 <select data-tbf="star">${[1,2,3,4,5].filter(n=>n>=min).map(n=>`<option value="${n}" ${String(n)===String(m.star)?"selected":""}>★${n}</option>`).join("")}</select></label>
     <label>出撃順 <select data-tbf="ord"><option value="">なし</option>${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${String(n)===m.ord?"selected":""}>${n}番目</option>`).join("")}</select></label>
-    ${TB.post?`${lvSel("awk","覚醒Lv",m.awk)}${lvSel("bl","BLADE Lv",m.bl)}${m.sc?`<label>スクリプト凸 <select data-tbf="lb"><option value="">—</option>${Array.from({length:SLB_MAX},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(m.lb)?"selected":""}>${lbLabel(n)}</option>`).join("")}</select></label>${lvSel("sr","スクリプトランク",m.sr)}`:""}`:""}
-    <span class="seg"><button data-tbmode="c" aria-pressed="${TB.pick==="c"}">キャラを選ぶ</button><button data-tbmode="s" aria-pressed="${TB.pick==="s"}">スクリプトを選ぶ</button></span>
-    <button class="btn small" data-tbclear="1">この枠を空にする</button></div>`
-    :`<div class="tbed"><b>枠${TB.sel+1}</b><span class="count">下からキャラを選んでください</span></div>`;
+    ${TB.post?`${lvSel("awk","覚醒Lv",m.awk)}${lvSel("bl","BLADE Lv",m.bl)}${m.sc?`<label>凸 <select data-tbf="lb"><option value="">—</option>${Array.from({length:SLB_MAX},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(m.lb)?"selected":""}>${lbLabel(n)}</option>`).join("")}</select></label>${lvSel("sr","スクリプトランク",m.sr)}`:""}`:""}</div>
+    <span class="seg tbmode"><button data-tbmode="c" aria-pressed="${TB.pick==="c"}">キャラ</button><button data-tbmode="s" aria-pressed="${TB.pick==="s"}">スクリプト${m.sc?"（選択済み）":""}</button></span></div>`
+    :`<div class="tbed"><div class="tbedh"><b>枠${TB.sel+1}</b><span class="count">キャラを選んでください</span></div></div>`;
   const n=TB.ms.filter(x=>x.id).length;
   const P=TB.post;
-  setDlg("tbBody",`<button class="btn small dlgx" data-close aria-label="閉じる">✕ 閉じる</button><h2 style="margin-right:90px">${P?(P.id?"攻略を編集する":"攻略を投稿する"):"編成を組む"}</h2><p class="count" style="margin:0">${who}から選べます（同じキャラ・同じスクリプトは1枠だけ）${P?"。★・凸は所持の記録から入れてあります。クリアしたときの状態に合わせて直してください（あとで所持の記録を変えても、投稿は変わりません）":""}</p>
-  <div class="tbmeta">${P&&P.pick?postFloorHtml():`<span class="tbfl">階層：<b>${TB.floor?esc(floorName(TB.floor)):"指定なし"}</b></span>`}${g?`<span class="tbfl">（${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団のキャラだけ）</span>`:""}<label>${P?"タイトル":"編成名"} <input data-tbf="name" value="${esc(TB.name)}" placeholder="${P?"例：破壊パで突破／召喚物で反転させる":"例：〇〇階 クリア編成"}" maxlength="40"></label>${P?`<label>投稿者名 <input data-tbf="pname" value="${esc(P.pname||"")}" placeholder="表示される名前" maxlength="20"></label>`:""}</div>
-  ${TB.floor?floorInfoHtml(TB.floor,TB.pool,`${floorName(TB.floor)} の情報`):""}
-  <p class="hint" style="margin:4px 0">カードを押すとその枠を選びます（枠の1〜6はゲームの編成画面の左からの並び）。キャラを選ぶと続けてスクリプトを選べます。</p>
-  <div class="team tv-c tbteam">${teamCardsHtml(TB.ms,{slot:true,sel:TB.sel})}</div>${SWORDS.length||TB.sword?`<div class="tbsw">${swordSelect(TB.sword,'data-tbf="sword"')}<span class="hint">魔剣は編成ごとに1本</span></div>`:""}${ed}${pick}
+  // キャラ・スクリプトを選ぶ画面は、下から出る別のダイアログ（スマホでも枠と一覧を行ったり来たりしない）
+  tbSheet(TB.sheet?`<div class="tbsh-h"><b>${TB.pick==="s"&&c?"スクリプトを選ぶ":"キャラを選ぶ"}</b><span style="flex:1"></span><button class="btn small primary" data-tbdone="1">完了</button></div>${ed}${pick}`:"");
+  setDlg("tbBody",`<button class="btn small dlgx" data-close aria-label="閉じる">✕ 閉じる</button><h2 style="margin-right:90px">${P?(P.id?"攻略を編集する":"攻略を投稿する"):"編成を組む"}</h2><p class="count" style="margin:0">${who}から選べます${P?"。★・凸は所持の記録から入れてあります（クリアしたときの状態に直してください）":""}</p>
+  <div class="tbmeta">${P&&P.pick?postFloorHtml():`<span class="tbfl">階層：<b>${TB.floor?esc(floorName(TB.floor)):"指定なし"}</b>${g?` <small class="count">（${g==="アナザー"?"アナザー":"リビルド"}で使える騎士団だけ）</small>`:""}</span>`}<label>${P?"タイトル":"編成名"} <input data-tbf="name" value="${esc(TB.name)}" placeholder="${P?"例：破壊パで突破／召喚物で反転させる":"例：〇〇階 クリア編成"}" maxlength="40"></label>${P?`<label>投稿者名 <input data-tbf="pname" value="${esc(P.pname||"")}" placeholder="表示される名前" maxlength="20"></label>`:""}</div>
+  <p class="hint tbhint">枠を押すとキャラ・スクリプトを選べます（1〜6＝ゲームの編成画面の左から）</p>
+  <div class="team tv-c tbteam">${teamCardsHtml(TB.ms,{slot:true,sel:TB.sheet?TB.sel:-1})}</div>${SWORDS.length||TB.sword?`<div class="tbsw">${swordSelect(TB.sword,'data-tbf="sword"')}<span class="hint">編成ごとに1本</span></div>`:""}
   ${P?postExtraHtml():""}
   <label class="tbcm">${P?`自由記述（${PLIM.body}文字まで。運用のコツ・育成の目安など）`:"コメント（運用のコツなど）"}<textarea data-tbf="comment" maxlength="${P?PLIM.body:600}" placeholder="例：1番目にタンクを出して、ゲージが溜まったら〇〇のBLADE">${esc(TB.comment)}</textarea></label>
+  ${TB.floor?`<p class="note-h tbinfoh">${esc(floorName(TB.floor))} の情報</p>${floorInfoHtml(TB.floor,TB.pool,"tb")}`:""}
   <div class="foot"><button class="btn" data-tbreset="1">最初から</button><span style="flex:1"></span>${P?`<button class="btn primary" data-postsave="1" ${(n||(P.tl&&P.tl.length))&&!P.busy?"":"disabled"}>${P.busy?"送信中…":P.id?"更新する":"投稿する"}</button>`:`<button class="btn primary" data-tbshare="1" ${n?"":"disabled"}>${svgI("link")} リンクで共有</button>`}</div>`);
   const qi=document.getElementById("tbQ");if(qi)liveInput(qi,()=>{TB.q=qi.value;const p=qi.selectionStart;tbRender();const nq=document.getElementById("tbQ");if(nq){nq.focus();nq.setSelectionRange(p,p);}});
 }
@@ -2163,22 +2182,23 @@ function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById(
 // 同じキャラ（同じスタイル）は1枠だけ。スタイルが違えば同じ騎士でも編成できる
 function tbUsedChar(x){return TB.ms.findIndex((y,j)=>j!==TB.sel&&y.id&&y.id===x.id);}
 function tbNextEmpty(){const i=TB.ms.findIndex(x=>!x.id);return i>=0?i:TB.sel;}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[data-tbslot],[data-tbpick],[data-tbsc],[data-tbmode],[data-tbclear],[data-tbreset],[data-tbshare],[data-tbedit],[data-tbsonly]");if(!b)return;const ds=b.dataset;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[data-tbslot],[data-tbpick],[data-tbsc],[data-tbmode],[data-tbclear],[data-tbreset],[data-tbshare],[data-tbedit],[data-tbsonly],[data-tbdone]");if(!b)return;const ds=b.dataset;
   if(ds.tbopen){const k=ds.tbopen;
     if(k==="sov"){tbOpen({pool:SOV.o,spool:SOV.so,owner:SOV.name,floor:floorObj(SOV.floor)?SOV.floor:""});return;}
     if(k==="own"){if(!hasOwn()){toast("まず所持率チェッカーで持っているキャラを選んでください");return;}tbOpen({pool:OWN(),spool:SOWN()});return;}
     if(k==="floor"){const f=curFloor();tbOpen({pool:hasOwn()?OWN():null,spool:SOWN(),floor:f?f.key:""});return;}
     return;}
   if(ds.tbedit){const t=TBSHARED;if(t)tbOpen({pool:hasOwn()?OWN():null,spool:SOWN(),floor:t.f||"",name:t.n||"",comment:t.c||"",sword:t.w||"",ms:t.m.map(x=>({id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}))});return;}
-  if(ds.tbslot){const [i,k]=ds.tbslot.split("|");TB.sel=+i;TB.pick=k==="s"&&TB.ms[+i].id?"s":"c";TB.q="";tbRender();return;}
+  if(ds.tbdone){TB.sheet=false;TB.q="";tbRender();return;}
+  if(ds.tbslot){const [i,k]=ds.tbslot.split("|");TB.sel=+i;TB.pick=k==="s"&&TB.ms[+i].id?"s":"c";TB.q="";TB.sheet=true;tbRender();return;}
   if(ds.tbpick){if(tbUsedChar(CHMAP[ds.tbpick]||{id:ds.tbpick})>=0){toast("同じキャラ（同じスタイル）はほかの枠で使っています");return;}const m=TB.ms[TB.sel],c=CHMAP[ds.tbpick];m.id=ds.tbpick;const ps=TB.pool?+TB.pool[c.id]||0:0;m.star=String(Math.max(ps||rarMin(c),rarMin(c)));
     if(m.sc){const s=scOf(m.sc);if(s&&s.role&&c.role&&s.role!==c.role&&s.role!=="ワイルド")m.sc="";}
     TB.pick="s";TB.q="";tbRender();return;}
-  if(ds.tbsc!==undefined){if(ds.tbsc&&TB.ms.some((y,j)=>j!==TB.sel&&y.sc===ds.tbsc)){toast("同じスクリプトはほかの枠で使っています");return;}TB.ms[TB.sel].sc=ds.tbsc;if(TB.post){const so=SOWN();TB.ms[TB.sel].lb=ds.tbsc&&so[ds.tbsc]?String(so[ds.tbsc]):"";if(!ds.tbsc)TB.ms[TB.sel].sr="";}if(ds.tbsc&&!TB.post){TB.sel=tbNextEmpty();TB.pick="c";}TB.q="";tbRender();return;}
+  if(ds.tbsc!==undefined){if(ds.tbsc&&TB.ms.some((y,j)=>j!==TB.sel&&y.sc===ds.tbsc)){toast("同じスクリプトはほかの枠で使っています");return;}TB.ms[TB.sel].sc=ds.tbsc;if(TB.post){const so=SOWN();TB.ms[TB.sel].lb=ds.tbsc&&so[ds.tbsc]?String(so[ds.tbsc]):"";if(!ds.tbsc)TB.ms[TB.sel].sr="";}if(ds.tbsc&&!TB.post){TB.sheet=false;TB.sel=tbNextEmpty();TB.pick="c";}TB.q="";tbRender();return;}
   if(ds.tbmode){TB.pick=ds.tbmode;TB.q="";tbRender();return;}
   if(ds.tbsonly!==undefined){TB.sonly=ds.tbsonly==="1";tbRender();return;}
   if(ds.tbclear){TB.ms[TB.sel]={id:"",star:"",sc:"",ord:"",awk:"",bl:"",lb:"",sr:""};TB.pick="c";tbRender();return;}
-  if(ds.tbreset){if(!confirm("組んだ編成を消して最初からにしますか？"))return;TB.ms=tbBlank();TB.sel=0;TB.pick="c";TB.name="";TB.comment="";tbRender();return;}
+  if(ds.tbreset){if(!confirm("組んだ編成・編成名・コメントを消して、最初からにしますか？"))return;TB.ms=tbBlank();TB.sel=0;TB.pick="c";TB.sheet=false;TB.name="";TB.comment="";tbRender();return;}
   if(ds.tbshare){tbShare();return;}
 });
 document.addEventListener("change",e=>{const el=e.target.closest("[data-tbf]");if(!el)return;const f=el.dataset.tbf,v=el.value;
@@ -2214,12 +2234,12 @@ function floorInfoHtml(key,pool,label){const f=floorObj(key);if(!f)return "";con
   const ts=TEAMS[key]||[];const W=f.seal?"封印戦":"階層";
   // 邪魔にならないよう、情報・編成例・Tier表はそれぞれ閉じたトグル（開いた状態は FLOPEN）
   const box=(id,sum,inner)=>`<details class="flinfo" data-fl="${esc(fk+"|"+id)}"${FLOPEN.has(fk+"|"+id)?" open":""}><summary>${sum}</summary><div class="flbody">${inner}</div></details>`;
-  return `<div class="flinfos">`+box("info",`📋 ${esc(label||floorName(key)+" の情報")} <small class="count">（${f.seal?"ステージ効果":"解析データ"}・攻略のコツ）</small>`,
+  return `<div class="flinfos">`+box("info",`📋 ${f.seal?"ステージ効果":"解析データ"}・攻略のコツ`,
     `<p class="flboss">${BOSS[f.bossId]||BOSS[f.boss]?`<img src="${BOSS[f.bossId]||BOSS[f.boss]}" alt="">`:""}<span><b>${esc(f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F")}</b>${f.boss?` ${esc(f.boss)}`:""}${f.attr?` <span class="count">（推奨 ${esc(f.attr)}）</span>`:""}</span></p>
     ${ef?`<p class="note-h">${f.seal?"ステージ効果":"解析データ"}</p><ul class="effects">${ef}</ul>`:""}
     ${f.point?`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`:""}${(f.waves||[]).length?`<p class="note-h">WAVE情報（全${f.waves.length} wave）</p>${f.waves.map((x,i)=>`<p class="note-b"><b>WAVE ${i+1}</b>${x.f?`\n${esc(x.f)}`:""}${x.t?`\n【立ち回り】${esc(x.t)}`:""}</p>`).join("")}`:""}${f.comment?`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`:""}${!ef&&!f.point&&!f.comment?'<p class="count">まだ情報がありません</p>':""}`)
-  +box("teams",`🧩 クリア編成例 <small class="count">（${ts.length}件）</small>`,ts.length?ts.map(t=>teamOneHtml(t,false,"fi|"+key+"|"+t.name)).join(""):`<p class="count">この${W}の編成例はまだありません</p>`)
-  +box("tier",`📊 運営Tier表${pool&&rows.length?` <small class="count">（グレー＝持っていない）</small>`:""}`,rows.length?`<div class="fltier">${rows.map(([t,ks])=>`<div><b class="t-${esc(t)}">${esc(t)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<span class="fltc${pool&&!pool[c.id]?" tmnot":""}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</span>`;}).join("")}</span></div>`).join("")}</div>`:`<p class="count">この${W}の運営Tier表はまだありません</p>`)
+  +box("teams",`🧩 クリア編成例 <small class="count">${ts.length}件</small>`,ts.length?ts.map(t=>teamOneHtml(t,false,"fi|"+key+"|"+t.name)).join(""):`<p class="count">この${W}の編成例はまだありません</p>`)
+  +box("tier",`📊 運営Tier表${pool&&rows.length?` <small class="count">グレー＝未所持</small>`:""}`,rows.length?`<div class="fltier">${rows.map(([t,ks])=>`<div><b class="t-${esc(t)}">${esc(t)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<span class="fltc${pool&&!pool[c.id]?" tmnot":""}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</span>`;}).join("")}</span></div>`).join("")}</div>`:`<p class="count">この${W}の運営Tier表はまだありません</p>`)
   +`</div>`;}
 /* ---------- 自分のTier表をリンクで共有：?tl=コード（{v,f:階層キー,r:[[Tier,[キー…]]…]} を JSON→base64url。並びは見えている順）。
    スマホの共有メニューは押した直後でないと開けないので、圧縮せずにその場で作る ---------- */
@@ -2413,8 +2433,9 @@ async function openSharedTeam(code){let t;try{t=await teamDecode(code);}catch(e)
   if(!t||!Array.isArray(t.m)){toast("編成のリンクを読めませんでした",6000);return;}TBSHARED=t;
   const ms=t.m.map(x=>x?{id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}:{id:"",star:"",sc:"",ord:""});while(ms.length<6)ms.push({id:"",star:"",sc:"",ord:""});
   const f=FLOORS.find(x=>x.key===t.f)||SEALS.find(x=>x.key===t.f);
-  const h=`<h2>共有された編成</h2>${f?`<p class="tbfloor">${f.seal?"封印戦 "+esc(f.floor):esc(f.type)+" "+esc(f.floor)+"F"}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ</button></p>${floorInfoHtml(f.key,null,"この"+(f.seal?"封印戦":"階層")+"の情報")}`:""}${t.o?`<p class="hint">${esc(t.o)} さんの所持キャラで組んだ編成です</p>`:""}
+  const h=`<h2>共有された編成</h2>${f?`<p class="tbfloor">${f.seal?"封印戦 "+esc(f.floor):esc(f.type)+" "+esc(f.floor)+"F"}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">ページへ</button></p>`:""}${t.o?`<p class="hint">${esc(t.o)} さんの所持キャラで組んだ編成です</p>`:""}
   <div class="teams" style="border:0;margin:0;padding:0">${teamOneHtml({name:t.n||"編成",members:ms,comment:t.c||"",sword:t.w||""},true)}</div>
+  ${f?`<p class="note-h tbinfoh">この${f.seal?"封印戦":"階層"}の情報</p>${floorInfoHtml(f.key,null,"st")}`:""}
   <div class="foot"><button class="btn" data-tbedit="1">この編成をもとに組み直す</button><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
 /* 一覧のカードの大きな絵（覚醒イラスト・イベント画像）は、画面に近づいてから読み込む（data-lbg＝画像のURL） */
@@ -3158,19 +3179,19 @@ function shareOwnLink(floor){if(!floor&&!hasOwn()){toast("まず所持率チェ�
 function oshRender(){const types=TYPES.concat(SEALS.length?["封印戦"]:[]);const t=OSH.type;
   const fl=t==="封印戦"?SEALS.map(f=>[f.key,f.floor]):t?FLOORS.filter(f=>!f.seal&&f.type===t).map(f=>[f.key,f.floor+"F"]):[];
   if(!hasOwn()){setDlg("oshBody",`<h2>所持キャラで編成を組んでもらう</h2>
-    <div class="oshwarn"><b>⚠ 所持キャラが設定されていません</b><p>このままでは、持っているキャラが相手に伝わりません。先に所持率チェッカーで、持っているキャラを選んでください（画像を押すだけです。ログインしていればアカウントにも保存されます）。</p>
-    <button class="btn primary" data-owngo="own">キャラの所持をここから設定する</button><p class="hint" style="margin:6px 0 0">設定が終わったら、所持率チェッカーの上の「編成を組んでもらうに戻る」で、この画面に戻れます。</p></div>
-    <p class="hint">あなたの所持キャラと「${esc(floorName(OSH.floor))}」を入れたリンクを作って詳しい人に送ると、持っているキャラだけで編成を組んでもらえます。</p>
+    <p class="hint" style="margin:0 0 8px">持っているキャラと「${esc(floorName(OSH.floor))}」を入れたリンクを詳しい人に送ると、そのキャラだけで編成を組んでもらえます。</p>
+    <div class="oshwarn"><b>⚠ まず持っているキャラを設定してください</b><p>キャラの画像を押していくだけです。終わったら上の「編成を組んでもらうに戻る」でここに戻れます。</p>
+    <button class="btn primary oshgo" data-owngo="own">持っているキャラを設定する</button></div>
     <div class="foot"><button class="btn" data-close>やめる</button></div>`);return;}
   const fixed=OSH.auto&&!OSH.pick&&OSH.floor;
-  setDlg("oshBody",`<h2>${OSH.auto?"所持キャラで編成を組んでもらう":"所持キャラを共有"}</h2>${OSH.auto?`<p class="hint" style="margin:0 0 6px">あなたの所持キャラと階層を入れたリンクを作ります。詳しい人に送ると、持っているキャラだけでこの階層の編成を組んでもらえます（組んだ編成はリンクで返ってきます）。</p>`:""}
+  setDlg("oshBody",`<h2>${OSH.auto?"所持キャラで編成を組んでもらう":"所持キャラを共有"}</h2>${OSH.auto?`<p class="hint" style="margin:0 0 6px">リンクを詳しい人に送ると、あなたの持っているキャラだけで編成を組んでもらえます（組んだ編成はリンクで返ってきます）。</p>`:""}
   <label class="oshl">名前（空欄でもOK）<input id="oshName" maxlength="20" value="${esc(S.ownName||"")}" placeholder="例：ねぎ"></label>
   ${fixed?`<div class="oshl">階層<div class="oshfix"><b>${esc(floorName(OSH.floor))}</b><button class="aclink2" data-oshpick="1">別の階層にする</button></div></div>`:`<div class="oshl">困っている階層（編成を相談したいとき）
     <div class="seg oshseg"><button data-oshtype="" aria-pressed="${!t}">なし</button>${types.map(x=>`<button data-oshtype="${esc(x)}" aria-pressed="${t===x}">${esc(x)}</button>`).join("")}</div>
     ${fl.length?`<div class="oshfl">${fl.map(([k,l])=>`<button data-oshfloor="${esc(k)}" aria-pressed="${OSH.floor===k}">${esc(l)}</button>`).join("")}</div>`:""}
     ${OSH.floor?`<p class="hint" style="margin:4px 0 0">→ <b>${esc(floorName(OSH.floor))}</b>。リンクを開いた人は、この階層で使えるキャラだけで編成を組めます</p>`:""}</div>`}
-  ${Object.keys(S.sown||{}).length?"":`<div class="oshinfo">スクリプトの所持は未設定です（任意）。設定すると、組む人が持っているスクリプトから選べます。<button class="aclink2" data-owngo="sown">スクリプトの所持をここから設定する</button></div>`}
-  ${Object.keys(S.sown||{}).length?`<label class="oshchk"><input type="checkbox" id="oshSc" ${OSH.sc?"checked":""}> 所持スクリプト（${Object.keys(S.sown).length}種類）も入れる <small class="count">編成を組む人がスクリプトも持っているものから選べます</small></label>`:""}
+  ${Object.keys(S.sown||{}).length?"":`<div class="oshinfo">スクリプトの所持も入れると、持っているスクリプトから選んでもらえます（任意）。<button class="aclink2" data-owngo="sown">スクリプトの所持を設定する</button></div>`}
+  ${Object.keys(S.sown||{}).length?`<label class="oshchk"><input type="checkbox" id="oshSc" ${OSH.sc?"checked":""}> 所持スクリプト（${Object.keys(S.sown).length}種類）も入れる</label>`:""}
   <label class="oshl">課題（任意）<input id="oshMsg" maxlength="80" value="${esc(OSH.msg)}" placeholder="例：ボスの全体攻撃で前線が崩れます"></label>
   <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" data-oshgo="1">${svgI("link")} リンクを作って共有</button></div>`);}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-oshtype],[data-oshfloor],[data-oshgo],[data-ownhelp],[data-oshpick],[data-owngo],[data-ownret]");if(!b)return;const ds=b.dataset;
