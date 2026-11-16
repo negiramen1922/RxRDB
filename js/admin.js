@@ -2398,7 +2398,7 @@ document.addEventListener("click", e => { const d = e.target.closest("details.bm
    記事は tables/tips/rows/{id}（title・body・tags・status・by＝書いた人の uid・eb＝最後に直した人・at・t・pubAt）。メンバーだけが読み書き。
    status：edit＝編集中／draft＝下書き／review＝確認待ち／pub＝公開中。公開中のものだけ public/tips（{list:[{id,title,body,tags,at,t}]}。書いた人は入れない）に出す。
    このタブを開いたときだけ読む。画像は GitHub の images/tips/ に置く（Firebase には置かない） */
-const TP = { list: null, id: null, d: null, dirty: false, busy: false, f: "all", confirmDel: false, up: "" };
+const TP = { list: null, id: null, d: null, dirty: false, busy: false, f: "all", confirmDel: false, up: "", emb: null };   // emb＝wiki内の情報を選ぶパネル {t,q,inline,pos}
 const TIPST = [["edit", "編集中"], ["draft", "下書き"], ["review", "確認待ち"], ["pub", "公開中"]];
 const tipStName = s => (TIPST.find(x => x[0] === s) || TIPST[0])[1];
 function tipsListen() { if (LAZY.tips || !S.on) return; LAZY.tips = true; S.on(F.collection(F.db, "tables", "tips", "rows"), qs => { TP.list = qs.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.tab === "tips" && !TP.d) renderTipsTab(); else if (S.tab === "tips" && TP.d) tipMetaRefresh(); }); }
@@ -2416,7 +2416,7 @@ function renderTipsTab() {
 }
 function tipMetaRefresh() { const el = document.getElementById("tpmeta"); if (el) el.innerHTML = tipMetaHtml(); }
 function tipMetaHtml() { const o = TP.id && TP.list.find(x => x.id === TP.id); if (!o) return "新しい記事（まだ保存していません）"; return `書いた人 <b>${esc(shortName(o.by))}</b>${o.eb && o.eb !== o.by ? `・最後に直した人 ${esc(shortName(o.eb))}` : ""}・作成 ${fmtTime(o.at)}・更新 ${fmtTime(o.t)}${o.pubAt ? `・公開 ${fmtTime(o.pubAt)}` : ""}`; }
-const TPTOOLS = [["h2", "見出し"], ["h3", "小見出し"], ["b", "太字"], ["link", "リンク"], ["img", "画像"], ["ul", "箇条書き"], ["ol", "番号"], ["q", "引用"], ["hr", "区切り線"], ["tag", "#タグ"]];
+const TPTOOLS = [["h2", "見出し"], ["h3", "小見出し"], ["b", "太字"], ["link", "リンク"], ["img", "画像"], ["emb", "wiki内の情報"], ["ul", "箇条書き"], ["ol", "番号"], ["q", "引用"], ["hr", "区切り線"], ["tag", "#タグ"]];
 function renderTipEditor() {
   const d = TP.d;
   AM.innerHTML = userBar() + `<div class="toolbar"><button class="btn small" data-tpback="1">← 一覧へ</button><h2 style="margin:0 8px"><small>TIPS</small>${TP.id ? "記事を編集" : "新しい記事"}</h2></div>
@@ -2424,7 +2424,7 @@ function renderTipEditor() {
     <div class="tprow2"><label class="tpl">状態 <select id="tpSt">${TIPST.map(([k, l]) => `<option value="${k}" ${d.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></label><span class="count" id="tpmeta">${tipMetaHtml()}</span></div>
     <label class="tpl tpwide">タイトル <input id="tpTitle" maxlength="80" value="${esc(d.title)}" placeholder="例：初心者がまず育てたいキャラ"></label>
     <label class="tpl tpwide">タグ <input id="tpTags" maxlength="200" value="${esc(d.tags)}" placeholder="例：#初心者 #育成（# を付けて、空白で区切る。本文に書いた #タグ も付きます）"></label>
-    <div class="tptools">${TPTOOLS.map(([k, l]) => `<button class="btn small" data-tptool="${k}" type="button">${l}</button>`).join("")}<input type="file" id="tpFile" accept="image/*" hidden>${TP.up ? `<span class="count">${esc(TP.up)}</span>` : ""}</div>
+    <div class="tptools">${TPTOOLS.map(([k, l]) => `<button class="btn small" data-tptool="${k}" type="button">${l}</button>`).join("")}<input type="file" id="tpFile" accept="image/*" hidden>${TP.up ? `<span class="count">${esc(TP.up)}</span>` : ""}</div>${TP.emb ? tipEmbPanel() : ""}
     <div class="tpcols"><textarea id="tpBody" placeholder="本文。上のボタンで見出し・太字・リンク・画像などを入れられます。&#10;&#10;## 見出し&#10;**太字**&#10;[リンクの文字](https://…)&#10;- 箇条書き">${esc(d.body)}</textarea><div class="tipbody docsec tpprev" id="tpPrev">${R.mdHtml(d.body) || '<p class="count">ここにプレビューが出ます</p>'}</div></div>
     <div class="row2" style="margin-top:10px">${TP.id ? (TP.confirmDel ? `<span class="danger-q">この記事を削除しますか？</span><button class="btn small danger" data-tpdelyes="1">削除する</button><button class="btn small" data-tpdelno="1">やめる</button>` : `<button class="btn small" data-tpdel="1">削除</button>`) : ""}<span style="flex:1"></span>${TP.id ? `<a class="btn small" href="./?tip=${encodeURIComponent(TP.id)}" target="_blank" rel="noopener">公開サイトで見る</a>` : ""}<button class="btn primary" data-tpsave="1" ${TP.busy ? "disabled" : ""}>${TP.busy ? "保存中…" : "保存"}</button></div>
   </section>`;
@@ -2435,10 +2435,23 @@ function renderTipEditor() {
   document.getElementById("tpTags").addEventListener("input", e => { TP.d.tags = e.target.value; touch(); });
   document.getElementById("tpSt").addEventListener("change", e => { TP.d.status = e.target.value; touch(); });
   document.getElementById("tpFile").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) tipUpload(f); });
+  const eq = document.getElementById("tpEmbQ"); if (eq) { eq.addEventListener("input", () => { TP.emb.q = eq.value; const l = document.getElementById("tpEmbL"); if (l) l.innerHTML = tipEmbList(); }); if (!TP.emb.q) eq.focus(); }
 }
+// wiki内の情報（キャラ・スクリプト・階層など）を選んで [[種類:ID]] を入れるパネル
+function tipEmbList() { const L = R.embCands(TP.emb.t, TP.emb.q); return L.slice(0, 80).map(x => `<button class="tpembc" data-tpembv="${esc(x.v)}" type="button">${x.img ? `<img src="${esc(x.img)}" alt="">` : `<span class="noth">${esc([...x.label][0] || "")}</span>`}<span><b>${esc(x.label)}</b><small>${esc(x.sub || "")}</small></span></button>`).join("") + (L.length > 80 ? `<p class="count">ほか ${L.length - 80}件（ことばで絞り込んでください）</p>` : "") || `<p class="count">見つかりません</p>`; }
+function tipEmbPanel() { const e = TP.emb; return `<div class="tpemb"><div class="tpembh"><b>wiki内の情報を入れる</b><span style="flex:1"></span><button class="btn small" data-tpembx="1" type="button">閉じる</button></div>
+  <div class="seg tpembt">${Object.entries(R.EMBT).map(([k, l]) => `<button data-tpembt="${k}" aria-pressed="${e.t === k}" type="button">${l}</button>`).join("")}</div>
+  <div class="tpembq"><input id="tpEmbQ" value="${esc(e.q)}" placeholder="名前でさがす"><label class="count"><input type="checkbox" id="tpEmbIn" ${e.inline ? "checked" : ""}> 文の中に小さく入れる（チェックなし＝カード）</label></div>
+  <div class="tpembl" id="tpEmbL">${tipEmbList()}</div></div>`; }
+function tipEmbPick(v) { const e = TP.emb; const inl = document.getElementById("tpEmbIn"); e.inline = !!(inl && inl.checked);
+  const body = TP.d.body, pos = Math.min(e.pos == null ? body.length : e.pos, body.length), code = `[[${e.t}:${v}]]`;
+  const ins = e.inline ? code : `${pos && body[pos - 1] !== "\n" ? "\n" : ""}${code}\n`;
+  TP.d.body = body.slice(0, pos) + ins + body.slice(pos); TP.dirty = true; e.pos = pos + ins.length; TP.emb = null; renderTipEditor();
+  const ta = document.getElementById("tpBody"); if (ta) { ta.focus(); ta.setSelectionRange(pos + ins.length, pos + ins.length); } }
 // 本文の選んでいる所に書式を入れる
 function tipTool(k) {
   const ta = document.getElementById("tpBody"); if (!ta) return;
+  if (k === "emb") { TP.emb = TP.emb ? null : { t: "char", q: "", inline: false, pos: ta.selectionStart }; renderTipEditor(); return; }
   if (k === "img") { if (!GH) { toast("画像を入れるには GitHub 連携が必要です（オーナーが「画像」タブで登録）", 6000); return; } document.getElementById("tpFile").click(); return; }
   const v = ta.value, a = ta.selectionStart, b = ta.selectionEnd, sel = v.slice(a, b);
   const put = (txt, ca, cb) => { ta.setRangeText(txt, a, b, "end"); if (ca != null) ta.setSelectionRange(a + ca, a + cb); ta.focus(); ta.dispatchEvent(new Event("input")); };
@@ -2488,10 +2501,13 @@ async function tipSave() {
 }
 async function tipsAction(ds) {
   if (ds.tpf) { TP.f = ds.tpf; renderTipsTab(); return; }
-  if (ds.tpnew) { TP.id = null; TP.d = { title: "", body: "", tags: "", status: "edit" }; TP.dirty = false; TP.confirmDel = false; renderTipsTab(); return; }
-  if (ds.tpopen) { const o = TP.list.find(x => x.id === ds.tpopen); if (!o) return; TP.id = o.id; TP.d = { title: o.title || "", body: o.body || "", tags: (o.tags || []).map(g => "#" + g).join(" "), status: o.status || "edit" }; TP.dirty = false; TP.confirmDel = false; renderTipsTab(); return; }
+  if (ds.tpnew) { TP.id = null; TP.d = { title: "", body: "", tags: "", status: "edit" }; TP.dirty = false; TP.confirmDel = false; TP.emb = null; renderTipsTab(); return; }
+  if (ds.tpopen) { const o = TP.list.find(x => x.id === ds.tpopen); if (!o) return; TP.id = o.id; TP.d = { title: o.title || "", body: o.body || "", tags: (o.tags || []).map(g => "#" + g).join(" "), status: o.status || "edit" }; TP.dirty = false; TP.confirmDel = false; TP.emb = null; renderTipsTab(); return; }
   if (ds.tpback) { if (TP.dirty && !confirm("保存していない変更があります。一覧に戻りますか？")) return; TP.d = null; TP.id = null; TP.dirty = false; renderTipsTab(); return; }
   if (ds.tptool) { tipTool(ds.tptool); return; }
+  if (ds.tpembt) { const inl = document.getElementById("tpEmbIn"); TP.emb.t = ds.tpembt; TP.emb.q = ""; TP.emb.inline = !!(inl && inl.checked); renderTipEditor(); return; }
+  if (ds.tpembx) { TP.emb = null; renderTipEditor(); return; }
+  if (ds.tpembv !== undefined) { tipEmbPick(ds.tpembv); return; }
   if (ds.tpsave) { tipSave(); return; }
   if (ds.tpdel) { TP.confirmDel = true; renderTipEditor(); return; }
   if (ds.tpdelno) { TP.confirmDel = false; renderTipEditor(); return; }
@@ -2967,7 +2983,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-tpf],[data-tpnew],[data-tpopen],[data-tpback],[data-tptool],[data-tpsave],[data-tpdel],[data-tpdelno],[data-tpdelyes],[data-imslot],[data-osv],[data-osdays],[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-tpembt],[data-tpembx],[data-tpembv],[data-tpf],[data-tpnew],[data-tpopen],[data-tpback],[data-tptool],[data-tpsave],[data-tpdel],[data-tpdelno],[data-tpdelyes],[data-imslot],[data-osv],[data-osdays],[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2988,7 +3004,7 @@ function onAdminClick(e) {
   if (ds.a === "fixnames") { fixNames(); return; }
   if (ds.a === "reid") { reIdChar(ds.reid); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
-  if (ds.tpf || ds.tpnew || ds.tpopen || ds.tpback || ds.tptool || ds.tpsave || ds.tpdel || ds.tpdelno || ds.tpdelyes) { tipsAction(ds); return; }
+  if (ds.tpembt || ds.tpembx || ds.tpembv !== undefined || ds.tpf || ds.tpnew || ds.tpopen || ds.tpback || ds.tptool || ds.tpsave || ds.tpdel || ds.tpdelno || ds.tpdelyes) { tipsAction(ds); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
   if (ds.teamedit || ds.teamfloor || ds.a === "teamadd") {
