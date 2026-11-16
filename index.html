@@ -154,7 +154,7 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
 .postsbox{padding:14px 16px;margin-bottom:12px}.pshead{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.pshead .note-h{margin:0}
-.pslist{display:flex;flex-direction:column;gap:6px}.pscard .psfl{color:var(--sub);font-size:11px;font-weight:700}.pstl{margin:8px 0}.psbtns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0}.pscard{display:grid;gap:4px;text-align:left;border:1px solid var(--line);background:var(--field);padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--ink);font:inherit;width:100%}
+.pslist{display:flex;flex-direction:column;gap:6px}.psmore{display:flex;justify-content:center;margin-top:10px}.pscard .psfl{color:var(--sub);font-size:11px;font-weight:700}.pstl{margin:8px 0}.psbtns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0}.pscard{display:grid;gap:4px;text-align:left;border:1px solid var(--line);background:var(--field);padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--ink);font:inherit;width:100%}
 .pscard:hover{border-color:var(--accent)}.pst{font-size:14.5px}.psfaces{display:flex;gap:3px;flex-wrap:wrap}.psfaces img,.psfaces .noth{width:30px;height:30px;border-radius:4px;object-fit:cover;display:grid;place-items:center}
 .psmeta{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}.psby{margin:0 0 6px;color:var(--muted);font-size:13px}
 .pswvs{margin:10px 0}.pswvs .wv{margin-top:6px}.psacts{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
@@ -2246,7 +2246,7 @@ async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e)
    ★・スクリプトの凸は所持の記録から入れておき、そのあと自由に直せる（投稿に書き込むので、あとで所持の記録が変わっても投稿は変わらない） */
 const PLIM={title:40,body:500,wave:300,waves:10};
 let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=6").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
-const PST={f:"",list:null,busy:false,sort:"new",err:""};
+const PST={f:"",list:null,busy:false,sort:"new",err:"",n:5};   // n＝階層ページで見せている件数（最初5件。「もっと見る」で10件ずつ）
 /* 画面に入ったら読み込む（階層ページの「みんなの攻略」・ホームの新着）。押さなくても見てもらえるように。読み取りは見えたときだけ */
 let LAZYOB=null;
 function armLazy(){const els=document.querySelectorAll("[data-pslazy]:not([data-armed]),[data-hposts]:not([data-armed]),[data-feedmore-s]:not([data-armed])");if(!els.length)return;
@@ -2303,11 +2303,12 @@ function postsBoxHtml(f){if(MODE==="admin"||!f||f.all)return "";const on=PST.f==
   return `<div class="floorcard postsbox" id="postsbox"><div class="pshead"><p class="note-h">${svgI("pen")} みんなの攻略${on?` <small class="count">${l.length}件</small>`:""}</p><span style="flex:1"></span>
     ${on&&l.length>1?`<span class="viewsw"><button data-psort="new" aria-pressed="${PST.sort==="new"}">新しい順</button><button data-psort="like" aria-pressed="${PST.sort==="like"}">いいね順</button></span>`:""}
     ${psTools(f.key)}</div>
-    ${on?(l.length?`<div class="pslist">${l.map(p=>postCardHtml(p)).join("")}</div>`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
+    ${on?(l.length?`<div class="pslist">${l.slice(0,PST.n).map(p=>postCardHtml(p)).join("")}</div>${l.length>PST.n?`<div class="psmore"><button class="btn" data-psmore="1">もっと見る（残り ${l.length-PST.n}件）</button></div>`:""}`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
       :PST.err?`<p class="err">${esc(PST.err)}</p><button class="btn small" data-postload="${esc(f.key)}">もう一度読み込む</button>`:`<p class="count" data-pslazy="${esc(f.key)}">${PST.busy?"読み込み中…":"みんなの攻略を読み込んでいます…"}</p>`}</div>`;}
 const pdate=t=>{if(!t)return "";const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;};
 const pdtime=t=>{if(!t)return "";const d=new Date(t);return `${pdate(t)} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;};
 const pEdited=p=>p.t&&p.at&&p.t-p.at>60000;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-psmore]");if(!b)return;e.preventDefault();PST.n+=10;render();});
 /* 投稿のブックマーク（S.pbm＝{投稿ID:{t:タイトル,f:階層キー,n:投稿者名,at}}。ブラウザに保存し、ログインしていればアカウントにも） */
 const PBM=()=>S.pbm||(S.pbm={});
 const pbmLabel=on=>`${svgI(on?"bookmarked":"bookmark")} ${on?"ブックマーク済み":"ブックマーク"}`;
@@ -2331,7 +2332,7 @@ function renderFeed(){if(!FEED.list&&!FEED.busy&&!FEED.err){loadFeed(false);retu
   ${FEED.err?`<p class="err">${esc(FEED.err)}</p>`:""}${FEED.busy?'<p class="count">読み込み中…</p>':""}
   ${l.length&&!FEED.end&&!FEED.busy&&!FEED.err?'<div data-feedmore-s="1" class="feedsent"></div>':""}<p class="psbtns"><button class="btn small" data-feedreload="1" ${FEED.busy?"disabled":""}>${svgI("refresh")} 最新にする</button></p></div>`;armLazy();}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-feedreload]");if(!b)return;loadFeed(false);});
-async function loadFloorPosts(fk){PST.busy=true;PST.err="";PST.f=fk;PST.list=null;render();
+async function loadFloorPosts(fk){PST.busy=true;PST.err="";if(PST.f!==fk)PST.n=5;PST.f=fk;PST.list=null;render();
   try{const pm=await loadPosts();PST.list=await pm.listByFloor(fk);}catch(er){console.warn(er);PST.err="読み込めませんでした。時間をおいてもう一度お試しください";PST.f="";}
   PST.busy=false;render();}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],[data-postnew],[data-psort],[data-post],[data-plike],[data-preport],[data-pedit],[data-pdel],[data-pshare],[data-mypage],[data-pprof],[data-pbm],[data-pbmlist],[data-pbmrm]");if(!b)return;const ds=b.dataset;
