@@ -208,7 +208,7 @@ async function resolveRole(u) {
 }
 
 /* ================= live listeners ================= */
-function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = false; TODODOC = null; }
+function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = false; }
 function startListeners() {
   const on = (ref, fn, opt) => S.unsubs.push(F.onSnapshot(ref, opt || {}, fn, err => {
     console.warn(ref.path, err);
@@ -244,7 +244,7 @@ function startListeners() {
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
   initName().then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
-  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = false; TODODOC = null;
+  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = false;
   // ご意見・変更履歴は、そのタブを開いたときに読む（未対応のご意見の数だけは件数クエリで数える＝1回の読み取り）
   F.getCountFromServer(F.query(F.collection(F.db, "feedback"), F.where("status", "==", "new"))).then(c => { S.fbNew = c.data().count; renderNav(); }).catch(e => console.warn("fbcount", e));
   S.unsubs.push(F.onSnapshot(F.doc(F.db, "secrets", "github"), s => { GH = s.exists() && s.data().token ? s.data() : null; softRender(); }, () => { GH = null; }));
@@ -543,7 +543,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "やること"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["posts", "投稿"], ["ownst", "所持率"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "入力状況"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["posts", "投稿"], ["ownst", "所持率"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = S.fbNew || 0;
@@ -579,7 +579,7 @@ function renderAdmin(soft) {
   else if (S.tab === "img") { if (!(soft && IM.files.length)) renderImg(); }
   else if (S.tab === "tier") renderTierTab(soft);
   else if (S.tab === "news") { if (!(soft && NW.edit)) renderNews(); }
-  else if (S.tab === "todo") { if (!(soft && TD.edit)) renderTodo(); }
+  else if (S.tab === "todo") renderTodo();
   else if (S.tab === "guide") { if (!(soft && GD.dirty)) renderGuideTab(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
@@ -1264,7 +1264,7 @@ function fieldHtml(name, type, i, both) {
   const ph = PH[name] ? ` placeholder="${esc(PH[name])}"` : "";
   if (type === "id") {
     cls += " idf";
-    inner = `<input id="${id}" value="${esc(v)}" readonly tabindex="-1"><small class="count">${IDT[ED.k] ? (v ? "画像・ほかのデータとのつながりに使うため固定です（名前を直しても変わりません）" : "保存すると今の名前から自動で付きます") : ED.isNew ? "キャラとスタイルから自動で付きます" : "Tier配置・画像の紐付けに使うため固定です"}</small>`;
+    inner = `<input id="${id}" value="${esc(v)}" readonly tabindex="-1">${ED.k === "chars" && !ED.isNew && v ? `<button class="btn small" data-a="reid" data-reid="${esc(ED.id)}" type="button">IDを付け替える</button>` : ""}<small class="count">${IDT[ED.k] ? (v ? "画像・ほかのデータとのつながりに使うため固定です（名前を直しても変わりません）" : "保存すると今の名前から自動で付きます") : ED.isNew ? "キャラとスタイルから自動で付きます" : "Tier配置・画像の紐付けに使うため固定です"}</small>`;
   } else if (type === "hide") {
     return "";
   } else if (type === "floor") {
@@ -2278,9 +2278,9 @@ async function delNews(id) {
   } catch (er) { toast(fbErr(er), 5000); }
 }
 
-/* ================= やること（公開までの進捗） =================
-   進捗はデータから自動で数える。担当・メモ・手動の完了・追加の項目は tables/todo（1ドキュメント）に保存し、このタブを開いたときだけ読む */
-let TODODOC = null; const TD = { open: null, edit: null };
+/* ================= 入力状況（データがどこまで入っているか） =================
+   すべてデータから自動で数える（保存するものは無い）。キャラ・スクリプトは「実装」が「未実装」のものを除く */
+const TD = { open: null, bt: null };
 const nonEmpty = v => { const s = String(v == null ? "" : v).trim(); return !!s && s !== "—" && s !== "-"; };
 function rowsCheck(k, fields, okFn, label) {
   // 未実装のキャラ・スクリプトは数えない
@@ -2296,85 +2296,100 @@ function rowsCheck(k, fields, okFn, label) {
 // 騎士団ごとの騎士の人数（やること「騎士の登録」の目標）
 const KN_PER = 6;
 const knOrders = () => uniq(R.ORDERS, opts("騎士団")).filter(Boolean);
-function todoItems() {
-  const floorNo = c => parseFloat(String(c["階層"] || "").replace(/[^\d.]/g, ""));
-  const mid = c => { const n = floorNo(c); return n >= 55 && n <= 100; };
-  const babelMid = () => [...T.babel.rows.values()].filter(r => mid(r.c || {})).sort((a, b) => a.o - b.o);
-  const midCheck = (name, fn) => { const rs = babelMid(); const miss = rs.filter(r => !fn(r.c || {})); return { done: rs.length - miss.length, total: rs.length, missing: miss.map(r => ({ id: r.id, k: "babel", label: labelOf("babel", r.c || {}) })), sub: name }; };
+const idK = k => c => idOf(k, c);
+const imgItem = (t, k, a, b, note) => ({ id: "img_" + t, t, note, r: () => rowsCheck(k, null, c => { const i = k === "chars" ? c["ID"] : idOf(k, c); return b ? a[i] && b[i] : a[i]; }, k === "chars" ? (c => c["キャラ名"] || c["ID"]) : null) });
+function statusGroups() {
   const teamKeys = new Set([...T.teams.rows.values()].map(r => keyOfCells("babel", r.c || {})));
+  const tierOf = fk => Object.keys(R.OFFICIAL[fk] || {}).length > 0;
+  const sealKey = c => "封印戦|" + idOf("seals", c);
+  const bk = c => keyOfCells("babel", c);
+  const has = (k, f) => !!(T[k] && T[k].headers && T[k].headers.includes(f));
   return [
-    { id: "cimg", g: "公開まで", t: "キャラ画像のインポート", note: "サムネイルと覚醒イラストの両方", r: () => rowsCheck("chars", null, c => R.IMG[c["ID"]] && R.BANNER[c["ID"]], c => c["キャラ名"] || c["ID"]), lackNote: c => [!R.IMG[c["ID"]] && "サムネイル", !R.BANNER[c["ID"]] && "覚醒イラスト"].filter(Boolean) },
-    { id: "simg", g: "公開まで", t: "スクリプト画像のインポート", note: "サムネイルとイラストの両方", r: () => rowsCheck("scripts", null, c => R.SIMG[idOf("scripts", c)] && R.SFULL[idOf("scripts", c)]) },
-    { id: "cdata", g: "公開まで", t: "キャラデータの入力", note: "完凸時の HP・攻撃力、防御、攻撃速度などの基本ステータス", r: () => rowsCheck("chars", ["完凸 HP", "完凸 攻撃力", "物理防御", "特殊防御", "攻撃速度", "抵抗値"]) },
-    { id: "sdata", g: "公開まで", t: "スクリプトデータの入力", note: "Lv200 の HP・攻撃力と、各スキルの条件・効果", r: () => rowsCheck("scripts", ["Lv200 HP", "Lv200 攻撃力", "スキル1効果", "スキル2効果", "スキル3効果"]) },
-    { id: "beff", g: "公開まで", t: "全バベルのステージ効果", note: "解析データ（ステージ効果）", r: () => rowsCheck("babel", ["解析データ"]) },
-    { id: "btier", g: "公開まで", t: "各バベル 55〜100 の Tier表・おすすめ編成・コツ", note: "Tier表の配置・編成例・攻略のコツがそろった階層", multi: () => [
-      midCheck("Tier表", c => Object.keys(R.OFFICIAL[keyOfCells("babel", c)] || {}).length > 0),
-      midCheck("おすすめ編成", c => teamKeys.has(keyOfCells("babel", c))),
-      midCheck("攻略のコツ", c => nonEmpty(c["攻略のコツ"]))] },
-    { id: "seal", g: "公開まで", t: "各封印戦の画像と特性", note: "テーマイラストとステージ効果", r: () => rowsCheck("seals", ["ステージ効果"], c => R.SEAL[idOf("seals", c)] || R.SEALF[idOf("seals", c)]) },
-    { id: "kreg", g: "公開まで", t: "騎士の登録", note: `騎士団ごとに${KN_PER}人（騎士団 ${knOrders().length} × ${KN_PER}人）`, multi: () => knOrders().map(o => { const n = rowsOf("people").filter(c => String(c["騎士団"] || "").trim() === o).length; return { sub: o, done: Math.min(n, KN_PER), total: KN_PER, missing: [] }; }) },
-    { id: "kimg", g: "公開まで", t: "騎士の画像（立ち絵）のインポート", note: "「立ち絵」を「なし」にした騎士は数えません", r: () => rowsCheck("people", null, c => c["立ち絵"] === "なし" || R.KN[idOf("people", c)] || R.KNF[idOf("people", c)], c => c["名前"]) },
-    { id: "csw", g: "追加", t: "各キャラの強いところ・弱いところの入力", note: "キャラ詳細の上の方に出る説明", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
-    { id: "cmochi", g: "追加", t: "各キャラの持ちスク・おすすめスクリプトの設定", note: "どちらか1つでも入っていれば設定済み", r: () => rowsCheck("chars", null, c => nonEmpty(c["持ちスク"]) || nonEmpty(c["おすすめスクリプト"]), c => c["キャラ名"] || c["ID"]) },
-    { id: "syomi", g: "追加", t: "スクリプトのよみの入力", note: "ひらがなで（英語・漢字の名前も読みを入れる）。スクリプト一覧の名前順・ひらがな検索に使います", r: () => rowsCheck("scripts", ["よみ"]) },
-    { id: "swimg", g: "追加", t: "魔剣のスクショ（画像）のアップロード", note: "魔剣本体と運命の立ち絵の両方。データ編集 →「魔剣」の編集画面か「画像」タブから", r: () => rowsCheck("swords", null, c => (R.SWD[idOf("swords", c)] || R.SWDF[idOf("swords", c)]) && (R.FATE[idOf("swords", c)] || R.FATEF[idOf("swords", c)])) },
-    { id: "misc", g: "追加", t: "もろもろの各データ", note: "進捗は手動で更新してください", manual: true },
+    { g: "画像", items: [
+      imgItem("キャラ（サムネイル・覚醒イラスト）", "chars", R.IMG, R.BANNER, "両方そろったもの"),
+      imgItem("スクリプト（サムネイル・イラスト）", "scripts", R.SIMG, R.SFULL, "両方そろったもの"),
+      { id: "img_kn", t: "騎士の立ち絵", note: "「立ち絵」を「なし」にした騎士は数えません", r: () => rowsCheck("people", null, c => c["立ち絵"] === "なし" || R.KN[idOf("people", c)] || R.KNF[idOf("people", c)]) },
+      imgItem("封印戦のテーマイラスト", "seals", Object.assign({}, R.SEAL, R.SEALF)),
+      imgItem("ボス", "bosses", Object.assign({}, R.BOSS, R.BOSSF)),
+      imgItem("イベントのテーマイラスト", "events", Object.assign({}, R.EVT, R.EVTF)),
+      imgItem("魔剣（本体）", "swords", Object.assign({}, R.SWD, R.SWDF)),
+      imgItem("魔剣（運命の立ち絵）", "swords", Object.assign({}, R.FATE, R.FATEF)),
+    ] },
+    { g: "バベル", matrix: true, items: [
+      { id: "b_eff", t: "解析データ（ステージ効果）", r: () => rowsCheck("babel", ["解析データ"]) },
+      { id: "b_boss", t: "ボス", r: () => rowsCheck("babel", ["ボス"]) },
+      { id: "b_attr", t: "推奨属性", r: () => rowsCheck("babel", ["推奨属性"]) },
+      has("babel", "WAVE") && { id: "b_wave", t: "WAVE情報", r: () => rowsCheck("babel", ["WAVE"]) },
+      { id: "b_tier", t: "運営Tier表", r: () => rowsCheck("babel", null, c => tierOf(bk(c))) },
+      { id: "b_team", t: "クリア編成例", r: () => rowsCheck("babel", null, c => teamKeys.has(bk(c))) },
+      { id: "b_tip", t: "攻略のコツ", r: () => rowsCheck("babel", ["攻略のコツ"]) },
+      { id: "b_com", t: "コメント", r: () => rowsCheck("babel", ["コメント"]) },
+    ].filter(Boolean) },
+    { g: "封印戦", items: [
+      { id: "s_eff", t: "ステージ効果", r: () => rowsCheck("seals", ["ステージ効果"]) },
+      has("seals", "WAVE") && { id: "s_wave", t: "WAVE情報", r: () => rowsCheck("seals", ["WAVE"]) },
+      { id: "s_tier", t: "運営Tier表", r: () => rowsCheck("seals", null, c => tierOf(sealKey(c))) },
+      { id: "s_team", t: "クリア編成例", r: () => rowsCheck("seals", null, c => teamKeys.has(sealKey(c))) },
+    ].filter(Boolean) },
+    { g: "キャラ", items: [
+      { id: "c_stat", t: "基本ステータス", note: "完凸の HP・攻撃力、防御、攻撃速度、抵抗値", r: () => rowsCheck("chars", ["完凸 HP", "完凸 攻撃力", "物理防御", "特殊防御", "攻撃速度", "抵抗値"]) },
+      { id: "c_skill", t: "スキル・BLADE・特性", r: () => rowsCheck("chars", ["覚醒13 スキル効果", "Lv13 BLADE効果", "Lv5 特性効果"]) },
+      { id: "c_feat", t: "キャラごとの特徴（強いところ・弱いところ）", note: "キャラ詳細の上の方に出る説明", r: () => rowsCheck("chars", ["強いところ", "弱いところ"]) },
+      { id: "c_sc", t: "持ちスク・おすすめスクリプト", note: "どちらか1つでも入っていれば済み", r: () => rowsCheck("chars", null, c => nonEmpty(c["持ちスク"]) || nonEmpty(c["おすすめスクリプト"]), c => c["キャラ名"] || c["ID"]) },
+      { id: "c_tier", t: "全体Tierへの配置", r: () => rowsCheck("chars", null, c => Object.keys(R.OFFICIAL["全体|総合"] || {}).some(k => k.split("~")[0] === c["ID"]), c => c["キャラ名"] || c["ID"]) },
+    ] },
+    { g: "スクリプト", items: [
+      { id: "sc_data", t: "データ", note: "Lv200 の HP・攻撃力と、各スキルの効果", r: () => rowsCheck("scripts", ["Lv200 HP", "Lv200 攻撃力", "スキル1効果", "スキル2効果", "スキル3効果"]) },
+      { id: "sc_yomi", t: "よみ", note: "ひらがなで（英語・漢字の名前も読みを入れる）", r: () => rowsCheck("scripts", ["よみ"]) },
+    ] },
+    { g: "騎士・魔剣", items: [
+      { id: "kreg", t: "騎士の登録", note: `騎士団ごとに${KN_PER}人が目安`, multi: () => knOrders().map(o => { const n = rowsOf("people").filter(c => String(c["騎士団"] || "").trim() === o).length; return { sub: o, done: Math.min(n, KN_PER), total: KN_PER }; }) },
+      { id: "sw_data", t: "魔剣の効果・入手方法", r: () => rowsCheck("swords", ["メイン効果", "サブ効果", "入手方法"]) },
+    ] },
   ];
 }
 function todoProgress(it) {
-  if (it.manual) { const m = (TODODOC && TODODOC.items && TODODOC.items[it.id]) || {}; return { pct: m.done ? 100 : (+m.pct || 0), label: m.done ? "完了" : (m.pct ? m.pct + "%" : "未着手") }; }
-  if (it.multi) { const ps = it.multi(); const tot = ps.reduce((a, p) => a + p.total, 0), dn = ps.reduce((a, p) => a + p.done, 0); return { pct: tot ? Math.round(dn / tot * 100) : 0, label: tot ? `${dn} / ${tot}` : "対象なし", parts: ps }; }
-  const r = it.r(); return { pct: r.total ? Math.round(r.done / r.total * 100) : 0, label: r.total ? `${r.done} / ${r.total}` : "未登録", r };
+  if (it.multi) { const ps = it.multi(); const tot = ps.reduce((a, p) => a + p.total, 0), dn = ps.reduce((a, p) => a + p.done, 0); return { pct: tot ? Math.round(dn / tot * 100) : 0, done: dn, total: tot, label: tot ? `${dn} / ${tot}` : "対象なし", parts: ps }; }
+  const r = it.r(); return { pct: r.total ? Math.round(r.done / r.total * 100) : 0, done: r.done, total: r.total, label: r.total ? `${r.done} / ${r.total}` : "未登録", r };
 }
 function todoBar(pct) { return `<span class="tdbar"><i style="width:${pct}%;background:${pct >= 100 ? "var(--good)" : pct >= 50 ? "var(--accent)" : "#e0a400"}"></i></span>`; }
+const pctOf = (d, t) => t ? Math.round(d / t * 100) : 0;
+// バベルの階層ごとの入力表（どの階層で何が入っていないか）
+function babelMatrix() {
+  const teamKeys = new Set([...T.teams.rows.values()].map(r => keyOfCells("babel", r.c || {})));
+  const cols = [["解析", c => nonEmpty(c["解析データ"])], ["ボス", c => nonEmpty(c["ボス"])], ["属性", c => nonEmpty(c["推奨属性"])]]
+    .concat(T.babel.headers && T.babel.headers.includes("WAVE") ? [["WAVE", c => nonEmpty(c["WAVE"])]] : [])
+    .concat([["Tier", c => Object.keys(R.OFFICIAL[keyOfCells("babel", c)] || {}).length > 0], ["編成", c => teamKeys.has(keyOfCells("babel", c))], ["コツ", c => nonEmpty(c["攻略のコツ"])], ["コメ", c => nonEmpty(c["コメント"])]]);
+  const rows = [...T.babel.rows.values()].sort((a, b) => a.o - b.o);
+  const types = uniq(rows.map(r => String((r.c || {})["バベル種類"] || "").trim()));
+  return types.map(ty => { const rs = rows.filter(r => String((r.c || {})["バベル種類"] || "").trim() === ty);
+    const cell = rs.map(r => cols.map(([, f]) => f(r.c || {})));
+    const dn = cell.reduce((a, x) => a + x.filter(Boolean).length, 0), tot = rs.length * cols.length; const open = TD.bt === ty;
+    return `<details class="bmx" ${open ? "open" : ""} data-tdbt="${esc(ty)}"><summary><b>${esc(ty || "（種類なし）")}</b>${todoBar(pctOf(dn, tot))}<span class="tdpct">${pctOf(dn, tot)}%</span><span class="count">${rs.length}階層</span></summary>
+      ${open ? `<div class="tscroll"><table class="bmxt"><thead><tr><th>階層</th>${cols.map(([n]) => `<th>${n}</th>`).join("")}<th>入力率</th></tr></thead><tbody>${rs.map((r, i) => { const v = cell[i]; const n = v.filter(Boolean).length;
+        return `<tr class="${n === cols.length ? "full" : n ? "part" : "none"}"><td><button class="tag" data-tdgo="babel|${esc(r.id)}">${esc(String((r.c || {})["階層"] || ""))}</button></td>${v.map(x => `<td class="${x ? "ok" : "ng"}">${x ? "✓" : "—"}</td>`).join("")}<td>${pctOf(n, cols.length)}%</td></tr>`; }).join("")}</tbody></table></div>` : ""}</details>`; }).join("");
+}
 function renderTodo() {
-  if (TODODOC === null && S.on && !LAZY.todo) { LAZY.todo = true; S.on(F.doc(F.db, "tables", "todo"), s => { TODODOC = s.exists() ? s.data() : {}; if (S.tab === "todo" && !TD.edit) renderTodo(); }); }
-  const items = todoItems().concat(((TODODOC && TODODOC.extra) || []).map(x => Object.assign({ manual: true, g: "追加", t: x.t, extra: true }, x)));
-  const main = items.filter(i => i.g === "公開まで").map(todoProgress);
-  const overall = main.length ? Math.round(main.reduce((a, p) => a + p.pct, 0) / main.length) : 0;
-  const meta = id => (TODODOC && TODODOC.items && TODODOC.items[id]) || {};
-  const row = it => { const p = todoProgress(it); const m = it.extra ? it : meta(it.id); const open = TD.open === it.id; const ed = TD.edit === it.id;
-    let det = "";
-    if (open && !it.manual) {
-      if (p.parts) det = p.parts.map(x => `<div class="tdsub"><b>${esc(x.sub)}</b>${todoBar(x.total ? Math.round(x.done / x.total * 100) : 0)}<span class="count">${x.done} / ${x.total}</span></div>${x.missing.length ? `<div class="tdmiss">${x.missing.slice(0, 60).map(mm => `<button class="tag" data-tdgo="${mm.k}|${esc(mm.id)}">${esc(mm.label)}</button>`).join("")}${x.missing.length > 60 ? `<span class="count">ほか ${x.missing.length - 60}</span>` : ""}</div>` : ""}`).join("");
+  const groups = statusGroups().map(g => Object.assign({}, g, { ps: g.items.map(it => ({ it, p: todoProgress(it) })) }));
+  const gsum = g => { const d = g.ps.reduce((a, x) => a + x.p.done, 0), t = g.ps.reduce((a, x) => a + x.p.total, 0); return { d, t, pct: pctOf(d, t) }; };
+  const row = ({ it, p }) => { const open = TD.open === it.id; let det = "";
+    if (open) {
+      if (p.parts) det = p.parts.map(x => `<div class="tdsub"><b>${esc(x.sub)}</b>${todoBar(pctOf(x.done, x.total))}<span class="count">${x.done} / ${x.total}</span></div>`).join("");
       else if (p.r) { const r = p.r;
-        det = (Object.keys(r.per).length ? `<div class="tdfields">${Object.entries(r.per).map(([f, n]) => `<span>${esc(f)} <b>${n}</b>/${r.total}</span>`).join("")}</div>` : "") +
-          (r.missing.length ? `<p class="count" style="margin:6px 0 4px">まだのもの（押すと編集画面が開きます）</p><div class="tdmiss">${r.missing.slice(0, 80).map(mm => `<button class="tag" data-tdgo="${mm.k}|${esc(mm.id)}" title="${esc((mm.lack || []).join("・"))}">${esc(mm.label)}${mm.lack && mm.lack.length && mm.lack.length < 4 ? `<small> ${esc(mm.lack.join("・"))}</small>` : ""}</button>`).join("")}${r.missing.length > 80 ? `<span class="count">ほか ${r.missing.length - 80}件</span>` : ""}</div>` : `<p class="count">すべて入力済みです 🎉</p>`); }
+        det = (Object.keys(r.per).length > 1 ? `<div class="tdfields">${Object.entries(r.per).map(([f, n]) => `<span>${esc(f)} <b>${n}</b>/${r.total}</span>`).join("")}</div>` : "") +
+          (r.missing.length ? `<p class="count" style="margin:6px 0 4px">まだのもの（押すと編集画面が開きます）</p><div class="tdmiss">${r.missing.slice(0, 120).map(mm => `<button class="tag" data-tdgo="${mm.k}|${esc(mm.id)}" title="${esc((mm.lack || []).join("・"))}">${esc(mm.label)}</button>`).join("")}${r.missing.length > 120 ? `<span class="count">ほか ${r.missing.length - 120}件</span>` : ""}</div>` : `<p class="count">すべて入っています</p>`); }
     }
-    const form = ed ? `<div class="tdform"><label>担当 <input id="tdWho" maxlength="40" value="${esc(m.who || "")}" placeholder="例：ねぎ・すず"></label>${it.manual ? `<label>進捗 <select id="tdPct">${[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(n => `<option value="${n}" ${(+m.pct || 0) === n ? "selected" : ""}>${n}%</option>`).join("")}</select></label>` : ""}${it.extra ? `<label>項目名 <input id="tdT" maxlength="80" value="${esc(it.t)}"></label>` : ""}<label class="wide">メモ <textarea id="tdMemo" rows="2" maxlength="500">${esc(m.memo || "")}</textarea></label>
-      <div class="row2"><button class="btn small primary" data-tdsave="${esc(it.id)}">保存</button><button class="btn small" data-tdcancel="1">やめる</button>${it.extra ? `<span style="flex:1"></span><button class="btn small danger" data-tddel="${esc(it.id)}">この項目を削除</button>` : ""}</div></div>` : "";
-    return `<div class="tdrow${p.pct >= 100 ? " done" : ""}"><button class="tdhead" data-tdopen="${esc(it.id)}"><span class="tdchk">${p.pct >= 100 ? "✔" : ""}</span><span class="tdt"><b>${esc(it.t)}</b>${it.note ? `<small>${esc(it.note)}</small>` : ""}</span>${todoBar(p.pct)}<span class="tdpct">${p.pct}%</span><span class="count tdlab">${esc(p.label)}</span></button>
-      <div class="tdmeta">${m.who ? `<span class="tag">担当：${esc(m.who)}</span>` : ""}${m.memo ? `<span class="count">${esc(m.memo)}</span>` : ""}<button class="btn small" data-tdedit="${esc(it.id)}">担当・メモ</button></div>${det}${form}</div>`; };
-  const grp = g => items.filter(i => i.g === g).map(row).join("");
-  AM.innerHTML = userBar() + `<div class="toolbar"><h2><small>TODO</small>やること（公開までの進捗）</h2></div><p class="hint" style="margin:-6px 0 10px">キャラ・スクリプトの数は「実装」が「未実装」のものを除いて数えています。</p>
-  <section class="apanel tdall"><b>公開までの進捗</b>${todoBar(overall)}<span class="tdbig">${overall}%</span><span class="count">「公開まで」の ${main.length} 項目の平均。データから自動で数えています（「もろもろ」などは手動）。</span></section>
-  <h3 class="fgh">公開まで</h3><div class="tdlist">${grp("公開まで")}</div>
-  <h3 class="fgh">追加</h3><div class="tdlist">${grp("追加")}</div>
-  <div class="row2" style="margin-top:10px"><button class="btn" data-tdadd="1">＋ やることを追加</button></div>`;
+    return `<div class="tdrow${p.total && p.pct >= 100 ? " done" : ""}"><button class="tdhead" data-tdopen="${esc(it.id)}"><span class="tdchk">${p.total && p.pct >= 100 ? "✔" : ""}</span><span class="tdt"><b>${esc(it.t)}</b>${it.note ? `<small>${esc(it.note)}</small>` : ""}</span>${todoBar(p.pct)}<span class="tdpct">${p.pct}%</span><span class="count">${p.label}</span></button>${det}</div>`; };
+  const img = gsum(groups[0]);
+  AM.innerHTML = userBar() + `<div class="toolbar"><h2><small>STATUS</small>入力状況</h2></div><p class="hint" style="margin:-6px 0 10px">データから自動で数えています。キャラ・スクリプトは「実装」が「未実装」のものを除きます。項目を押すと、まだのものの一覧（押すと編集画面）が開きます。</p>
+  <section class="apanel tdall"><b>画像</b>${todoBar(img.pct)}<span class="tdbig">${img.pct}%</span><span class="count">入っている ${img.d} / ${img.t}</span></section>
+  ${groups.map(g => { const sm = gsum(g); return `<h3 class="fgh">${esc(g.g)} <small class="count">${sm.pct}%（${sm.d} / ${sm.t}）</small></h3><div class="tdlist">${g.ps.map(row).join("")}</div>${g.matrix ? `<p class="count" style="margin:2px 0 6px">階層ごと（✓＝入っている／—＝まだ。種類を押すと開きます）</p><div class="tdlist">${babelMatrix()}</div>` : ""}`; }).join("")}`;
 }
-async function saveTodo(id) {
-  const who = (document.getElementById("tdWho") || {}).value || "", memo = (document.getElementById("tdMemo") || {}).value || "";
-  const pctEl = document.getElementById("tdPct"), tEl = document.getElementById("tdT");
-  try {
-    const extra = ((TODODOC && TODODOC.extra) || []).slice(); const ei = extra.findIndex(x => x.id === id);
-    if (ei >= 0) { extra[ei] = Object.assign({}, extra[ei], { who, memo, pct: pctEl ? +pctEl.value : 0, done: pctEl ? +pctEl.value >= 100 : false, t: tEl ? tEl.value.trim() || extra[ei].t : extra[ei].t }); await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); }
-    else await F.setDoc(F.doc(F.db, "tables", "todo"), { items: { [id]: Object.assign({ who, memo }, pctEl ? { pct: +pctEl.value, done: +pctEl.value >= 100 } : {}) }, at: now(), by: meId() }, { merge: true });
-    TD.edit = null; toast("保存しました");
-  } catch (e) { toast(fbErr(e), 5000); }
-  renderTodo();
-}
-async function todoAction(ds) {
+function todoAction(ds) {
   if (ds.tdopen) { TD.open = TD.open === ds.tdopen ? null : ds.tdopen; renderTodo(); return; }
-  if (ds.tdedit) { TD.edit = TD.edit === ds.tdedit ? null : ds.tdedit; renderTodo(); return; }
-  if (ds.tdcancel) { TD.edit = null; renderTodo(); return; }
-  if (ds.tdsave) { saveTodo(ds.tdsave); return; }
   if (ds.tdgo) { const [k, id] = ds.tdgo.split("|"); S.tab = "edit"; ED.k = k; ED.listK = k; renderAll(); openEditor(k, id); return; }
-  if (ds.tdadd) { const t = prompt("追加するやることの名前"); if (!t || !t.trim()) return; const extra = ((TODODOC && TODODOC.extra) || []).concat([{ id: "x" + rid(), t: t.trim().slice(0, 80), who: "", memo: "", pct: 0 }]);
-    try { await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); toast("追加しました"); } catch (e) { toast(fbErr(e), 5000); } return; }
-  if (ds.tddel) { if (!confirm("この項目を削除しますか？")) return; const extra = ((TODODOC && TODODOC.extra) || []).filter(x => x.id !== ds.tddel);
-    try { await F.setDoc(F.doc(F.db, "tables", "todo"), { extra, at: now(), by: meId() }, { merge: true }); TD.edit = null; } catch (e) { toast(fbErr(e), 5000); } return; }
 }
+document.addEventListener("click", e => { const d = e.target.closest("details.bmx > summary"); if (!d) return; e.preventDefault(); const ty = d.parentElement.dataset.tdbt; TD.bt = TD.bt === ty ? null : ty; if (S.tab === "todo") renderTodo(); });
 
 /* ================= guide / Q&A（使い方ガイドとよくある質問） ================= */
 let GUIDEDOC = null, GUIDEAT = 0;   // public/guide の中身（なければ null → data/guide.json を下書きに使う）
@@ -2536,6 +2551,50 @@ async function fixNames() {
     odd.forEach(x => b.set(F.doc(F.db, "tables", "chars", "rows", x.r.id), { c: Object.assign({}, x.r.c, { "キャラ名": x.name, "名前 ひらがな": x.kana }), o: x.r.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }));
     b.set(F.doc(F.db, "log", rid()), logDoc({ act: "import", k: "chars", label: `キャラ名の表記をそろえる（${odd.map(x => x.name).join("・")}）` }));
     await b.commit(); toast(`${odd.length}人のキャラ名を直しました。公開サイトには数分で反映されます`);
+  } catch (e) { toast(fbErr(e), 6000); }
+}
+/* ---- キャラの ID を付け替える（作ったときの騎士・スタイルがまちがっていたときなど）。
+   キャラの行と、ID を書いている所（おすすめセット・編成例のメンバー・バベルのおすすめキャラID・イベントの実装キャラID・運営Tier表の配置／並び／運用メモ）をまとめて直す ---- */
+async function reIdChar(rowId) {
+  const r = T.chars.rows.get(rowId); if (!r) return; const c = r.c || {}; const oldId = String(c["ID"] || "").trim(); if (!oldId) return;
+  const sug = `${String(c["キャラ"] || "").trim()}_${String(c["スタイル"] || "").trim() || "DEFAULT"}`;
+  const nid = (prompt(`「${c["キャラ名"] || oldId}」の ID（今：${oldId}）を何にしますか？`, sug !== oldId ? sug : oldId) || "").trim();
+  if (!nid || nid === oldId) return;
+  if (/[|,~\n]/.test(nid)) { toast("ID に | , ~ は使えません", 5000); return; }
+  if ([...T.chars.rows.values()].some(x => String((x.c || {})["ID"] || "").trim() === nid)) { toast(`ID「${nid}」のキャラはもうあります`, 5000); return; }
+  const re = new RegExp(`^${oldId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=\\||$)`, "gm");
+  const fixLines = v => String(v || "").replace(re, nid);
+  const fixList = v => String(v || "").split(/[,、]/).map(x => x.trim() === oldId ? nid : x.trim()).filter(Boolean).join(",");
+  const writes = [];
+  T.chars.rows.forEach(x => { const xc = x.c || {}; const ch = {}; if (x.id === rowId) ch["ID"] = nid; if (fixLines(xc["おすすめセット"]) !== String(xc["おすすめセット"] || "")) ch["おすすめセット"] = fixLines(xc["おすすめセット"]); if (Object.keys(ch).length) writes.push(["chars", x, ch]); });
+  T.teams.rows.forEach(x => { const v = (x.c || {})["メンバー"]; if (fixLines(v) !== String(v || "")) writes.push(["teams", x, { "メンバー": fixLines(v) }]); });
+  T.babel.rows.forEach(x => { const v = (x.c || {})["おすすめキャラID"]; if (v && String(v).split(/[,、]/).some(y => y.trim() === oldId)) writes.push(["babel", x, { "おすすめキャラID": fixList(v) }]); });
+  (T.events ? [...T.events.rows.values()] : []).forEach(x => { const v = (x.c || {})["実装キャラID"]; if (v && String(v).split(/[,、]/).some(y => y.trim() === oldId)) writes.push(["events", x, { "実装キャラID": fixList(v) }]); });
+  const tk = k => k === oldId || k.startsWith(oldId + "~");
+  const tierN = Object.values(TIERPUB).reduce((a, P) => a + Object.keys(P).filter(tk).length, 0);
+  const hasImg = R.IMG[oldId] || R.BANNER[oldId];
+  if (!confirm(`ID を「${oldId}」→「${nid}」に付け替えます。\n\n直すところ：キャラの行${writes.length > 1 ? `ほか ${writes.length - 1}行（${[...new Set(writes.slice(1).map(w => ({ chars: "おすすめセット", teams: "編成例", babel: "バベルのおすすめキャラ", events: "イベント" })[w[0]]))].join("・")}）` : ""}${tierN ? `、運営Tier表の ${tierN}か所` : ""}\n${hasImg ? "\n※ このキャラの画像は古い ID で登録されています。付け替えたあと、画像タブで入れ直してください。" : ""}\n※ 利用者が自分の端末に保存した Tier表・みんなの攻略の投稿に入っている古い ID は直せません（そのキャラが出なくなります）。\n\nよろしいですか？`)) return;
+  try {
+    let b = F.writeBatch(F.db), n = 0;
+    for (const [k, x, ch] of writes) { b.set(F.doc(F.db, "tables", k, "rows", x.id), { c: Object.assign({}, x.c, ch), o: x.o || 0, t: now(), by: meId(), rev: rid(), ts: F.serverTimestamp() }); if (++n >= 400) { await b.commit(); b = F.writeBatch(F.db); n = 0; } }
+    b.set(F.doc(F.db, "log", rid()), logDoc({ act: "import", k: "chars", label: `キャラの ID を付け替え：${oldId} → ${nid}` }));
+    await b.commit();
+    if (tierN) {
+      let wrote = null;
+      await F.runTransaction(F.db, async tx => {
+        const ref = F.doc(F.db, "public", "tiers"); const sn = await tx.get(ref); const prevJson = sn.exists() ? sn.data().json : null;
+        let v = {}; try { v = sn.exists() && sn.data().json ? JSON.parse(sn.data().json) : {}; } catch (e) { }
+        const nk = k => tk(k) ? nid + k.slice(oldId.length) : k;
+        const mapKeys = o => { const m = {}; Object.keys(o || {}).forEach(k => { m[nk(k)] = o[k]; }); return m; };
+        const tiers = {}, orders = {}, notes = {}; Object.keys(v.tiers || {}).forEach(fk => tiers[fk] = mapKeys(v.tiers[fk])); Object.keys(v.orders || {}).forEach(fk => orders[fk] = (v.orders[fk] || []).map(nk)); Object.keys(v.notes || {}).forEach(fk => notes[fk] = mapKeys(v.notes[fk]));
+        const crit = v.crit || {};
+        const json = JSON.stringify(Object.keys(crit).length ? { tiers, orders, notes, crit, at: now() } : { tiers, orders, notes, at: now() });
+        tx.set(ref, { json, at: now(), count: Object.keys(tiers).length }); wrote = { tiers, orders, notes, crit, json, prevJson };
+      });
+      if (wrote) { TIERPUB = wrote.tiers; TIERORD = wrote.orders; TIERNOTES = wrote.notes; TIERCRIT = wrote.crit; if (wrote.prevJson != null) TIERSTALE.add(wrote.prevJson); PUBRAW.tiers = wrote.json; applyOfficial(); scheduleBundle(); }
+    }
+    toast(`ID を「${nid}」に付け替えました。公開サイトには数分で反映されます`, 5000);
+    if (S.tab === "edit" && ED.k === "chars" && ED.id === rowId) openEditor("chars", rowId);
   } catch (e) { toast(fbErr(e), 6000); }
 }
 /* ---- キャラの攻撃速度の表記をそろえる（APlus・A+ → Aplus など。S+ は Splus） ---- */
@@ -2812,13 +2871,14 @@ function onAdminClick(e) {
     if (keys.length) { const dk = {}; keys.forEach(x => { dk[x] = now(); }); F.setDoc(F.doc(F.db, "tables", k), { delKeys: dk }, { merge: true }).catch(e => toast(fbErr(e))); }
     const gn = document.getElementById("ghnew"); if (gn) gn.innerHTML = ghNewHtml(k); return; }
   if (ds.a === "ghimportnew") { ghImport(true); return; }
-  if (ds.tdopen || ds.tdedit || ds.tdcancel || ds.tdsave || ds.tdgo || ds.tdadd || ds.tddel) { todoAction(ds); return; }
+  if (ds.tdopen || ds.tdgo) { todoAction(ds); return; }
   if (ds.pmv || ds.pmhist || ds.pmok || ds.pmhide || ds.pmdel || ds.pmban) { pmAction(ds); return; }
   if (ds.osv) { OS.v = ds.osv; renderOwnStat(); return; }
   if (ds.osdays) { OS.days = +ds.osdays; loadOwnStat(); return; }
   if (ds.a === "osreload") { loadOwnStat(); return; }
   if (ds.a === "fixspeed") { fixSpeed(); return; }
   if (ds.a === "fixnames") { fixNames(); return; }
+  if (ds.a === "reid") { reIdChar(ds.reid); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
@@ -3073,6 +3133,10 @@ function injectStyle() {
 .tdall{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px}
 .tdall .tdbar{flex:1 1 240px;height:14px}.tdbig{font-family:var(--display);font-size:26px;font-weight:700;color:var(--accent-ink)}
 .tdlist{display:grid;gap:6px;margin-bottom:12px}
+.bmx{background:var(--panel);box-shadow:var(--shadow);padding:6px 12px}
+.bmx summary{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,200px) 44px auto;gap:10px;align-items:center;cursor:pointer;list-style:none}
+.bmxt{border-collapse:collapse;font-size:13px;margin:8px 0}.bmxt th,.bmxt td{padding:3px 8px;text-align:center;border-bottom:1px solid var(--line)}
+.bmxt td.ok{color:var(--good);font-weight:700}.bmxt td.ng{color:var(--muted)}.bmxt tr.part td:last-child{color:#c08000;font-weight:700}.bmxt tr.none td:last-child{color:var(--bad,#c33)}
 .tdrow{background:var(--panel);box-shadow:var(--shadow);padding:8px 12px}
 .tdrow.done{opacity:.8}
 .tdhead{display:grid;grid-template-columns:22px minmax(0,1fr) minmax(90px,200px) 44px auto;gap:10px;align-items:center;width:100%;border:0;background:none;text-align:left;cursor:pointer;color:var(--ink);padding:2px 0}
