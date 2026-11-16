@@ -74,7 +74,8 @@ header.top{position:relative;color:#fff}
 .brand h1{margin:2px 0 0;font-family:var(--display);font-weight:700;font-size:clamp(48px,9vw,86px);line-height:.92;letter-spacing:.02em;transform:skewX(-10deg);transform-origin:left bottom;text-shadow:0 0 24px rgba(80,190,255,.65),0 3px 0 rgba(4,30,90,.5)}
 .brand h1 span{display:inline-block;margin-left:.18em;color:transparent;-webkit-text-stroke:2px #fff;text-shadow:none}
 .brand .sub{margin:8px 0 0;font-weight:700;font-size:15px;letter-spacing:.12em;text-shadow:0 1px 6px rgba(0,30,90,.6)}
-.brand .acts{margin-left:auto;display:flex;gap:8px}
+.brand .acts{margin-left:auto;display:flex;gap:8px}.brand .acts .btn{white-space:nowrap}
+@media (max-width:560px){.brand .acts{gap:5px;flex-wrap:nowrap;max-width:100%}.brand .acts .btn{padding:6px 8px;font-size:12px}}
 /* ヘッダーの画像は毎回ランダム（白っぽい絵もある）なので、上のボタンは濃い半透明の地＋文字の影で、どの絵の上でも読めるようにする */
 .brand .acts .btn.ghost-dark{background:rgba(6,20,52,.62);border-color:rgba(255,255,255,.7);text-shadow:0 1px 2px rgba(0,0,0,.6);box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .brand .acts .btn.ghost-dark:hover{background:rgba(6,20,52,.8)}
@@ -154,7 +155,46 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .note-h::before{content:"";width:10px;height:2px;background:var(--accent)}
 .note-b{white-space:pre-wrap;margin:0 0 12px;font-size:14px}
 .postsbox{padding:14px 16px;margin-bottom:12px}.pshead{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.pshead .note-h{margin:0}
-.pslist{display:flex;flex-direction:column;gap:6px}.pscard .psfl{color:var(--sub);font-size:11px;font-weight:700}.pstl{margin:8px 0}.psbtns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0}.pscard{display:grid;gap:4px;text-align:left;border:1px solid var(--line);background:var(--field);padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--ink);font:inherit;width:100%}
+.pslist{display:flex;flex-direction:column;gap:6px}.psmore{display:flex;justify-content:center;margin-top:10px}
+/* Tips・サイト内検索 */
+.hsearch{display:inline-flex;align-items:center;gap:4px}
+.devb{display:inline-block;margin-left:4px;padding:0 5px;border-radius:3px;background:#e08a00;color:#fff;font-size:10px;font-weight:700;font-style:normal;letter-spacing:0;vertical-align:middle;line-height:1.6}
+.tiptools{display:flex;align-items:center;gap:8px;margin:0 0 10px}.tiptools .search{flex:1;min-width:0}
+.tiptags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.tiptags button{border:1px solid var(--line);background:var(--panel);padding:4px 10px;border-radius:99px;font-size:12.5px;font-weight:700;color:var(--sub);cursor:pointer}.tiptags button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}.tiptags small{opacity:.7;font-weight:400}
+.tiplist{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.tipcard{display:flex;flex-direction:column;gap:6px;text-align:left;border:0;background:var(--panel);box-shadow:var(--shadow);padding:12px 14px;cursor:pointer;color:var(--ink);border-left:4px solid var(--accent)}
+.tipcard b{font-size:15px;line-height:1.4}.tipex{font-size:12.5px;color:var(--sub);line-height:1.6}
+.tipmeta{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:11.5px}.tipmeta i{font-style:normal;color:var(--accent-ink);font-weight:700}.tipmeta small{margin-left:auto;color:var(--muted)}
+.tipart{max-width:820px}.tipnav{margin:0 0 6px}.tiph{font-size:clamp(20px,4.6vw,28px);line-height:1.35;margin:4px 0 8px}
+.tipmeta2{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--muted);margin:0 0 14px;align-items:center}
+.tiptagl{color:var(--accent-ink);font-weight:700;text-decoration:none}.tiptagl:hover{text-decoration:underline}
+.tipbody{background:var(--panel);box-shadow:var(--shadow);padding:16px 18px;line-height:1.85;font-size:15px}
+.tipbody h3{font-size:19px;margin:22px 0 8px;padding:0 0 4px 10px;border-left:5px solid var(--accent);border-bottom:1px solid var(--line)}.tipbody h4{font-size:16px;margin:16px 0 6px}
+.tipbody h3:first-child,.tipbody h4:first-child{margin-top:0}.tipbody p{margin:0 0 12px}
+.tipbody figure{margin:12px 0}.tipbody img{max-width:100%;height:auto;display:block;border-radius:4px;margin:0 auto}.tipbody figcaption{font-size:12px;color:var(--muted);text-align:center;margin-top:4px}
+.tipbody blockquote{margin:10px 0;padding:8px 12px;border-left:4px solid var(--line2);background:var(--soft);color:var(--sub)}
+.tipbody hr{border:0;border-top:1px dashed var(--line2);margin:18px 0}.tipbody a{color:var(--accent-ink)}
+.tipshare{margin:12px 0}
+.sjump{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.sjump a{font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--soft);color:var(--accent-ink);text-decoration:none}
+.sgrp{margin-bottom:14px}.slist{display:grid;gap:6px;margin-bottom:6px}
+.sres{display:flex;flex-direction:column;gap:4px;text-align:left;border:0;background:var(--panel);box-shadow:var(--shadow);padding:10px 12px;color:var(--ink);cursor:pointer;width:100%}
+div.sres{cursor:default}.srh{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}.srh b{font-size:14.5px}.srh small{color:var(--muted);font-size:12px}
+.srhit{display:flex;gap:8px;font-size:12.5px;line-height:1.6;color:var(--sub)}.srhit i{flex:none;font-style:normal;font-size:11px;font-weight:700;color:#fff;background:var(--accent);padding:0 6px;border-radius:3px;height:1.6em;line-height:1.6em;max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srhit mark{background:#ffe27a;color:#3a2a00;padding:0 1px;border-radius:2px}
+@media (max-width:560px){.hsearch .pc{display:none}}
+/* 管理画面の Tips */
+.tpseg{margin:0 0 10px;flex-wrap:wrap}.tplist{display:grid;gap:6px}
+.tprow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;border:0;background:var(--panel);box-shadow:var(--shadow);padding:10px 12px;cursor:pointer;color:var(--ink);width:100%}
+.tpt{display:grid;min-width:0}.tpt b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tpt small{color:var(--accent-ink);font-size:11.5px}.tpw{display:grid;text-align:right;color:var(--muted);font-size:11.5px}
+.tpst{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px;color:#fff;background:#8a97ab;white-space:nowrap}.tpst.st-draft{background:#6b7c93}.tpst.st-review{background:#e08a00}.tpst.st-pub{background:#1f9d55}.tpst.st-edit{background:#2f6fd6}
+.tped{display:flex;flex-direction:column;gap:8px;padding:12px 14px}.tprow2{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.tpl{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13px}.tpwide input{flex:1;min-width:0}.tpl input,.tpl select{border:1px solid var(--line2);background:var(--field);padding:7px 9px;font-size:14px;color:var(--ink)}
+.tptools{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.tpcols{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tpcols textarea{width:100%;min-height:420px;border:1px solid var(--line2);background:var(--field);padding:10px;font-size:14px;line-height:1.7;color:var(--ink);font-family:inherit}
+.tpprev{max-height:640px;overflow:auto;box-shadow:none;border:1px solid var(--line)}
+@media (max-width:820px){.tpcols{grid-template-columns:1fr}.tpcols textarea{min-height:300px}.tprow{grid-template-columns:auto minmax(0,1fr)}.tpw{grid-column:1/-1;text-align:left}}
+
+.pscard .psfl{color:var(--sub);font-size:11px;font-weight:700}.pstl{margin:8px 0}.psbtns{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0}.pscard{display:grid;gap:4px;text-align:left;border:1px solid var(--line);background:var(--field);padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--ink);font:inherit;width:100%}
 .pscard:hover{border-color:var(--accent)}.pst{font-size:14.5px}.psfaces{display:flex;gap:3px;flex-wrap:wrap}.psfaces img,.psfaces .noth{width:30px;height:30px;border-radius:4px;object-fit:cover;display:grid;place-items:center}
 .psmeta{display:flex;gap:4px 10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}.psby{margin:0 0 6px;color:var(--muted);font-size:13px}
 .pswvs{margin:10px 0}.pswvs .wv{margin-top:6px}.psacts{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
@@ -317,7 +357,19 @@ main{max-width:1240px;margin:0 auto;padding:22px 20px 40px}
 .tbopenbtn{margin-left:10px;vertical-align:middle}
 #dlgTB{width:min(1100px,calc(100% - 16px));margin-top:3vh;margin-bottom:auto}
 .tbmeta{display:flex;flex-wrap:wrap;gap:8px 16px;margin:8px 0}.tbmeta label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}.tbmeta select,.tbmeta input{border:1px solid var(--line2);background:var(--field);padding:6px 8px;font-size:14px;color:var(--ink);min-width:0}.tbmeta input{width:min(320px,60vw)}
-.tbteam{padding:8px;margin:6px 0}
+.tbteam{padding:8px;margin:6px 0}.tbhint{margin:6px 0 0!important}.tbinfoh{margin:14px 0 4px}
+.tbteam .tm{display:flex;flex-direction:column}.tbteam .tmempty{aspect-ratio:auto;min-height:72px;flex:1 1 auto;height:auto}
+.tbsw label{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px;min-width:0}
+.tbsw{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin:6px 0}.tbsw select{min-width:0;flex:0 1 220px}.tbswl{font-weight:700;font-size:13px;flex:none}.tbsw .hint{margin:0;white-space:nowrap}
+#dlgTBS{margin:auto auto 0;width:min(1100px,100%);max-width:100%;height:min(86dvh,760px);max-height:100%;border-radius:12px 12px 0 0;overflow:hidden;background:var(--panel)}
+#dlgTBS::backdrop{background:rgba(3,12,32,.45)}
+#tbsBody{display:flex;flex-direction:column;height:100%;padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+.tbsh-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}.tbsh-h b{font-size:15px}
+#tbsBody .tbed{margin:4px 0;padding:6px 8px;display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.tbedh{display:flex;align-items:center;gap:8px;justify-content:space-between}.tbedh b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbedr{display:flex;flex-wrap:wrap;gap:6px 12px}.tbedr label{white-space:nowrap}
+.tbmode{display:flex}.tbmode button{flex:1}
+#tbsBody>*{flex:none}#tbsBody .qbar{align-content:flex-start}#tbsBody .tbpk{margin:4px 0}#tbsBody .tbgrid{flex:1 1 auto;max-height:none;min-height:0}
 .tbed{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--soft);padding:8px 10px;margin:6px 0;font-size:13px}.tbed label{display:flex;align-items:center;gap:4px}.tbed select{border:1px solid var(--line2);background:var(--field);padding:4px 6px;color:var(--ink)}
 .tbpk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 6px}.tbpk .search{flex:1;min-width:160px}
 .tbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;max-height:38vh;overflow:auto;padding:2px}
@@ -922,6 +974,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
         <p class="sub">リバリバ バベル攻略wiki</p>
       </div>
       <div class="acts">
+        <button class="btn ghost-dark small hsearch" data-gsearch="1" title="サイト内検索" aria-label="サイト内検索"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="pc">検索</span></button>
         <button class="btn ghost-dark small" data-news>お知らせ<span class="nbadge2" id="newsCount" hidden></span></button>
         <button class="btn ghost-dark small" data-feedback>不具合・ご要望</button>
         <button class="btn ghost-dark small" data-account="head" id="acctBtn">ログイン</button>
@@ -935,6 +988,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
     <button role="tab" data-top="babel" aria-selected="false">バベル</button>
     <button role="tab" data-top="seal" aria-selected="false">封印戦</button>
     <button role="tab" data-top="event" aria-selected="false">イベント</button>
+    <button role="tab" data-top="tips" aria-selected="false">Tips<small class="devb">開発中</small></button>
   </nav>
   <nav class="tabs admin" id="adminTabs" role="tablist" hidden></nav>
 </header>
@@ -1005,7 +1059,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 /* サイト設定：アクセス解析のIDを入れると有効になります */
 /* authX: X（Twitter）ログインのボタンを出す（Firebase コンソールで X を有効にしてから true に） */
 /* ver：サイトのバージョン（大きな節目＝1.1.000→1.2.000、main に入れる細かい調整＝1.1.001→1.1.002。中身は data/updates.json） */
-window.SITE={ver:"1.1.008",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
+window.SITE={ver:"1.1.009",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
   /* 記録の引き継ぎ（旧アドレス negiramen1922.github.io/RxRDB → 新しいドメイン）。hosts で開いた端末に記録が無ければ、一度だけ from（旧アドレスと同じオリジンに置いた引き継ぎページ）へ飛んで記録を持ち帰る。from を空にすると止まる */
   move:{from:"https://negiramen1922.github.io/rxr-move/",hosts:["rxrwiki.com","www.rxrwiki.com"],until:"2027-06-30"}};
 </script>
@@ -1260,7 +1314,7 @@ function nudge(key,d){const f=curFloor();const P=place(f.key);const t=P[key];if(
 function viewSeg(){if(MODE==="admin")return "";const m=MINE(),tf=tab==="tier"||tab==="seal";return `<div class="viewbar"><div class="viewseg"><button data-view="official" aria-pressed="${!m}">運営Tier表</button><button data-view="mine" aria-pressed="${m}">自分<span class="pc">のTier表</span><span class="sp">用</span></button></div><span class="vbtools">${tf||ALLCTX()?`<button class="ibtn" data-act="share" title="画像で共有（リンクも付きます）" aria-label="画像で共有">${svgI("camera")}<span class="lbl">画像で共有</span></button>`:""}${tf&&!ALLCTX()&&curFloor()?`<button class="ibtn helpbtn" data-ownhelp="1" title="所持キャラで編成を組んでもらう">${svgI("team")}<span class="lbl2"><span class="pc">編成を</span>相談</span></button>`:""}</span>${m&&(tab==="tier"||tab==="seal")?`<div class="mytools"><button class="btn small" data-act="mycopy">運営の配置をコピー</button><button class="btn small" data-act="mytext">テキストでコピー</button><button class="btn small" data-act="myclear">この階層をリセット</button></div>`:""}</div>`;}
 
 /* ---- メニュー：キャラクター／スクリプト／バベル ＋ サブメニュー ---- */
-const TOPS={home:[["home","ホーム"],["guide","使い方ガイド"],["faq","Q&A"],["updates","アップデート"],["credits","制作メンバー"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"],["swords","魔剣"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]]};
+const TOPS={home:[["home","ホーム"],["search","検索"],["guide","使い方ガイド"],["faq","Q&A"],["updates","アップデート"],["credits","制作メンバー"]],chara:[["chars","キャラクター"],["rank:chars","ランキング"],["knights","騎士"],["own","所持率"],["ctier","全体Tier"]],script:[["scripts","スクリプト一覧"],["rank:scripts","ランキング"],["sown","所持率"],["swords","魔剣"]],babel:[["tier","攻略・Tier表"],["sum","全階層まとめ"],["babel","階層一覧"],["feed","みんなの投稿"]],seal:[["seal","攻略・Tier表"]],event:[["events","イベント"]],tips:[["tips","Tips"]]};
 const LASTSUB={};
 function topOf(t){if(t==="rank")return RK.t==="scripts"?"script":"chara";for(const k in TOPS)if(TOPS[k].some(([x])=>x===t))return k;return "chara";}
 function subKey(){return tab==="rank"?"rank:"+RK.t:tab;}
@@ -1273,7 +1327,7 @@ function renderNav(){
 }
 document.querySelectorAll("#userTabs [data-top]").forEach(b=>b.addEventListener("click",()=>{const top=b.dataset.top;goSub(top==="home"?"home":LASTSUB[top]||TOPS[top][0][0]);}));
 document.getElementById("subTabs").addEventListener("click",e=>{const b=e.target.closest("[data-sub]");if(b)goSub(b.dataset.sub);});
-function goSub(k){if(k.startsWith("rank:")){const t=k.slice(5);if(RK.t!==t){RK.t=t;RK.stat=RKDEF[t][0][0];RK.dir=RKDEF[t][0][2];RK.focus=null;RK.role=null;RK.rar=null;RK.attr=null;}switchTab("rank");}else switchTab(k);}
+function goSub(k){if(k==="tips")TIPID="";if(k.startsWith("rank:")){const t=k.slice(5);if(RK.t!==t){RK.t=t;RK.stat=RKDEF[t][0][0];RK.dir=RKDEF[t][0][2];RK.focus=null;RK.role=null;RK.rar=null;RK.attr=null;}switchTab("rank");}else switchTab(k);}
 let NAVSEQ=0;   // ページを移るたびに +1（ダイアログを閉じたときのスクロール位置の復元を止めるため）
 function switchTab(t){track("tab",{tab:t});NAVSEQ++;tab=t;sel=null;HEROKEY=null;PICKS={};if(!HOMETABS.includes(t)){S.lastTab=t==="rank"?"rank:"+RK.t:t;save();}render();window.scrollTo(0,0);}
 /* 詳細などのダイアログを閉じたら、開く前のスクロール位置に戻す（iPhone の Safari は閉じたときにページの一番上へ飛ぶため）。
@@ -1295,6 +1349,8 @@ function renderMain(){
   else if(tab==="faq")renderFaq();
   else if(tab==="updates")renderUpdates();
   else if(tab==="credits")renderCredits();
+  else if(tab==="tips")renderTips();
+  else if(tab==="search")renderSearch();
   else if(tab==="tier"||tab==="seal"||tab==="ctier")renderTier();
   else if(tab==="own"||tab==="sown")renderOwn();
   else if(tab==="knights")renderKnights();
@@ -1369,6 +1425,102 @@ function docHtml(text){
   close();return out.join("");
 }
 function setDocs(v){DOCS={guide:Array.isArray(v&&v.guide)?v.guide:[],faq:Array.isArray(v&&v.faq)?v.faq:[]};if(tab==="guide"||tab==="faq")render();}
+/* ================= Tips（運営が書く記事。public/tips＝{list:[{id,title,body,tags,at,t}]}。書いた人は公開データに入れない） =================
+   本文の書き方（mdHtml）：「## 見出し」「### 小見出し」・**太字**・[文字](URL)・![説明](画像のURL)・「- 」箇条書き・「1. 」番号・「> 」引用・「---」区切り線・#タグ */
+let TIPS=[],TIPID="",TIPTAG="",TIPQ="";
+const TIPIMG={};   // 管理画面のプレビュー用：アップロードしたばかりの画像（GitHub Pages に出るまで）＝パス→その場のURL
+const tagsIn=s=>[...new Set((String(s||"").match(/[#＃][^\s#＃、,，。]+/g)||[]).map(x=>x.slice(1)))];
+function setTips(v){TIPS=(v&&Array.isArray(v.list)?v.list:[]).filter(x=>x&&x.id&&x.title).map(x=>Object.assign({},x,{tags:Array.isArray(x.tags)?x.tags:[]})).sort((a,b)=>(b.t||0)-(a.t||0));if(tab==="tips"||tab==="search")render();}
+const tipOf=id=>TIPS.find(x=>x.id===id);
+function mdUrl(u){u=String(u||"").trim().replace(/&amp;/g,"&");if(/^(javascript|data|vbscript):/i.test(u))return "";if(/^\/\//.test(u))return "";return u;}
+function mdInline(t){let s=esc(t);
+  s=s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(m,a,u)=>{const h=mdUrl(u);if(!h)return a;const ext=/^https?:/i.test(h)&&!h.startsWith(location.origin);return `<a href="${esc(h)}"${ext?' target="_blank" rel="noopener"':""}>${a}</a>`;});
+  s=s.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+  s=s.replace(/(^|[\s(（])(https?:\/\/[^\s<>"']+)/g,(m,p,u)=>`${p}<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+  s=s.replace(/(^|[\s(（])[#＃]([^\s#＃<、,，。]+)/g,(m,p,g)=>`${p}<a class="tiptagl" href="?tab=tips&amp;tag=${encodeURIComponent(g)}" data-tiptag="${esc(g)}">#${g}</a>`);
+  return s;}
+function mdHtml(text){const out=[];let list=null,para=[];
+  const flushP=()=>{if(para.length){out.push(`<p>${para.map(mdInline).join("<br>")}</p>`);para=[];}};
+  const close=()=>{if(list){out.push(`<${list.t}>${list.items.map(x=>`<li>${x}</li>`).join("")}</${list.t}>`);list=null;}};
+  String(text||"").replace(/\r/g,"").split("\n").forEach(l=>{let m;
+    if(!l.trim()){flushP();close();return;}
+    if((m=/^(#{1,3})\s+(.*)$/.exec(l))){flushP();close();const lv=m[1].length<=2?3:4;out.push(`<h${lv}>${mdInline(m[2])}</h${lv}>`);return;}
+    if(/^\s*(-{3,}|―{2,}|ー{3,})\s*$/.test(l)){flushP();close();out.push("<hr>");return;}
+    if((m=/^\s*!\[([^\]]*)\]\(([^)\s]+)\)\s*$/.exec(l))){flushP();close();const u=mdUrl(m[2]);if(u)out.push(`<figure><img src="${esc(TIPIMG[u]||u)}" alt="${esc(m[1])}" loading="lazy">${m[1]?`<figcaption>${esc(m[1])}</figcaption>`:""}</figure>`);return;}
+    if((m=/^\s*[>＞]\s?(.*)$/.exec(l))){flushP();close();out.push(`<blockquote>${mdInline(m[1])}</blockquote>`);return;}
+    const ul=/^\s*(?:・|-\s|•|\*\s)\s*(.*)$/.exec(l),ol=/^\s*\d+[.．)）]\s+(.*)$/.exec(l);
+    if(ul||ol){flushP();const t=ul?"ul":"ol";if(!list||list.t!==t){close();list={t,items:[]};}list.items.push(mdInline((ul||ol)[1]));return;}
+    close();para.push(l);});
+  flushP();close();return out.join("");}
+// 一覧・検索に出す本文の地の文（記号を外す）
+const mdPlain=t=>String(t||"").replace(/^\s*!\[[^\]]*\]\([^)]*\)\s*$/gm,"").replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/\*\*/g,"").replace(/^\s*(#{1,3}\s+|[>＞]\s?|[-・•*]\s|\d+[.．)）]\s+)/gm,"").replace(/^\s*-{3,}\s*$/gm,"").replace(/\s+/g," ").trim();
+const tday=t=>{if(!t)return "";const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;};
+function tipCardHtml(x){const ex=mdPlain(x.body);return `<button class="tipcard" data-tip="${esc(x.id)}"><b>${esc(x.title)}</b><span class="tipex">${esc(ex.slice(0,90))}${ex.length>90?"…":""}</span><span class="tipmeta">${x.tags.slice(0,6).map(g=>`<i>#${esc(g)}</i>`).join("")}<small>${tday(x.t)} 更新</small></span></button>`;}
+function renderTips(){
+  const x=TIPID&&tipOf(TIPID);
+  if(TIPID&&!x){main.innerHTML=`<section class="doc"><div class="empty"><h2>記事が見つかりません</h2><p>公開が終わったか、URL がまちがっているかもしれません。</p><button class="btn" data-tipback="1">Tips の一覧へ</button></div></section>`;return;}
+  if(x){const rel=TIPS.filter(y=>y.id!==x.id&&y.tags.some(g=>x.tags.includes(g))).slice(0,4);
+    main.innerHTML=`<article class="doc tipart"><p class="tipnav"><button class="aclink2" data-tipback="1">← Tips の一覧</button></p><h2 class="tiph">${esc(x.title)}</h2>
+    <p class="tipmeta2"><span>${tday(x.t)} 更新</span>${x.at&&tday(x.at)!==tday(x.t)?`<span>${tday(x.at)} 公開</span>`:""}${x.tags.map(g=>`<a class="tiptagl" href="?tab=tips&amp;tag=${encodeURIComponent(g)}" data-tiptag="${esc(g)}">#${esc(g)}</a>`).join("")}</p>
+    <div class="tipbody docsec">${mdHtml(x.body)}</div>
+    <p class="tipshare"><button class="btn small" data-tipshare="${esc(x.id)}">${svgI("link")} この記事を共有</button></p>
+    ${rel.length?`<h3 class="fgh">関連する Tips</h3><div class="tiplist">${rel.map(tipCardHtml).join("")}</div>`:""}</article>`;return;}
+  const tags={};TIPS.forEach(y=>y.tags.forEach(g=>tags[g]=(tags[g]||0)+1));
+  const L=TIPS.filter(y=>(!TIPTAG||y.tags.includes(TIPTAG))&&(!TIPQ.trim()||khit(y.title+" "+mdPlain(y.body)+" "+y.tags.join(" "),TIPQ)));
+  main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>TIPS</small>Tips <span class="devb">開発中</span></h2></div>
+  <p class="hint" style="margin:-4px 0 10px">Tips は開発中です。記事や機能は順次追加していきます。</p>
+  <div class="tiptools"><input class="search" id="tipQ" placeholder="Tips をさがす" value="${esc(TIPQ)}"><span class="count">${L.length}件</span></div>
+  ${Object.keys(tags).length?`<div class="tiptags"><button data-tiptag="" aria-pressed="${!TIPTAG}">すべて</button>${Object.entries(tags).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],"ja")).map(([g,n])=>`<button data-tiptag="${esc(g)}" aria-pressed="${TIPTAG===g}">#${esc(g)} <small>${n}</small></button>`).join("")}</div>`:""}
+  <div class="tiplist">${L.map(tipCardHtml).join("")||`<div class="empty"><h2>${TIPS.length?"見つかりませんでした":"準備中です"}</h2></div>`}</div></section>`;
+  liveInput(document.getElementById("tipQ"),()=>{TIPQ=document.getElementById("tipQ").value;const p=document.getElementById("tipQ").selectionStart;renderTips();const n=document.getElementById("tipQ");n.focus();n.setSelectionRange(p,p);});}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tip],[data-tiptag],[data-tipback],[data-tipshare]");if(!b||MODE==="admin"&&!b.closest("#main"))return;const ds=b.dataset;
+  if(ds.tipshare){const x=tipOf(ds.tipshare);if(x)shareUrl(location.origin+location.pathname+"?tip="+encodeURIComponent(x.id),`${x.title} | RxRwiki`);return;}
+  e.preventDefault();
+  if(ds.tip){TIPID=ds.tip;switchTab("tips");return;}
+  if(ds.tipback!==undefined){TIPID="";switchTab("tips");return;}
+  if(ds.tiptag!==undefined){TIPID="";TIPTAG=TIPTAG===ds.tiptag&&tab==="tips"&&!b.closest(".tipart")?"":ds.tiptag;TIPQ="";switchTab("tips");return;}
+});
+
+/* ================= サイト内検索（Tips・キャラ・スクリプト・バベル・封印戦・イベント・騎士・魔剣・ボス・ガイド） =================
+   どのデータのどの項目で見つかったかを出す（項目名と、見つかった所の前後の文）。ひらがな・カタカナ・全角半角・大文字小文字・空白の違いは無視 */
+let SQ="",SQMORE={};
+// 1文字ずつ kq と同じ形に直し、元の文字の位置も覚えておく（見つかった所に印を付けるため）
+function knorm(s){s=String(s||"");let n="";const ix=[];for(let i=0;i<s.length;i++){const c=s[i];if(/\s/.test(c))continue;const k=c.normalize("NFKC").toLowerCase().replace(/[ァ-ヶ]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0x60));for(const ch of k){n+=ch;ix.push(i);}}return {n,ix};}
+function snipHit(text,q){const t=String(text||"");const {n,ix}=knorm(t);const k=kq(q);if(!k)return null;const p=n.indexOf(k);if(p<0)return null;
+  const a=ix[p],b=ix[p+k.length-1]+1;const s=Math.max(0,a-30),e=Math.min(t.length,b+50);
+  return (s>0?"…":"")+esc(t.slice(s,a)).replace(/\n/g," ")+"<mark>"+esc(t.slice(a,b))+"</mark>"+esc(t.slice(b,e)).replace(/\n/g," ")+(e<t.length?"…":"");}
+function searchAll(q){const R=[];if(!kq(q))return R;
+  const add=(type,key,name,sub,fields,act)=>{const hits=[];fields.forEach(([lab,txt])=>{if(!txt)return;const h=snipHit(txt,q);if(h)hits.push([lab,h]);});if(hits.length)R.push({type,key,name,sub,hits,act});};
+  TIPS.forEach(x=>add("tips",x.id,x.title,x.tags.map(g=>"#"+g).join(" "),[["タイトル",x.title],["タグ",x.tags.map(g=>"#"+g).join(" ")],["本文",mdPlain(x.body)]],`data-tip="${esc(x.id)}"`));
+  const ch=data("chars").headers||[],skip=new Set(["No","ID","実装","効果タグ","キャラ","レアリティ"]);
+  CH.filter(c=>!c.unrel).forEach(c=>add("chars",c.id,c.name,[c.order,c.role,c.attr].filter(Boolean).join("・"),[["キャラ名",c.name+" "+charKana(c)]].concat(ch.map((h,i)=>[h,skip.has(h)||h==="キャラ名"?"":c.row[i]])),`data-detail="${esc(c.id)}"`));
+  const sh=data("scripts").headers||[],sskip=new Set(["ID","実装","No"]);
+  SC.filter(x=>x.name&&!x.unrel).forEach(x=>add("scripts",x.id,x.name,[x.role,x.rar].filter(Boolean).join("・"),[["名前",x.name+" "+(x.yomi||"")]].concat(sh.map((h,i)=>[h,sskip.has(h)||h==="名前"?"":x.row[i]])),`data-sdetail="${x.i}"`));
+  FLOORS.forEach(f=>add(f.seal?"seal":"babel",f.key,f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F",f.boss||"",[["ボス",f.boss],[f.seal?"ステージ効果":"解析データ",(f.lines||[]).map(l=>l.text).join("\n")],["攻略のコツ",f.point],["コメント",f.comment],["WAVE情報",(f.waves||[]).map((w,i)=>`WAVE${i+1} ${w.f||""} ${w.t||""}`).join("\n")]],`data-sfloor="${esc(f.key)}"`));
+  EVENTS.forEach(x=>add("events",x.id,x.name,[x.start,x.end].filter(Boolean).join("〜"),[["イベント名",x.name],["説明",x.desc]],`data-sev="${x.i}"`));
+  PEOPLE.forEach(x=>add("knights",x.id,x.name,[x.order,x.rank].filter(Boolean).join("・"),[["名前",x.name+" "+(x.kana||"")],["CV",x.cv],["プロフィール",x.profile]],`data-sknight="${esc(x.id)}"`));
+  SWORDS.forEach(x=>add("swords",x.id,x.name,"魔剣",[["名前",x.name+" "+(x.yomi||"")],["メイン効果",x.main],["サブ効果",x.sub],["入手方法",x.get]],`data-ssword="${x.i}"`));
+  BOSSES.forEach(x=>add("bosses",x.id,x.name,"ボス",[["名前",x.name+" "+(x.yomi||"")],["説明",x.desc]],""));
+  DOCS.guide.forEach((g,i)=>add("guide","g"+i,g.title,"使い方ガイド",[["見出し",g.title],["本文",g.body]],`data-gsub="guide"`));
+  DOCS.faq.forEach((g,i)=>add("guide","q"+i,g.q,"Q&A",[["質問",g.q],["答え",g.a]],`data-gsub="faq"`));
+  return R;}
+const SGROUP=[["tips","Tips"],["chars","キャラ"],["scripts","スクリプト"],["babel","バベル"],["seal","封印戦"],["events","イベント"],["knights","騎士"],["swords","魔剣"],["bosses","ボス"],["guide","ガイド・Q&A"]];
+function renderSearch(){const R=searchAll(SQ);const by={};R.forEach(r=>(by[r.type]=by[r.type]||[]).push(r));
+  const grp=([k,l])=>{const L=by[k];if(!L)return "";const n=SQMORE[k]?L.length:Math.min(L.length,8);
+    return `<section class="sgrp" id="sg-${k}"><h3 class="fgh">${l} <small class="count">${L.length}件</small></h3><div class="slist">${L.slice(0,n).map(r=>`<${r.act?"button":"div"} class="sres" ${r.act}><span class="srh"><b>${esc(r.name)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:""}</span>${r.hits.slice(0,3).map(([lab,h])=>`<span class="srhit"><i>${esc(lab)}</i><span>${h}</span></span>`).join("")}${r.hits.length>3?`<span class="count">ほか ${r.hits.length-3}項目</span>`:""}</${r.act?"button":"div"}>`).join("")}</div>${L.length>n?`<button class="btn small" data-sqmore="${k}">もっと見る（残り ${L.length-n}件）</button>`:""}</section>`;};
+  main.innerHTML=`<section class="doc"><div class="toolbar"><h2><small>SEARCH</small>サイト内検索</h2></div>
+  <div class="tiptools"><input class="search" id="sQ" placeholder="キャラ・スクリプト・効果・バベルの解析データ・Tips などをまとめてさがす" value="${esc(SQ)}" enterkeyhint="search"></div>
+  ${kq(SQ)?(R.length?`<p class="sjump">${SGROUP.filter(([k])=>by[k]).map(([k,l])=>`<a href="#sg-${k}" data-sjump="${k}">${l} ${by[k].length}</a>`).join("")}</p>${SGROUP.map(grp).join("")}`:`<div class="empty"><h2>見つかりませんでした</h2><p>ことばを短くするか、別の言い方でさがしてみてください。</p></div>`):`<p class="hint">例：「移動速度低下」→ その効果を持つキャラ・スクリプトと、解析データに入っているバベルの階層。「ラーメン」→ ラーメンの Tips。</p>`}</section>`;
+  const qi=document.getElementById("sQ");liveInput(qi,()=>{clearTimeout(qi._t);qi._t=setTimeout(()=>{SQ=qi.value;SQMORE={};const p=qi.selectionStart;renderSearch();syncUrl();const n=document.getElementById("sQ");n.focus();n.setSelectionRange(p,p);},250);});
+  if(!SQ)setTimeout(()=>{const n=document.getElementById("sQ");if(n&&!("ontouchstart" in window))n.focus();},30);}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-sqmore],[data-sjump],[data-sev],[data-sknight],[data-ssword],[data-gsearch],[data-gsub],[data-sfloor]");if(!b||MODE==="admin")return;const ds=b.dataset;
+  if(ds.gsearch!==undefined){e.preventDefault();switchTab("search");return;}
+  if(ds.sqmore){SQMORE[ds.sqmore]=1;renderSearch();return;}
+  if(ds.sjump){e.preventDefault();const el=document.getElementById("sg-"+ds.sjump);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});return;}
+  if(ds.gsub){goSub(ds.gsub);return;}
+  if(ds.sfloor){const f=FLOORS.find(x=>x.key===ds.sfloor);if(!f)return;if(f.seal){S.curSeal=f.key;switchTab("seal");}else{S.curType=f.type;S.curFloor=f.key;save();switchTab("tier");}return;}
+  if(ds.sev){openEvent(+ds.sev);return;}if(ds.sknight){openKnight(ds.sknight);return;}if(ds.ssword){openSword(+ds.ssword);return;}
+});
 /* ホーム画面に追加（Android/PC の Chrome はインストールの案内を出す。iPhone は手順を表示） */
 let A2HS=null;addEventListener("beforeinstallprompt",e=>{e.preventDefault();A2HS=e;});
 const STANDALONE=()=>matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
@@ -2118,12 +2270,18 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tmv]");if(
 /* ---------- 編成ビルダー（所持キャラで編成を組んで、リンクで共有） ----------
    入口：共有された所持キャラ（「この所持キャラで編成を組む」）／所持率チェッカー／階層・封印戦のページ（「自分で編成を組む」）。
    pool＝使えるキャラ（{キャラID:★}。null ならすべて）。リンクは ?team=コード（JSON を deflate して base64url。ブラウザが未対応なら圧縮なし） */
-const TB={pool:null,spool:null,sonly:true,owner:"",floor:"",name:"",comment:"",ms:[],sel:0,pick:"c",q:"",post:null};
+const TB={pool:null,spool:null,sonly:true,owner:"",floor:"",name:"",comment:"",ms:[],sel:0,pick:"c",q:"",post:null,sheet:false};
 const tbBlank=()=>Array.from({length:6},()=>({id:"",star:"",sc:"",ord:""}));
 const rarMin=c=>c&&RARSTAR[c.rar]||1;
-function tbOpen(o){Object.assign(TB,{pool:null,spool:null,sonly:true,owner:"",floor:"",name:"",comment:"",sword:"",ms:tbBlank(),sel:0,pick:"c",q:"",post:null},o||{});if(TB.spool&&!Object.keys(TB.spool).length)TB.spool=null;if(TB.ms.length<6)TB.ms=TB.ms.concat(tbBlank()).slice(0,6);
+function tbOpen(o){Object.assign(TB,{pool:null,spool:null,sonly:true,owner:"",floor:"",name:"",comment:"",sword:"",ms:tbBlank(),sel:0,pick:"c",q:"",post:null,sheet:false},o||{});if(TB.spool&&!Object.keys(TB.spool).length)TB.spool=null;if(TB.ms.length<6)TB.ms=TB.ms.concat(tbBlank()).slice(0,6);
   let dl=document.getElementById("dlgTB");if(!dl){dl=document.createElement("dialog");dl.id="dlgTB";dl.className="wide";dl.innerHTML=`<div class="dlg" id="tbBody"></div>`;document.body.appendChild(dl);}
   tbRender();if(!dl.open)dl.showModal();}
+function tbSheet(html){let dl=document.getElementById("dlgTBS");
+  if(!dl){dl=document.createElement("dialog");dl.id="dlgTBS";dl.innerHTML=`<div id="tbsBody"></div>`;document.body.appendChild(dl);
+    dl.addEventListener("close",()=>{if(TB.sheet){TB.sheet=false;TB.q="";tbRender();}});
+    dl.addEventListener("click",e=>{if(e.target===dl)dl.close();});}
+  if(!html){if(dl.open)dl.close();return;}
+  setDlg("tbsBody",html);if(!dl.open)dl.showModal();}
 function tbPoolList(){const f=floorObj(TB.floor);const q=TB.q.trim().toLowerCase();
   return CH.filter(c=>!c.unrel&&(!TB.pool||TB.pool[c.id])&&(!f||grpOk(c,f))&&cfMatch(c,CFS.tb)&&(!q||khit(c.name+c.id+(c.bname||"")+charKana(c),q)));}
 function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById("tbBody");if(!body)return;const m=TB.ms[TB.sel]||{};const c=CHMAP[m.id];
@@ -2140,22 +2298,23 @@ function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById(
     pick=`<div class="tbpk"><input class="search" id="tbQ" placeholder="スクリプト名で絞り込み" value="${esc(TB.q)}"><span class="count">${esc(c.role||"")}・ワイルドのスクリプト ${L.length}枚</span>${sp?`<span class="viewsw"><button data-tbsonly="1" aria-pressed="${TB.sonly}">所持だけ</button><button data-tbsonly="0" aria-pressed="${!TB.sonly}">すべて</button></span>`:`<span class="count">（スクリプトの所持の記録なし）</span>`}${m.sc?`<button class="btn small" data-tbsc="">スクリプトを外す</button>`:""}</div>
     <div class="tbgrid">${L.map(x=>{const v=sp?+sp[x.id]||0:0;const u=TB.ms.findIndex((y,j)=>j!==TB.sel&&y.sc===x.id);return `<button class="tbch${x.id===m.sc?" on":""}${sp&&!v?" tmnot":""}${u>=0?" tbused":""}" data-tbsc="${esc(x.id)}" ${u>=0?"disabled":""} title="${esc(x.name)}${u>=0?`（枠${u+1}で使用中）`:""}">${sth(x)}<span>${esc(x.name)}</span>${v?`<i>${lbLabel(v)}</i>`:""}${u>=0?`<em>枠${u+1}</em>`:""}</button>`;}).join("")||'<p class="count">該当するスクリプトがありません</p>'}</div>`;}
   const min=rarMin(c);
-  const ed=c?`<div class="tbed"><b>枠${TB.sel+1}：${esc(c.name)}</b>
-    <label>星 <select data-tbf="star">${[1,2,3,4,5].filter(n=>n>=min).map(n=>`<option value="${n}" ${String(n)===String(m.star)?"selected":""}>★${n}</option>`).join("")}</select></label>
+  const ed=c?`<div class="tbed"><div class="tbedh"><b>枠${TB.sel+1}：${esc(c.name)}</b><button class="btn small" data-tbclear="1">空にする</button></div>
+    <div class="tbedr"><label>星 <select data-tbf="star">${[1,2,3,4,5].filter(n=>n>=min).map(n=>`<option value="${n}" ${String(n)===String(m.star)?"selected":""}>★${n}</option>`).join("")}</select></label>
     <label>出撃順 <select data-tbf="ord"><option value="">なし</option>${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${String(n)===m.ord?"selected":""}>${n}番目</option>`).join("")}</select></label>
-    ${TB.post?`${lvSel("awk","覚醒Lv",m.awk)}${lvSel("bl","BLADE Lv",m.bl)}${m.sc?`<label>スクリプト凸 <select data-tbf="lb"><option value="">—</option>${Array.from({length:SLB_MAX},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(m.lb)?"selected":""}>${lbLabel(n)}</option>`).join("")}</select></label>${lvSel("sr","スクリプトランク",m.sr)}`:""}`:""}
-    <span class="seg"><button data-tbmode="c" aria-pressed="${TB.pick==="c"}">キャラを選ぶ</button><button data-tbmode="s" aria-pressed="${TB.pick==="s"}">スクリプトを選ぶ</button></span>
-    <button class="btn small" data-tbclear="1">この枠を空にする</button></div>`
-    :`<div class="tbed"><b>枠${TB.sel+1}</b><span class="count">下からキャラを選んでください</span></div>`;
+    ${TB.post?`${lvSel("awk","覚醒Lv",m.awk)}${lvSel("bl","BLADE Lv",m.bl)}${m.sc?`<label>凸 <select data-tbf="lb"><option value="">—</option>${Array.from({length:SLB_MAX},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(m.lb)?"selected":""}>${lbLabel(n)}</option>`).join("")}</select></label>${lvSel("sr","スクリプトランク",m.sr)}`:""}`:""}</div>
+    <span class="seg tbmode"><button data-tbmode="c" aria-pressed="${TB.pick==="c"}">キャラ</button><button data-tbmode="s" aria-pressed="${TB.pick==="s"}">スクリプト${m.sc?"（選択済み）":""}</button></span></div>`
+    :`<div class="tbed"><div class="tbedh"><b>枠${TB.sel+1}</b><span class="count">キャラを選んでください</span></div></div>`;
   const n=TB.ms.filter(x=>x.id).length;
   const P=TB.post;
-  setDlg("tbBody",`<button class="btn small dlgx" data-close aria-label="閉じる">✕ 閉じる</button><h2 style="margin-right:90px">${P?(P.id?"攻略を編集する":"攻略を投稿する"):"編成を組む"}</h2><p class="count" style="margin:0">${who}から選べます（同じキャラ・同じスクリプトは1枠だけ）${P?"。★・凸は所持の記録から入れてあります。クリアしたときの状態に合わせて直してください（あとで所持の記録を変えても、投稿は変わりません）":""}</p>
-  <div class="tbmeta">${P&&P.pick?postFloorHtml():`<span class="tbfl">階層：<b>${TB.floor?esc(floorName(TB.floor)):"指定なし"}</b></span>`}${g?`<span class="tbfl">（${g==="アナザー"?"アナザーバベル":"バベルリビルド"}で使える騎士団のキャラだけ）</span>`:""}<label>${P?"タイトル":"編成名"} <input data-tbf="name" value="${esc(TB.name)}" placeholder="${P?"例：破壊パで突破／召喚物で反転させる":"例：〇〇階 クリア編成"}" maxlength="40"></label>${P?`<label>投稿者名 <input data-tbf="pname" value="${esc(P.pname||"")}" placeholder="表示される名前" maxlength="20"></label>`:""}</div>
-  ${TB.floor?floorInfoHtml(TB.floor,TB.pool,`${floorName(TB.floor)} の情報`):""}
-  <p class="hint" style="margin:4px 0">カードを押すとその枠を選びます（枠の1〜6はゲームの編成画面の左からの並び）。キャラを選ぶと続けてスクリプトを選べます。</p>
-  <div class="team tv-c tbteam">${teamCardsHtml(TB.ms,{slot:true,sel:TB.sel})}</div>${SWORDS.length||TB.sword?`<div class="tbsw">${swordSelect(TB.sword,'data-tbf="sword"')}<span class="hint">魔剣は編成ごとに1本</span></div>`:""}${ed}${pick}
+  // キャラ・スクリプトを選ぶ画面は、下から出る別のダイアログ（スマホでも枠と一覧を行ったり来たりしない）
+  tbSheet(TB.sheet?`<div class="tbsh-h"><b>${TB.pick==="s"&&c?"スクリプトを選ぶ":"キャラを選ぶ"}</b><span style="flex:1"></span><button class="btn small primary" data-tbdone="1">完了</button></div>${ed}${pick}`:"");
+  setDlg("tbBody",`<button class="btn small dlgx" data-close aria-label="閉じる">✕ 閉じる</button><h2 style="margin-right:90px">${P?(P.id?"攻略を編集する":"攻略を投稿する"):"編成を組む"}</h2><p class="count" style="margin:0">${who}から選べます${P?"。★・凸は所持の記録から入れてあります（クリアしたときの状態に直してください）":""}</p>
+  <div class="tbmeta">${P&&P.pick?postFloorHtml():`<span class="tbfl">階層：<b>${TB.floor?esc(floorName(TB.floor)):"指定なし"}</b>${g?` <small class="count">（${g==="アナザー"?"アナザー":"リビルド"}で使える騎士団だけ）</small>`:""}</span>`}<label>${P?"タイトル":"編成名"} <input data-tbf="name" value="${esc(TB.name)}" placeholder="${P?"例：破壊パで突破／召喚物で反転させる":"例：〇〇階 クリア編成"}" maxlength="40"></label>${P?`<label>投稿者名 <input data-tbf="pname" value="${esc(P.pname||"")}" placeholder="表示される名前" maxlength="20"></label>`:""}</div>
+  <p class="hint tbhint">枠を押すとキャラ・スクリプトを選べます（1〜6＝ゲームの編成画面の左から）</p>
+  <div class="team tv-c tbteam">${teamCardsHtml(TB.ms,{slot:true,sel:TB.sheet?TB.sel:-1})}</div>${SWORDS.length||TB.sword?`<div class="tbsw">${swordSelect(TB.sword,'data-tbf="sword"')}<span class="hint">編成ごとに1本</span></div>`:""}
   ${P?postExtraHtml():""}
   <label class="tbcm">${P?`自由記述（${PLIM.body}文字まで。運用のコツ・育成の目安など）`:"コメント（運用のコツなど）"}<textarea data-tbf="comment" maxlength="${P?PLIM.body:600}" placeholder="例：1番目にタンクを出して、ゲージが溜まったら〇〇のBLADE">${esc(TB.comment)}</textarea></label>
+  ${TB.floor?`<p class="note-h tbinfoh">${esc(floorName(TB.floor))} の情報</p>${floorInfoHtml(TB.floor,TB.pool,"tb")}`:""}
   <div class="foot"><button class="btn" data-tbreset="1">最初から</button><span style="flex:1"></span>${P?`<button class="btn primary" data-postsave="1" ${(n||(P.tl&&P.tl.length))&&!P.busy?"":"disabled"}>${P.busy?"送信中…":P.id?"更新する":"投稿する"}</button>`:`<button class="btn primary" data-tbshare="1" ${n?"":"disabled"}>${svgI("link")} リンクで共有</button>`}</div>`);
   const qi=document.getElementById("tbQ");if(qi)liveInput(qi,()=>{TB.q=qi.value;const p=qi.selectionStart;tbRender();const nq=document.getElementById("tbQ");if(nq){nq.focus();nq.setSelectionRange(p,p);}});
 }
@@ -2163,22 +2322,23 @@ function tbRender(){setTimeout(tbPrepCode,0);const body=document.getElementById(
 // 同じキャラ（同じスタイル）は1枠だけ。スタイルが違えば同じ騎士でも編成できる
 function tbUsedChar(x){return TB.ms.findIndex((y,j)=>j!==TB.sel&&y.id&&y.id===x.id);}
 function tbNextEmpty(){const i=TB.ms.findIndex(x=>!x.id);return i>=0?i:TB.sel;}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[data-tbslot],[data-tbpick],[data-tbsc],[data-tbmode],[data-tbclear],[data-tbreset],[data-tbshare],[data-tbedit],[data-tbsonly]");if(!b)return;const ds=b.dataset;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tbopen],[data-tbslot],[data-tbpick],[data-tbsc],[data-tbmode],[data-tbclear],[data-tbreset],[data-tbshare],[data-tbedit],[data-tbsonly],[data-tbdone]");if(!b)return;const ds=b.dataset;
   if(ds.tbopen){const k=ds.tbopen;
     if(k==="sov"){tbOpen({pool:SOV.o,spool:SOV.so,owner:SOV.name,floor:floorObj(SOV.floor)?SOV.floor:""});return;}
     if(k==="own"){if(!hasOwn()){toast("まず所持率チェッカーで持っているキャラを選んでください");return;}tbOpen({pool:OWN(),spool:SOWN()});return;}
     if(k==="floor"){const f=curFloor();tbOpen({pool:hasOwn()?OWN():null,spool:SOWN(),floor:f?f.key:""});return;}
     return;}
   if(ds.tbedit){const t=TBSHARED;if(t)tbOpen({pool:hasOwn()?OWN():null,spool:SOWN(),floor:t.f||"",name:t.n||"",comment:t.c||"",sword:t.w||"",ms:t.m.map(x=>({id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}))});return;}
-  if(ds.tbslot){const [i,k]=ds.tbslot.split("|");TB.sel=+i;TB.pick=k==="s"&&TB.ms[+i].id?"s":"c";TB.q="";tbRender();return;}
+  if(ds.tbdone){TB.sheet=false;TB.q="";tbRender();return;}
+  if(ds.tbslot){const [i,k]=ds.tbslot.split("|");TB.sel=+i;TB.pick=k==="s"&&TB.ms[+i].id?"s":"c";TB.q="";TB.sheet=true;tbRender();return;}
   if(ds.tbpick){if(tbUsedChar(CHMAP[ds.tbpick]||{id:ds.tbpick})>=0){toast("同じキャラ（同じスタイル）はほかの枠で使っています");return;}const m=TB.ms[TB.sel],c=CHMAP[ds.tbpick];m.id=ds.tbpick;const ps=TB.pool?+TB.pool[c.id]||0:0;m.star=String(Math.max(ps||rarMin(c),rarMin(c)));
     if(m.sc){const s=scOf(m.sc);if(s&&s.role&&c.role&&s.role!==c.role&&s.role!=="ワイルド")m.sc="";}
     TB.pick="s";TB.q="";tbRender();return;}
-  if(ds.tbsc!==undefined){if(ds.tbsc&&TB.ms.some((y,j)=>j!==TB.sel&&y.sc===ds.tbsc)){toast("同じスクリプトはほかの枠で使っています");return;}TB.ms[TB.sel].sc=ds.tbsc;if(TB.post){const so=SOWN();TB.ms[TB.sel].lb=ds.tbsc&&so[ds.tbsc]?String(so[ds.tbsc]):"";if(!ds.tbsc)TB.ms[TB.sel].sr="";}if(ds.tbsc&&!TB.post){TB.sel=tbNextEmpty();TB.pick="c";}TB.q="";tbRender();return;}
+  if(ds.tbsc!==undefined){if(ds.tbsc&&TB.ms.some((y,j)=>j!==TB.sel&&y.sc===ds.tbsc)){toast("同じスクリプトはほかの枠で使っています");return;}TB.ms[TB.sel].sc=ds.tbsc;if(TB.post){const so=SOWN();TB.ms[TB.sel].lb=ds.tbsc&&so[ds.tbsc]?String(so[ds.tbsc]):"";if(!ds.tbsc)TB.ms[TB.sel].sr="";}if(ds.tbsc&&!TB.post){TB.sheet=false;TB.sel=tbNextEmpty();TB.pick="c";}TB.q="";tbRender();return;}
   if(ds.tbmode){TB.pick=ds.tbmode;TB.q="";tbRender();return;}
   if(ds.tbsonly!==undefined){TB.sonly=ds.tbsonly==="1";tbRender();return;}
   if(ds.tbclear){TB.ms[TB.sel]={id:"",star:"",sc:"",ord:"",awk:"",bl:"",lb:"",sr:""};TB.pick="c";tbRender();return;}
-  if(ds.tbreset){if(!confirm("組んだ編成を消して最初からにしますか？"))return;TB.ms=tbBlank();TB.sel=0;TB.pick="c";TB.name="";TB.comment="";tbRender();return;}
+  if(ds.tbreset){if(!confirm("組んだ編成・編成名・コメントを消して、最初からにしますか？"))return;TB.ms=tbBlank();TB.sel=0;TB.pick="c";TB.sheet=false;TB.name="";TB.comment="";tbRender();return;}
   if(ds.tbshare){tbShare();return;}
 });
 document.addEventListener("change",e=>{const el=e.target.closest("[data-tbf]");if(!el)return;const f=el.dataset.tbf,v=el.value;
@@ -2214,12 +2374,12 @@ function floorInfoHtml(key,pool,label){const f=floorObj(key);if(!f)return "";con
   const ts=TEAMS[key]||[];const W=f.seal?"封印戦":"階層";
   // 邪魔にならないよう、情報・編成例・Tier表はそれぞれ閉じたトグル（開いた状態は FLOPEN）
   const box=(id,sum,inner)=>`<details class="flinfo" data-fl="${esc(fk+"|"+id)}"${FLOPEN.has(fk+"|"+id)?" open":""}><summary>${sum}</summary><div class="flbody">${inner}</div></details>`;
-  return `<div class="flinfos">`+box("info",`📋 ${esc(label||floorName(key)+" の情報")} <small class="count">（${f.seal?"ステージ効果":"解析データ"}・攻略のコツ）</small>`,
+  return `<div class="flinfos">`+box("info",`📋 ${f.seal?"ステージ効果":"解析データ"}・攻略のコツ`,
     `<p class="flboss">${BOSS[f.bossId]||BOSS[f.boss]?`<img src="${BOSS[f.bossId]||BOSS[f.boss]}" alt="">`:""}<span><b>${esc(f.seal?"封印戦 "+f.floor:f.type+" "+f.floor+"F")}</b>${f.boss?` ${esc(f.boss)}`:""}${f.attr?` <span class="count">（推奨 ${esc(f.attr)}）</span>`:""}</span></p>
     ${ef?`<p class="note-h">${f.seal?"ステージ効果":"解析データ"}</p><ul class="effects">${ef}</ul>`:""}
     ${f.point?`<p class="note-h">攻略のコツ</p><p class="note-b">${esc(f.point)}</p>`:""}${(f.waves||[]).length?`<p class="note-h">WAVE情報（全${f.waves.length} wave）</p>${f.waves.map((x,i)=>`<p class="note-b"><b>WAVE ${i+1}</b>${x.f?`\n${esc(x.f)}`:""}${x.t?`\n【立ち回り】${esc(x.t)}`:""}</p>`).join("")}`:""}${f.comment?`<p class="note-h">コメント</p><p class="note-b">${esc(f.comment)}</p>`:""}${!ef&&!f.point&&!f.comment?'<p class="count">まだ情報がありません</p>':""}`)
-  +box("teams",`🧩 クリア編成例 <small class="count">（${ts.length}件）</small>`,ts.length?ts.map(t=>teamOneHtml(t,false,"fi|"+key+"|"+t.name)).join(""):`<p class="count">この${W}の編成例はまだありません</p>`)
-  +box("tier",`📊 運営Tier表${pool&&rows.length?` <small class="count">（グレー＝持っていない）</small>`:""}`,rows.length?`<div class="fltier">${rows.map(([t,ks])=>`<div><b class="t-${esc(t)}">${esc(t)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<span class="fltc${pool&&!pool[c.id]?" tmnot":""}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</span>`;}).join("")}</span></div>`).join("")}</div>`:`<p class="count">この${W}の運営Tier表はまだありません</p>`)
+  +box("teams",`🧩 クリア編成例 <small class="count">${ts.length}件</small>`,ts.length?ts.map(t=>teamOneHtml(t,false,"fi|"+key+"|"+t.name)).join(""):`<p class="count">この${W}の編成例はまだありません</p>`)
+  +box("tier",`📊 運営Tier表${pool&&rows.length?` <small class="count">グレー＝未所持</small>`:""}`,rows.length?`<div class="fltier">${rows.map(([t,ks])=>`<div><b class="t-${esc(t)}">${esc(t)}</b><span>${ks.map(k=>{const e=eparse(k),c=CHMAP[e.id];if(!c)return "";return `<span class="fltc${pool&&!pool[c.id]?" tmnot":""}" title="${esc(c.name)}${e.star?" ★"+e.star:""}">${cth(c)}${e.star?`<i>★${esc(e.star)}</i>`:""}</span>`;}).join("")}</span></div>`).join("")}</div>`:`<p class="count">この${W}の運営Tier表はまだありません</p>`)
   +`</div>`;}
 /* ---------- 自分のTier表をリンクで共有：?tl=コード（{v,f:階層キー,r:[[Tier,[キー…]]…]} を JSON→base64url。並びは見えている順）。
    スマホの共有メニューは押した直後でないと開けないので、圧縮せずにその場で作る ---------- */
@@ -2246,7 +2406,7 @@ async function openSharedTier(code){let t;try{t=await teamDecode(code);}catch(e)
    ★・スクリプトの凸は所持の記録から入れておき、そのあと自由に直せる（投稿に書き込むので、あとで所持の記録が変わっても投稿は変わらない） */
 const PLIM={title:40,body:500,wave:300,waves:10};
 let POSTMOD=null;const loadPosts=()=>POSTMOD||(POSTMOD=import("./js/posts.js?v=6").catch(e=>{POSTMOD=null;toast("みんなの攻略を読み込めませんでした。通信を確認してください");throw e;}));
-const PST={f:"",list:null,busy:false,sort:"new",err:""};
+const PST={f:"",list:null,busy:false,sort:"new",err:"",n:5};   // n＝階層ページで見せている件数（最初5件。「もっと見る」で10件ずつ）
 /* 画面に入ったら読み込む（階層ページの「みんなの攻略」・ホームの新着）。押さなくても見てもらえるように。読み取りは見えたときだけ */
 let LAZYOB=null;
 function armLazy(){const els=document.querySelectorAll("[data-pslazy]:not([data-armed]),[data-hposts]:not([data-armed]),[data-feedmore-s]:not([data-armed])");if(!els.length)return;
@@ -2303,11 +2463,12 @@ function postsBoxHtml(f){if(MODE==="admin"||!f||f.all)return "";const on=PST.f==
   return `<div class="floorcard postsbox" id="postsbox"><div class="pshead"><p class="note-h">${svgI("pen")} みんなの攻略${on?` <small class="count">${l.length}件</small>`:""}</p><span style="flex:1"></span>
     ${on&&l.length>1?`<span class="viewsw"><button data-psort="new" aria-pressed="${PST.sort==="new"}">新しい順</button><button data-psort="like" aria-pressed="${PST.sort==="like"}">いいね順</button></span>`:""}
     ${psTools(f.key)}</div>
-    ${on?(l.length?`<div class="pslist">${l.map(p=>postCardHtml(p)).join("")}</div>`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
+    ${on?(l.length?`<div class="pslist">${l.slice(0,PST.n).map(p=>postCardHtml(p)).join("")}</div>${l.length>PST.n?`<div class="psmore"><button class="btn" data-psmore="1">もっと見る（残り ${l.length-PST.n}件）</button></div>`:""}`:`<p class="count">まだ投稿がありません。クリアした編成やwaveごとの立ち回りを投稿してみてください。</p>`)
       :PST.err?`<p class="err">${esc(PST.err)}</p><button class="btn small" data-postload="${esc(f.key)}">もう一度読み込む</button>`:`<p class="count" data-pslazy="${esc(f.key)}">${PST.busy?"読み込み中…":"みんなの攻略を読み込んでいます…"}</p>`}</div>`;}
 const pdate=t=>{if(!t)return "";const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;};
 const pdtime=t=>{if(!t)return "";const d=new Date(t);return `${pdate(t)} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;};
 const pEdited=p=>p.t&&p.at&&p.t-p.at>60000;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-psmore]");if(!b)return;e.preventDefault();PST.n+=10;render();});
 /* 投稿のブックマーク（S.pbm＝{投稿ID:{t:タイトル,f:階層キー,n:投稿者名,at}}。ブラウザに保存し、ログインしていればアカウントにも） */
 const PBM=()=>S.pbm||(S.pbm={});
 const pbmLabel=on=>`${svgI(on?"bookmarked":"bookmark")} ${on?"ブックマーク済み":"ブックマーク"}`;
@@ -2331,7 +2492,7 @@ function renderFeed(){if(!FEED.list&&!FEED.busy&&!FEED.err){loadFeed(false);retu
   ${FEED.err?`<p class="err">${esc(FEED.err)}</p>`:""}${FEED.busy?'<p class="count">読み込み中…</p>':""}
   ${l.length&&!FEED.end&&!FEED.busy&&!FEED.err?'<div data-feedmore-s="1" class="feedsent"></div>':""}<p class="psbtns"><button class="btn small" data-feedreload="1" ${FEED.busy?"disabled":""}>${svgI("refresh")} 最新にする</button></p></div>`;armLazy();}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-feedreload]");if(!b)return;loadFeed(false);});
-async function loadFloorPosts(fk){PST.busy=true;PST.err="";PST.f=fk;PST.list=null;render();
+async function loadFloorPosts(fk){PST.busy=true;PST.err="";if(PST.f!==fk)PST.n=5;PST.f=fk;PST.list=null;render();
   try{const pm=await loadPosts();PST.list=await pm.listByFloor(fk);}catch(er){console.warn(er);PST.err="読み込めませんでした。時間をおいてもう一度お試しください";PST.f="";}
   PST.busy=false;render();}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],[data-postnew],[data-psort],[data-post],[data-plike],[data-preport],[data-pedit],[data-pdel],[data-pshare],[data-mypage],[data-pprof],[data-pbm],[data-pbmlist],[data-pbmrm]");if(!b)return;const ds=b.dataset;
@@ -2412,8 +2573,9 @@ async function openSharedTeam(code){let t;try{t=await teamDecode(code);}catch(e)
   if(!t||!Array.isArray(t.m)){toast("編成のリンクを読めませんでした",6000);return;}TBSHARED=t;
   const ms=t.m.map(x=>x?{id:x[0]||"",star:x[1]?String(x[1]):"",sc:x[2]||"",ord:x[3]?String(x[3]):""}:{id:"",star:"",sc:"",ord:""});while(ms.length<6)ms.push({id:"",star:"",sc:"",ord:""});
   const f=FLOORS.find(x=>x.key===t.f)||SEALS.find(x=>x.key===t.f);
-  const h=`<h2>共有された編成</h2>${f?`<p class="tbfloor">${f.seal?"封印戦 "+esc(f.floor):esc(f.type)+" "+esc(f.floor)+"F"}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">この${f.seal?"封印戦":"階層"}のページへ</button></p>${floorInfoHtml(f.key,null,"この"+(f.seal?"封印戦":"階層")+"の情報")}`:""}${t.o?`<p class="hint">${esc(t.o)} さんの所持キャラで組んだ編成です</p>`:""}
+  const h=`<h2>共有された編成</h2>${f?`<p class="tbfloor">${f.seal?"封印戦 "+esc(f.floor):esc(f.type)+" "+esc(f.floor)+"F"}${f.boss?" "+esc(f.boss):""} <button class="btn small" data-floor="${esc(f.key)}" data-go="1">ページへ</button></p>`:""}${t.o?`<p class="hint">${esc(t.o)} さんの所持キャラで組んだ編成です</p>`:""}
   <div class="teams" style="border:0;margin:0;padding:0">${teamOneHtml({name:t.n||"編成",members:ms,comment:t.c||"",sword:t.w||""},true)}</div>
+  ${f?`<p class="note-h tbinfoh">この${f.seal?"封印戦":"階層"}の情報</p>${floorInfoHtml(f.key,null,"st")}`:""}
   <div class="foot"><button class="btn" data-tbedit="1">この編成をもとに組み直す</button><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
 /* 一覧のカードの大きな絵（覚醒イラスト・イベント画像）は、画面に近づいてから読み込む（data-lbg＝画像のURL） */
@@ -2817,6 +2979,7 @@ async function loadSite(){
     part("options").then(setOptions).catch(()=>{}),
     part("news").catch(()=>get("data/news.json")).then(v=>{NEWS=Array.isArray(v)?v:[];}).catch(()=>{NEWS=[];}),
     part("guide").catch(()=>get("data/guide.json")).then(v=>{setDocs(v);}).catch(()=>{}),
+    part("tips").then(v=>{setTips(v);}).catch(()=>{}),
     TESTER?part("testlist").catch(()=>get("data/testlist.json")).then(v=>{TESTLIST=v;}).catch(()=>{}):null,
     part("tiers").catch(()=>get("data/tiers.json")).then(v=>{if(v&&v.tiers){OFFICIAL=v.tiers;OFFICIAL_ORD=v.orders||{};OFFICIAL_NOTES=v.notes||{};OFFICIAL_CRIT=v.crit||{};OFFICIAL_AT=v.at||0;}}).catch(()=>{})
   ]));
@@ -3157,19 +3320,19 @@ function shareOwnLink(floor){if(!floor&&!hasOwn()){toast("まず所持率チェ�
 function oshRender(){const types=TYPES.concat(SEALS.length?["封印戦"]:[]);const t=OSH.type;
   const fl=t==="封印戦"?SEALS.map(f=>[f.key,f.floor]):t?FLOORS.filter(f=>!f.seal&&f.type===t).map(f=>[f.key,f.floor+"F"]):[];
   if(!hasOwn()){setDlg("oshBody",`<h2>所持キャラで編成を組んでもらう</h2>
-    <div class="oshwarn"><b>⚠ 所持キャラが設定されていません</b><p>このままでは、持っているキャラが相手に伝わりません。先に所持率チェッカーで、持っているキャラを選んでください（画像を押すだけです。ログインしていればアカウントにも保存されます）。</p>
-    <button class="btn primary" data-owngo="own">キャラの所持をここから設定する</button><p class="hint" style="margin:6px 0 0">設定が終わったら、所持率チェッカーの上の「編成を組んでもらうに戻る」で、この画面に戻れます。</p></div>
-    <p class="hint">あなたの所持キャラと「${esc(floorName(OSH.floor))}」を入れたリンクを作って詳しい人に送ると、持っているキャラだけで編成を組んでもらえます。</p>
+    <p class="hint" style="margin:0 0 8px">持っているキャラと「${esc(floorName(OSH.floor))}」を入れたリンクを詳しい人に送ると、そのキャラだけで編成を組んでもらえます。</p>
+    <div class="oshwarn"><b>⚠ まず持っているキャラを設定してください</b><p>キャラの画像を押していくだけです。終わったら上の「編成を組んでもらうに戻る」でここに戻れます。</p>
+    <button class="btn primary oshgo" data-owngo="own">持っているキャラを設定する</button></div>
     <div class="foot"><button class="btn" data-close>やめる</button></div>`);return;}
   const fixed=OSH.auto&&!OSH.pick&&OSH.floor;
-  setDlg("oshBody",`<h2>${OSH.auto?"所持キャラで編成を組んでもらう":"所持キャラを共有"}</h2>${OSH.auto?`<p class="hint" style="margin:0 0 6px">あなたの所持キャラと階層を入れたリンクを作ります。詳しい人に送ると、持っているキャラだけでこの階層の編成を組んでもらえます（組んだ編成はリンクで返ってきます）。</p>`:""}
+  setDlg("oshBody",`<h2>${OSH.auto?"所持キャラで編成を組んでもらう":"所持キャラを共有"}</h2>${OSH.auto?`<p class="hint" style="margin:0 0 6px">リンクを詳しい人に送ると、あなたの持っているキャラだけで編成を組んでもらえます（組んだ編成はリンクで返ってきます）。</p>`:""}
   <label class="oshl">名前（空欄でもOK）<input id="oshName" maxlength="20" value="${esc(S.ownName||"")}" placeholder="例：ねぎ"></label>
   ${fixed?`<div class="oshl">階層<div class="oshfix"><b>${esc(floorName(OSH.floor))}</b><button class="aclink2" data-oshpick="1">別の階層にする</button></div></div>`:`<div class="oshl">困っている階層（編成を相談したいとき）
     <div class="seg oshseg"><button data-oshtype="" aria-pressed="${!t}">なし</button>${types.map(x=>`<button data-oshtype="${esc(x)}" aria-pressed="${t===x}">${esc(x)}</button>`).join("")}</div>
     ${fl.length?`<div class="oshfl">${fl.map(([k,l])=>`<button data-oshfloor="${esc(k)}" aria-pressed="${OSH.floor===k}">${esc(l)}</button>`).join("")}</div>`:""}
     ${OSH.floor?`<p class="hint" style="margin:4px 0 0">→ <b>${esc(floorName(OSH.floor))}</b>。リンクを開いた人は、この階層で使えるキャラだけで編成を組めます</p>`:""}</div>`}
-  ${Object.keys(S.sown||{}).length?"":`<div class="oshinfo">スクリプトの所持は未設定です（任意）。設定すると、組む人が持っているスクリプトから選べます。<button class="aclink2" data-owngo="sown">スクリプトの所持をここから設定する</button></div>`}
-  ${Object.keys(S.sown||{}).length?`<label class="oshchk"><input type="checkbox" id="oshSc" ${OSH.sc?"checked":""}> 所持スクリプト（${Object.keys(S.sown).length}種類）も入れる <small class="count">編成を組む人がスクリプトも持っているものから選べます</small></label>`:""}
+  ${Object.keys(S.sown||{}).length?"":`<div class="oshinfo">スクリプトの所持も入れると、持っているスクリプトから選んでもらえます（任意）。<button class="aclink2" data-owngo="sown">スクリプトの所持を設定する</button></div>`}
+  ${Object.keys(S.sown||{}).length?`<label class="oshchk"><input type="checkbox" id="oshSc" ${OSH.sc?"checked":""}> 所持スクリプト（${Object.keys(S.sown).length}種類）も入れる</label>`:""}
   <label class="oshl">課題（任意）<input id="oshMsg" maxlength="80" value="${esc(OSH.msg)}" placeholder="例：ボスの全体攻撃で前線が崩れます"></label>
   <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" data-oshgo="1">${svgI("link")} リンクを作って共有</button></div>`);}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-oshtype],[data-oshfloor],[data-oshgo],[data-ownhelp],[data-oshpick],[data-owngo],[data-ownret]");if(!b)return;const ds=b.dataset;
@@ -3218,16 +3381,17 @@ function applyLinkParam(){try{const q=new URLSearchParams(location.search);let h
   const tm=q.get("team");if(tm){OPENLINK=()=>openSharedTeam(tm);hit=true;}
   const tl=q.get("tl");if(tl){OPENLINK=()=>openSharedTier(tl);hit=true;}
   const pp=q.get("post");if(pp){OPENLINK=()=>openPostById(pp);hit=true;}
+  const tp0=q.get("tip");if(tp0){tab="tips";TIPID=tp0;}
   const ow=q.get("own");if(ow){SOV.o=ownDecode(ow);SOV.name=(q.get("n")||"").slice(0,20);SOV.floor=q.get("f")||"";SOV.so=q.get("s")?sownDecode(q.get("s")):null;SOV.msg=(q.get("m")||"").slice(0,80);SOV.show="own";tab="own";OPENLINK=()=>openSharedOwn();hit=true;}
   if(hit)history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 function runOpenLink(){if(OPENLINK){const f=OPENLINK;OPENLINK=null;try{f();}catch(e){}}}
-function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&URLTABS.includes(tp)){tab=tp;if(tp==="rank"){const rk=new URLSearchParams(location.search).get("rk");if(rk==="chars"||rk==="scripts")RK.t=rk;}history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
+function applyFloorParam(){applyLinkParam();try{const tp=new URLSearchParams(location.search).get("tab");if(tp&&URLTABS.includes(tp)){tab=tp;{const q0=new URLSearchParams(location.search);if(tp==="tips")TIPTAG=q0.get("tag")||"";if(tp==="search")SQ=q0.get("q")||"";}if(tp==="rank"){const rk=new URLSearchParams(location.search).get("rk");if(rk==="chars"||rk==="scripts")RK.t=rk;}history.replaceState(null,"",location.pathname+location.hash);}const q=new URLSearchParams(location.search).get("floor");if(!q)return;const f=FLOORS.find(x=>x.key===q);if(!f)return;if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}S.view="official";history.replaceState(null,"",location.pathname+location.hash);}catch(e){}}
 
 /* ================= ページごとのURL（ブックマーク・戻るボタン用） =================
    いま見ているページ・開いている詳細に合わせて、アドレスバーのURLとタブの題名を変える。
    キャラ詳細 ?char=ID／スクリプト ?script=名前／イベント ?event=名前／騎士 ?knight=名前／バベル・封印戦 ?floor=キー／ほかのページ ?tab=名前（ランキングは &rk=chars|scripts）。ホームは何も付けない。
    人が押して移ったときは履歴を足し（戻るボタンで前のページへ）、それ以外は置き換える。戻る・進むでは URL のページを開き直す */
-const URLTABS=["home","guide","faq","updates","credits","own","sown","ctier","knights","events","chars","scripts","swords","rank","tier","sum","babel","feed","seal"];
+const URLTABS=["home","search","tips","guide","faq","updates","credits","own","sown","ctier","knights","events","chars","scripts","swords","rank","tier","sum","babel","feed","seal"];
 const TITLE0=document.title;let DETAIL=null,URLPOP=false,NAVPUSH=false,DETPUSHED=false,IGNOREPOP=false;
 const isDetQ=q=>/^\?(char|script|event|knight|post|sword)=/.test(q||"");
 document.addEventListener("click",()=>{NAVPUSH=true;},true);
@@ -3236,19 +3400,22 @@ function urlState(){
   if(tab==="tier"&&S.curFloor){const f=FLOORS.find(x=>x.key===S.curFloor);if(f)return {q:`?floor=${encodeURIComponent(f.key)}`,t:`${f.type} ${f.floor}F${f.boss?" "+f.boss:""}`};}
   if(tab==="seal"&&S.curSeal){const f=FLOORS.find(x=>x.key===S.curSeal);if(f)return {q:`?floor=${encodeURIComponent(f.key)}`,t:`封印戦 ${f.floor}`};}
   if(tab==="home")return {q:"",t:""};
+  if(tab==="tips"){const x=TIPID&&tipOf(TIPID);if(x)return {q:`?tip=${encodeURIComponent(x.id)}`,t:x.title};if(TIPTAG)return {q:`?tab=tips&tag=${encodeURIComponent(TIPTAG)}`,t:`#${TIPTAG} の Tips`};}
+  if(tab==="search"&&SQ.trim())return {q:`?tab=search&q=${encodeURIComponent(SQ.trim())}`,t:`「${SQ.trim()}」の検索結果`};
   const lab=(()=>{for(const k in TOPS){const x=TOPS[k].find(([y])=>y===tab||(tab==="rank"&&y==="rank:"+RK.t));if(x)return tab==="rank"?`ランキング（${RK.t==="scripts"?"スクリプト":"キャラ"}）`:x[1];}return "";})();
   return {q:`?tab=${tab}${tab==="rank"?"&rk="+RK.t:""}`,t:lab};
 }
 /* 検索エンジン向け：ページごとの題名・説明文（meta description）・正規の URL（canonical）。sitemap.xml は管理画面が data/all.json と一緒に作る */
 const DESC0=(document.querySelector('meta[name="description"]')||{}).content||"";
-const TABDESC={swords:"魔剣の一覧。メイン効果・サブ効果・入手方法と、魔剣本体・運命の立ち絵の画像。",credits:"RxRwiki の制作メンバー（データ編集班など）の紹介。",updates:"RxRwiki のアップデート内容（バージョンごとの更新・修正の一覧）。",guide:"RxRwiki の使い方ガイド。Tier表・所持率チェッカー・編成ビルダー・みんなの攻略の使い方。",faq:"RxRwiki のよくある質問（Q&A）。",
+const TABDESC={tips:"リバリバの攻略 Tips・小ネタ。運営メンバーが書いた記事を、タグで探せます。",search:"RxRwiki のサイト内検索。キャラ・スクリプト・効果・バベルの解析データ・Tips をまとめて探せます。",swords:"魔剣の一覧。メイン効果・サブ効果・入手方法と、魔剣本体・運命の立ち絵の画像。",credits:"RxRwiki の制作メンバー（データ編集班など）の紹介。",updates:"RxRwiki のアップデート内容（バージョンごとの更新・修正の一覧）。",guide:"RxRwiki の使い方ガイド。Tier表・所持率チェッカー・編成ビルダー・みんなの攻略の使い方。",faq:"RxRwiki のよくある質問（Q&A）。",
   chars:"キャラクター一覧。ロール・属性・騎士団・スタイル・効果で絞り込み、性能を比べられます。",rank:"キャラ・スクリプトのステータスランキング。",knights:"騎士の一覧（騎士団・階級ごと）と誕生日。",
   own:"キャラ所持率チェッカー。持っているキャラと★を記録して、リンクで共有できます。",sown:"スクリプト所持率チェッカー。持っているスクリプトと凸を記録できます。",
   ctier:"キャラクター全体Tier。メインストーリー・バベル・封印戦などでの出番の多さ・使いやすさの総合評価。",scripts:"スクリプト一覧。ロール・レアリティで絞り込み、効果を比べられます。",
   babel:"バベルの階層一覧と攻略（階層別Tier表・おすすめキャラ・クリア編成例）。",feed:"みんなのバベル攻略の投稿（新しい順）。クリア編成・WAVEごとの立ち回り・Tier表。",seal:"封印戦の一覧と攻略・Tier表。",events:"イベント一覧（開催中・予定・新規・復刻・常設）と実装キャラ・登場ボス。"};
 function seoMeta(st){try{const q=new URLSearchParams(st.q),W="リバリバ（リバースブルー×リバースエンド）バベル攻略wiki RxRwiki";let d="",t=st.t;
-  const sw=q.get("sword"),c=q.get("char"),sc=q.get("script"),ev=q.get("event"),kn=q.get("knight"),fl=q.get("floor"),po=q.get("post"),tb=q.get("tab");
-  if(sw){const x=SWMAP[sw];if(x){t=`${x.name}（魔剣）の効果・入手方法`;d=`魔剣「${x.name}」のメイン効果・サブ効果・入手方法。`;}}
+  const tq=q.get("tip"),sw=q.get("sword"),c=q.get("char"),sc=q.get("script"),ev=q.get("event"),kn=q.get("knight"),fl=q.get("floor"),po=q.get("post"),tb=q.get("tab");
+  if(tq){const x=tipOf(tq);if(x){t=x.title;d=mdPlain(x.body).slice(0,110)+"。";}}
+  else if(sw){const x=SWMAP[sw];if(x){t=`${x.name}（魔剣）の効果・入手方法`;d=`魔剣「${x.name}」のメイン効果・サブ効果・入手方法。`;}}
   else if(c){const x=CHMAP[c];if(x){t=`${x.name}の性能・評価`;d=`${x.name}の性能・評価。${[x.order,x.role,x.attr,x.dtype].filter(Boolean).join("・")}。全体Tier・スキル・おすすめスクリプト・おすすめセット・強いところ／弱いところ。`;}}
   else if(sc){const x=scOf(sc);if(x){t=`${x.name}（スクリプト）の効果・評価`;d=`スクリプト「${x.name}」の効果・ステータス・評価。${x.role?x.role+"向け。":""}おすすめのキャラ。`;}}
   else if(ev){const x=eventOf(ev);if(x)d=`イベント「${x.name}」の開催期間・実装キャラ・登場ボス。`;}
@@ -3280,9 +3447,10 @@ addEventListener("popstate",()=>{if(MODE==="admin"||!SITE_LOADED)return;if(IGNOR
   const q=new URLSearchParams(location.search),dl=document.getElementById("dlgDetail");
   const det=["char","script","event","knight","post","sword"].find(k=>q.get(k));
   if(dl.open){DETAIL=null;dl.close();}
-  const fl=q.get("floor"),tp=q.get("tab");
-  if(fl){const f=FLOORS.find(x=>x.key===fl);if(f){if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}}}
-  else if(tp&&URLTABS.includes(tp)){tab=tp;if(tp==="rank"){const rk=q.get("rk");if(rk==="chars"||rk==="scripts")RK.t=rk;}}
+  const fl=q.get("floor"),tp=q.get("tab"),tq=q.get("tip");TIPID="";
+  if(tq){tab="tips";TIPID=tq;}
+  else if(fl){const f=FLOORS.find(x=>x.key===fl);if(f){if(f.seal){S.curSeal=f.key;tab="seal";}else{S.curType=f.type;S.curFloor=f.key;tab="tier";}}}
+  else if(tp&&URLTABS.includes(tp)){tab=tp;if(tp==="rank"){const rk=q.get("rk");if(rk==="chars"||rk==="scripts")RK.t=rk;}if(tp==="tips")TIPTAG=q.get("tag")||"";if(tp==="search")SQ=q.get("q")||"";}
   else if(!det)tab="home";
   sel=null;HEROKEY=null;render();
   if(det){const v=q.get(det);if(det==="char"&&CHMAP[v])openChar(v);else if(det==="script"){const x=scOf(v);if(x)openScript(x.i);}else if(det==="event"){const x=eventOf(v);if(x)openEvent(x.i);}else if(det==="knight"&&personOf(v))openKnight(v);else if(det==="post")openPostById(v);else if(det==="sword"){const x=SWMAP[v]||SWORDS.find(y=>y.name===v);if(x)openSword(x.i);}}
@@ -3314,7 +3482,7 @@ let ADMIN_LOADING=false;
 async function openAdminModule(){
   if(window.RXR_ADMIN){window.RXR_ADMIN.open();return;}
   if(ADMIN_LOADING)return;ADMIN_LOADING=true;
-  try{const m=await import("./js/admin.js?v=73");await m.start(window.RXR);}
+  try{const m=await import("./js/admin.js?v=74");await m.start(window.RXR);}
   catch(e){console.error(e);toast("管理画面を読み込めませんでした",4000);}
   ADMIN_LOADING=false;
 }
@@ -3373,7 +3541,7 @@ window.RXR={
   setTierCtx(c){TIER_CTX=c==="seal"||c==="all"?c:"babel";sel=null;},get TIER_CTX(){return TIER_CTX;},get SEALS(){return SEALS;},setCurSeal(k){S.curSeal=k;},setCurFloor(k){const f=FLOORS.find(x=>x.key===k&&!x.seal);if(f){S.curType=f.type;S.curFloor=k;}},
   setTierEdit(on,hook){TIER_EDIT=!!on;TIER_HOOK=hook||null;sel=null;renderActionBar();},renderTier(){renderTier();renderActionBar();},
   get curFloor(){return curFloor();},
-  get DOCS(){return DOCS;},setDocs,docHtml,get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
+  get DOCS(){return DOCS;},setDocs,docHtml,setTips,mdHtml,mdPlain,tagsIn,TIPIMG,get NEWS(){return NEWS;},setNews(v){NEWS=Array.isArray(v)?v:[];renderNewsBadge();},newsItemHtml,newsSorted,NCAT,
   setOptions,
   liveInput,
   jstDay,get SITE_LOADED(){return SITE_LOADED;},ownEncode,ownDecode,sownDecode,lbLabel,

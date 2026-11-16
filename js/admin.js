@@ -208,7 +208,7 @@ async function resolveRole(u) {
 }
 
 /* ================= live listeners ================= */
-function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = false; }
+function stopListeners() { S.unsubs.forEach(f => { try { f(); } catch (e) { } }); S.unsubs = []; clearInterval(S.heartbeat); S.on = null; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = LAZY.tips = false; TP.list = null; }
 function startListeners() {
   const on = (ref, fn, opt) => S.unsubs.push(F.onSnapshot(ref, opt || {}, fn, err => {
     console.warn(ref.path, err);
@@ -219,7 +219,7 @@ function startListeners() {
     on(F.doc(F.db, "tables", k), s => { T[k].hdrExists = s.exists(); T[k].headers = s.exists() ? (s.data().headers || []) : []; T[k].dels = s.exists() ? (s.data().dels || {}) : {}; T[k].delKeys = s.exists() ? (s.data().delKeys || {}) : {}; T[k].hdrReady = true; applyDels(k); tableChanged(k); });
     listenRows(k, on);
   });
-  TABLES.concat(["crops", "news", "tiers", "options", "guide", "testlist"]).forEach(k => on(F.doc(F.db, "public", k), s => {
+  TABLES.concat(["crops", "news", "tiers", "options", "guide", "testlist", "tips"]).forEach(k => on(F.doc(F.db, "public", k), s => {
     const d = s.exists() ? s.data() : null;
     if (k === "tiers" && d && TIERSTALE.has(d.json)) return;
     PUB[k] = d ? { sig: d.sig, at: d.at, by: d.by, count: d.count } : null;
@@ -228,6 +228,7 @@ function startListeners() {
     else if (k === "tiers") { if (d && TIERSTALE.has(d.json)) return; TIERSTALE.clear(); let v = {}; try { v = d && d.json ? JSON.parse(d.json) : {}; } catch (e) { } TIERPUB = v.tiers || {}; TIERORD = v.orders || {}; TIERNOTES = v.notes || {}; TIERCRIT = v.crit || {}; applyOfficial(v.at); if (S.tab === "tier") softRender(); return; }
     else if (k === "options") { try { OPTS = d && d.json ? JSON.parse(d.json) : null; } catch (e) { OPTS = null; } if (OPTS) R.setOptions(OPTS); softRender(); return; }
     else if (k === "guide") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } GUIDEDOC = v; GUIDEAT = d ? d.at || 0 : 0; if (v) R.setDocs(v); if (!GD.dirty) GD.draft = null; if (S.tab === "guide") softRender(); return; }
+    else if (k === "tips") { try { R.setTips(d && d.json ? JSON.parse(d.json) : { list: [] }); } catch (e) { } return; }
     else if (k === "testlist") { let v = null; try { v = d && d.json ? JSON.parse(d.json) : null; } catch (e) { } TESTLIST = v; TESTAT = d ? d.at || 0 : 0; if (!TS.dirty) TS.text = null; if (S.tab === "test") softRender(); return; }
     else if (k === "news") {
       // Firestore にまだお知らせが無いときは、GitHub の data/news.json（公開のお知らせなど）を元にする（空で上書きしない）
@@ -244,7 +245,7 @@ function startListeners() {
   S.unsubs.push(F.onSnapshot(F.collection(F.db, "names"), q => { const o = {}; q.docs.forEach(d => { o[d.id] = d.data(); }); NAMES = o; softRender(); }, () => { }));
   initName().then(() => { S.rulesOld = false; }).catch(e => { if (e && e.code === "permission-denied") { S.rulesOld = true; renderAll(); } });
   if (S.role === "owner") setTimeout(() => scrubEmails().catch(e => console.warn("scrub", e)), 4000);
-  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = false;
+  S.on = on; LAZY.log = LAZY.fb = LAZY.todo = LAZY.test = LAZY.posts = LAZY.tips = false;
   // ご意見・変更履歴は、そのタブを開いたときに読む（未対応のご意見の数だけは件数クエリで数える＝1回の読み取り）
   F.getCountFromServer(F.query(F.collection(F.db, "feedback"), F.where("status", "==", "new"))).then(c => { S.fbNew = c.data().count; renderNav(); }).catch(e => console.warn("fbcount", e));
   S.unsubs.push(F.onSnapshot(F.doc(F.db, "secrets", "github"), s => { GH = s.exists() && s.data().token ? s.data() : null; softRender(); }, () => { GH = null; }));
@@ -294,7 +295,7 @@ function listenRows(k, on) {
     }, { includeMetadataChanges: true });   // 一括書き込みのあと「送信中」が解けたことを受け取り、公開データを作り直すため
   }
 }
-const LAZY = { log: false, fb: false, todo: false, test: false, posts: false };
+const LAZY = { log: false, fb: false, todo: false, test: false, posts: false, tips: false };
 function ensureLazy(tab) {
   if (!S.on) return;
   if (tab === "log" && !LAZY.log) { LAZY.log = true; S.on(F.query(F.collection(F.db, "log"), F.orderBy("at", "desc"), F.limit(150)), q => { LOG = q.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.tab === "log") softRender(); }); }
@@ -428,7 +429,7 @@ async function publish(k, force) {
 }
 /* ---- public/all：公開サイトが読む データ一式（1回の読み取りで済ませ、Firestore の無料枠を節約する） ----
    public/{chars,scripts,babel,teams,seals,crops,options,news,tiers} の json をまとめたもの。どれかが変わるたびに作り直す */
-const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "people", "events", "bosses", "swords", "crops", "options", "news", "tiers", "guide", "testlist"];
+const BUNDLE_KEYS = ["chars", "scripts", "babel", "teams", "seals", "people", "events", "bosses", "swords", "crops", "options", "news", "tiers", "guide", "testlist", "tips"];
 const PUBRAW = {};       // k -> public/{k} の json（文字列）。ドキュメントがなければ null
 let ALLSIG;              // public/all の sig（undefined = まだ読んでいない）
 const BUNDLE = { t: null, pending: false, busy: false, failed: false };
@@ -487,7 +488,8 @@ const bundleJson = () => "{" + BUNDLE_KEYS.filter(k => PUBRAW[k] != null).map(k 
 const SITE_ORIGIN = "https://rxrwiki.com/";
 function sitemapXml() {
   const tb = k => { try { const d = JSON.parse(PUBRAW[k] || "null"); return d && d.headers ? d : { headers: [], rows: [] }; } catch (e) { return { headers: [], rows: [] }; } };
-  const urls = [""].concat(["guide", "faq", "updates", "credits", "chars", "swords", "rank", "knights", "ctier", "scripts", "babel", "feed", "seal", "events"].map(t => "?tab=" + t));
+  const urls = [""].concat(["tips", "guide", "faq", "updates", "credits", "chars", "swords", "rank", "knights", "ctier", "scripts", "babel", "feed", "seal", "events"].map(t => "?tab=" + t));
+  try { (JSON.parse(PUBRAW.tips || "null") || { list: [] }).list.forEach(x => urls.push("?tip=" + encodeURIComponent(x.id))); } catch (e) { }
   const add = (k, cols, fn) => { const d = tb(k), ix = c => d.headers.indexOf(c); d.rows.forEach(r => { const v = c => { const i = ix(c); return i >= 0 ? String(r[i] == null ? "" : r[i]).trim() : ""; }; const u = fn(v); if (u) urls.push(u); }); };
   const q = (k, v) => v ? `?${k}=${encodeURIComponent(v)}` : "";
   add("chars", 0, v => v("実装") === "未実装" ? "" : q("char", v("ID")));
@@ -543,7 +545,7 @@ function othersOn(k, id) {
 }
 
 /* ================= shell ================= */
-const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "入力状況"], ["news", "お知らせ"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["posts", "投稿"], ["ownst", "所持率"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
+const TABS = [["edit", "データ編集"], ["tier", "Tier表"], ["todo", "入力状況"], ["news", "お知らせ"], ["tips", "Tips"], ["guide", "ガイド・Q&A"], ["io", "読み込み・書き出し"], ["img", "画像"], ["log", "変更履歴"], ["fb", "ご意見"], ["posts", "投稿"], ["ownst", "所持率"], ["test", "テスト"], ["stats", "アクセス"], ["members", "メンバー"]];
 function renderNav() {
   if (!S.role) { NAV.innerHTML = ""; return; }
   const nf = S.fbNew || 0;
@@ -581,6 +583,7 @@ function renderAdmin(soft) {
   else if (S.tab === "news") { if (!(soft && NW.edit)) renderNews(); }
   else if (S.tab === "todo") renderTodo();
   else if (S.tab === "guide") { if (!(soft && GD.dirty)) renderGuideTab(); }
+  else if (S.tab === "tips") { if (!(soft && TP.d)) renderTipsTab(); }
   else if (S.tab === "log") renderLog();
   else if (S.tab === "fb") renderFb();
   else if (S.tab === "posts") renderPostsTab();
@@ -2391,6 +2394,111 @@ function todoAction(ds) {
 }
 document.addEventListener("click", e => { const d = e.target.closest("details.bmx > summary"); if (!d) return; e.preventDefault(); const ty = d.parentElement.dataset.tdbt; TD.bt = TD.bt === ty ? null : ty; if (S.tab === "todo") renderTodo(); });
 
+/* ================= Tips（運営の記事） =================
+   記事は tables/tips/rows/{id}（title・body・tags・status・by＝書いた人の uid・eb＝最後に直した人・at・t・pubAt）。メンバーだけが読み書き。
+   status：edit＝編集中／draft＝下書き／review＝確認待ち／pub＝公開中。公開中のものだけ public/tips（{list:[{id,title,body,tags,at,t}]}。書いた人は入れない）に出す。
+   このタブを開いたときだけ読む。画像は GitHub の images/tips/ に置く（Firebase には置かない） */
+const TP = { list: null, id: null, d: null, dirty: false, busy: false, f: "all", confirmDel: false, up: "" };
+const TIPST = [["edit", "編集中"], ["draft", "下書き"], ["review", "確認待ち"], ["pub", "公開中"]];
+const tipStName = s => (TIPST.find(x => x[0] === s) || TIPST[0])[1];
+function tipsListen() { if (LAZY.tips || !S.on) return; LAZY.tips = true; S.on(F.collection(F.db, "tables", "tips", "rows"), qs => { TP.list = qs.docs.map(d => Object.assign({ id: d.id }, d.data())); if (S.tab === "tips" && !TP.d) renderTipsTab(); else if (S.tab === "tips" && TP.d) tipMetaRefresh(); }); }
+const tipTagsOf = (tagStr, body) => [...new Set(R.tagsIn(tagStr).concat(R.tagsIn(body)))].slice(0, 20);
+function renderTipsTab() {
+  tipsListen();
+  if (TP.list === null) { AM.innerHTML = userBar() + `<div class="empty"><h2>読み込み中…</h2></div>`; return; }
+  if (TP.d) { renderTipEditor(); return; }
+  const cnt = s => TP.list.filter(x => s === "all" || (x.status || "edit") === s).length;
+  const L = TP.list.filter(x => TP.f === "all" || (x.status || "edit") === TP.f).sort((a, b) => (b.t || 0) - (a.t || 0));
+  AM.innerHTML = userBar() + `<div class="toolbar"><h2><small>TIPS</small>Tips</h2><button class="btn primary" data-tpnew="1">＋ 新しい記事</button></div>
+  <p class="hint" style="margin:-6px 0 10px">公開中の記事だけが公開サイトの「Tips」に出ます（数分で反映）。書いた人は運営だけが見られます（公開サイトには出しません）。</p>
+  <div class="seg tpseg"><button data-tpf="all" aria-pressed="${TP.f === "all"}">すべて ${cnt("all")}</button>${TIPST.map(([k, l]) => `<button data-tpf="${k}" aria-pressed="${TP.f === k}">${l} ${cnt(k)}</button>`).join("")}</div>
+  <div class="tplist">${L.map(x => `<button class="tprow" data-tpopen="${esc(x.id)}"><span class="tpst st-${esc(x.status || "edit")}">${tipStName(x.status)}</span><span class="tpt"><b>${esc(x.title || "（題名なし）")}</b><small>${(x.tags || []).map(g => "#" + esc(g)).join(" ")}</small></span><span class="tpw"><small>書いた人 ${esc(shortName(x.by))}${x.eb && x.eb !== x.by ? `・最後に直した人 ${esc(shortName(x.eb))}` : ""}</small><small>${fmtTime(x.t)} 更新</small></span></button>`).join("") || `<div class="empty"><h2>記事はまだありません</h2></div>`}</div>`;
+}
+function tipMetaRefresh() { const el = document.getElementById("tpmeta"); if (el) el.innerHTML = tipMetaHtml(); }
+function tipMetaHtml() { const o = TP.id && TP.list.find(x => x.id === TP.id); if (!o) return "新しい記事（まだ保存していません）"; return `書いた人 <b>${esc(shortName(o.by))}</b>${o.eb && o.eb !== o.by ? `・最後に直した人 ${esc(shortName(o.eb))}` : ""}・作成 ${fmtTime(o.at)}・更新 ${fmtTime(o.t)}${o.pubAt ? `・公開 ${fmtTime(o.pubAt)}` : ""}`; }
+const TPTOOLS = [["h2", "見出し"], ["h3", "小見出し"], ["b", "太字"], ["link", "リンク"], ["img", "画像"], ["ul", "箇条書き"], ["ol", "番号"], ["q", "引用"], ["hr", "区切り線"], ["tag", "#タグ"]];
+function renderTipEditor() {
+  const d = TP.d;
+  AM.innerHTML = userBar() + `<div class="toolbar"><button class="btn small" data-tpback="1">← 一覧へ</button><h2 style="margin:0 8px"><small>TIPS</small>${TP.id ? "記事を編集" : "新しい記事"}</h2></div>
+  <section class="apanel tped">
+    <div class="tprow2"><label class="tpl">状態 <select id="tpSt">${TIPST.map(([k, l]) => `<option value="${k}" ${d.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></label><span class="count" id="tpmeta">${tipMetaHtml()}</span></div>
+    <label class="tpl tpwide">タイトル <input id="tpTitle" maxlength="80" value="${esc(d.title)}" placeholder="例：初心者がまず育てたいキャラ"></label>
+    <label class="tpl tpwide">タグ <input id="tpTags" maxlength="200" value="${esc(d.tags)}" placeholder="例：#初心者 #育成（# を付けて、空白で区切る。本文に書いた #タグ も付きます）"></label>
+    <div class="tptools">${TPTOOLS.map(([k, l]) => `<button class="btn small" data-tptool="${k}" type="button">${l}</button>`).join("")}<input type="file" id="tpFile" accept="image/*" hidden>${TP.up ? `<span class="count">${esc(TP.up)}</span>` : ""}</div>
+    <div class="tpcols"><textarea id="tpBody" placeholder="本文。上のボタンで見出し・太字・リンク・画像などを入れられます。&#10;&#10;## 見出し&#10;**太字**&#10;[リンクの文字](https://…)&#10;- 箇条書き">${esc(d.body)}</textarea><div class="tipbody docsec tpprev" id="tpPrev">${R.mdHtml(d.body) || '<p class="count">ここにプレビューが出ます</p>'}</div></div>
+    <div class="row2" style="margin-top:10px">${TP.id ? (TP.confirmDel ? `<span class="danger-q">この記事を削除しますか？</span><button class="btn small danger" data-tpdelyes="1">削除する</button><button class="btn small" data-tpdelno="1">やめる</button>` : `<button class="btn small" data-tpdel="1">削除</button>`) : ""}<span style="flex:1"></span>${TP.id ? `<a class="btn small" href="./?tip=${encodeURIComponent(TP.id)}" target="_blank" rel="noopener">公開サイトで見る</a>` : ""}<button class="btn primary" data-tpsave="1" ${TP.busy ? "disabled" : ""}>${TP.busy ? "保存中…" : "保存"}</button></div>
+  </section>`;
+  const ta = document.getElementById("tpBody"), pv = document.getElementById("tpPrev");
+  const touch = () => { TP.dirty = true; };
+  ta.addEventListener("input", () => { TP.d.body = ta.value; touch(); clearTimeout(ta._t); ta._t = setTimeout(() => { pv.innerHTML = R.mdHtml(ta.value) || '<p class="count">ここにプレビューが出ます</p>'; }, 200); });
+  document.getElementById("tpTitle").addEventListener("input", e => { TP.d.title = e.target.value; touch(); });
+  document.getElementById("tpTags").addEventListener("input", e => { TP.d.tags = e.target.value; touch(); });
+  document.getElementById("tpSt").addEventListener("change", e => { TP.d.status = e.target.value; touch(); });
+  document.getElementById("tpFile").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) tipUpload(f); });
+}
+// 本文の選んでいる所に書式を入れる
+function tipTool(k) {
+  const ta = document.getElementById("tpBody"); if (!ta) return;
+  if (k === "img") { if (!GH) { toast("画像を入れるには GitHub 連携が必要です（オーナーが「画像」タブで登録）", 6000); return; } document.getElementById("tpFile").click(); return; }
+  const v = ta.value, a = ta.selectionStart, b = ta.selectionEnd, sel = v.slice(a, b);
+  const put = (txt, ca, cb) => { ta.setRangeText(txt, a, b, "end"); if (ca != null) ta.setSelectionRange(a + ca, a + cb); ta.focus(); ta.dispatchEvent(new Event("input")); };
+  const lines = pre => { const s0 = v.lastIndexOf("\n", a - 1) + 1; const e0 = b > a && v[b - 1] === "\n" ? b - 1 : (v.indexOf("\n", b) < 0 ? v.length : v.indexOf("\n", b)); const seg = v.slice(s0, e0).split("\n").map((l, i) => (typeof pre === "function" ? pre(i) : pre) + l.replace(/^(#{1,3}\s+|[-・]\s|\d+[.．]\s+|>\s?)/, "")).join("\n"); ta.setRangeText(seg, s0, e0, "end"); ta.focus(); ta.dispatchEvent(new Event("input")); };
+  if (k === "h2") lines("## "); else if (k === "h3") lines("### "); else if (k === "ul") lines("- "); else if (k === "ol") lines(i => `${i + 1}. `); else if (k === "q") lines("> ");
+  else if (k === "b") put(`**${sel || "太字"}**`, 2, 2 + (sel || "太字").length);
+  else if (k === "hr") put(`${a && v[a - 1] !== "\n" ? "\n" : ""}\n---\n\n`);
+  else if (k === "tag") put(`${a && !/\s/.test(v[a - 1] || "") ? " " : ""}#${sel}`, sel ? null : 1, sel ? null : 1);
+  else if (k === "link") { const u = prompt("リンク先の URL（サイト内のページは、そのページの URL を貼ってください）", "https://"); if (!u || u === "https://") return; let h = u.trim(); if (h.startsWith(location.origin + location.pathname)) h = "./" + h.slice((location.origin + location.pathname).length); put(`[${sel || "リンク"}](${h})`, 1, 1 + (sel || "リンク").length); }
+}
+// 画像を Web 用（横 1280px まで・webp）にして GitHub の images/tips/ に置き、本文に入れる
+async function tipUpload(file) {
+  const ta = document.getElementById("tpBody"); const pos = ta ? ta.selectionStart : 0;
+  try {
+    TP.up = "画像をアップロード中…"; renderTipEditor();
+    const bm = await createImageBitmap(file); const sc = Math.min(1, 1280 / bm.width); const cv = document.createElement("canvas"); cv.width = Math.round(bm.width * sc); cv.height = Math.round(bm.height * sc); cv.getContext("2d").drawImage(bm, 0, 0, cv.width, cv.height);
+    const blob = await new Promise(r => cv.toBlob(r, "image/webp", .86)); if (!blob) throw new Error("画像を変換できませんでした");
+    const path = `images/tips/${TP.id || "new"}_${rid().slice(0, 8)}.webp`;
+    await gh(`/contents/${path.split("/").map(encodeURIComponent).join("/")}`, { method: "PUT", body: JSON.stringify({ message: `Tips の画像を追加：${TP.d.title || "（題名なし）"}\n\n管理画面から ${meName()}`, content: await b64(blob), branch: GH.branch || "main" }) });
+    R.TIPIMG[path] = URL.createObjectURL(blob);
+    const v = TP.d.body, ins = `${pos && v[pos - 1] !== "\n" ? "\n" : ""}![](${path})\n`;
+    TP.d.body = v.slice(0, pos) + ins + v.slice(pos); TP.dirty = true; TP.up = ""; renderTipEditor(); toast("画像を入れました（公開サイトには数分で出ます）。説明を [] の中に書けます");
+  } catch (e) { TP.up = ""; renderTipEditor(); toast("画像をアップロードできませんでした：" + (e && e.status ? ghErr(e) : (e && e.message) || e), 7000); }
+}
+// 公開中の記事を public/tips に出し直す
+async function tipsPublish(list) {
+  const pubs = list.filter(x => x.status === "pub" && x.title).sort((a, b) => (b.t || 0) - (a.t || 0)).map(x => ({ id: x.id, title: x.title, body: x.body || "", tags: x.tags || [], at: x.pubAt || x.at || 0, t: x.t || 0 }));
+  const json = JSON.stringify({ list: pubs });
+  if (json.length > 900000) { toast("Tips の公開データが大きすぎます", 6000); return; }
+  await F.setDoc(F.doc(F.db, "public", "tips"), { json, at: now(), count: pubs.length });
+  PUBRAW.tips = json; scheduleBundle();
+}
+async function tipSave() {
+  const d = TP.d; if (!d.title.trim()) { toast("タイトルを入れてください"); return; }
+  TP.busy = true; renderTipEditor();
+  try {
+    const isNew = !TP.id, id = TP.id || "t" + rid().slice(0, 10); const old = TP.list.find(x => x.id === id) || {};
+    const t = now();
+    const doc = { title: d.title.trim().slice(0, 80), body: d.body.slice(0, 60000), tags: tipTagsOf(d.tags, d.body), status: d.status, by: old.by || meId(), eb: meId(), at: old.at || t, t, pubAt: old.pubAt || (d.status === "pub" ? t : 0), ts: F.serverTimestamp() };
+    await F.setDoc(F.doc(F.db, "tables", "tips", "rows", id), doc);
+    const list = TP.list.filter(x => x.id !== id).concat([Object.assign({ id }, doc)]);
+    if (d.status === "pub" || old.status === "pub") await tipsPublish(list);
+    await F.setDoc(F.doc(F.db, "log", rid()), logDoc({ act: isNew ? "create" : "update", k: "tips", label: `Tips「${doc.title}」を${isNew ? "作成" : "保存"}（${tipStName(doc.status)}）` }));
+    TP.id = id; TP.dirty = false; TP.d.tags = doc.tags.map(g => "#" + g).join(" "); toast(d.status === "pub" ? "保存しました。公開サイトには数分で反映されます" : "保存しました");
+  } catch (e) { toast(fbErr(e), 6000); }
+  TP.busy = false; renderTipEditor();
+}
+async function tipsAction(ds) {
+  if (ds.tpf) { TP.f = ds.tpf; renderTipsTab(); return; }
+  if (ds.tpnew) { TP.id = null; TP.d = { title: "", body: "", tags: "", status: "edit" }; TP.dirty = false; TP.confirmDel = false; renderTipsTab(); return; }
+  if (ds.tpopen) { const o = TP.list.find(x => x.id === ds.tpopen); if (!o) return; TP.id = o.id; TP.d = { title: o.title || "", body: o.body || "", tags: (o.tags || []).map(g => "#" + g).join(" "), status: o.status || "edit" }; TP.dirty = false; TP.confirmDel = false; renderTipsTab(); return; }
+  if (ds.tpback) { if (TP.dirty && !confirm("保存していない変更があります。一覧に戻りますか？")) return; TP.d = null; TP.id = null; TP.dirty = false; renderTipsTab(); return; }
+  if (ds.tptool) { tipTool(ds.tptool); return; }
+  if (ds.tpsave) { tipSave(); return; }
+  if (ds.tpdel) { TP.confirmDel = true; renderTipEditor(); return; }
+  if (ds.tpdelno) { TP.confirmDel = false; renderTipEditor(); return; }
+  if (ds.tpdelyes) { const id = TP.id, o = TP.list.find(x => x.id === id) || {};
+    try { await F.deleteDoc(F.doc(F.db, "tables", "tips", "rows", id)); if (o.status === "pub") await tipsPublish(TP.list.filter(x => x.id !== id)); await F.setDoc(F.doc(F.db, "log", rid()), logDoc({ act: "delete", k: "tips", label: `Tips「${o.title || ""}」を削除` })); toast("削除しました"); TP.d = null; TP.id = null; TP.dirty = false; TP.confirmDel = false; renderTipsTab(); } catch (e) { toast(fbErr(e), 6000); } return; }
+}
+
 /* ================= guide / Q&A（使い方ガイドとよくある質問） ================= */
 let GUIDEDOC = null, GUIDEAT = 0;   // public/guide の中身（なければ null → data/guide.json を下書きに使う）
 const GD = { k: "guide", draft: null, baseAt: 0, dirty: false, busy: false, confirm: null };
@@ -2859,7 +2967,7 @@ async function delMember(e) {
 /* ================= events ================= */
 AM.addEventListener("click", e => onAdminClick(e));
 function onAdminClick(e) {
-  const t = e.target.closest("[data-imslot],[data-osv],[data-osdays],[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
+  const t = e.target.closest("[data-tpf],[data-tpnew],[data-tpopen],[data-tpback],[data-tptool],[data-tpsave],[data-tpdel],[data-tpdelno],[data-tpdelyes],[data-imslot],[data-osv],[data-osdays],[data-pkopen],[data-scrm],[data-bossclr],[data-tdopen],[data-tdedit],[data-tdcancel],[data-tdsave],[data-tdgo],[data-tdadd],[data-tddel],[data-synadd],[data-synrm],[data-gd],[data-gdk],[data-gdmv],[data-gddel],[data-gddelno],[data-gddelyes],[data-teamedit],[data-teamfloor],[data-tmclear],[data-a],[data-edk],[data-edrow],[data-ed],[data-iok],[data-io],[data-imk],[data-im],[data-crop],[data-lgk],[data-lgopen],[data-lgrevert],[data-pmv],[data-pmhist],[data-pmok],[data-pmhide],[data-pmdel],[data-pmban],[data-tsv],[data-tsk],[data-tsdel],[data-tsdelyes],[data-tsdelno],[data-tse],[data-fbst],[data-fbdel],[data-fbdelyes],[data-fbdelno],[data-fbnote],[data-mbdel],[data-mbname],[data-mbnamesave],[data-mbdelyes],[data-mbdelno],[data-nw],[data-nwedit],[data-nwdel],[data-nwdelyes],[data-adrow],[data-cprm],[data-cpadd],[data-dladd],[data-dlrm],[data-tierctx],[data-optadd],[data-optrm],[data-optmv]");
   if (!t) return; const ds = t.dataset;
   if (ds.a === "login") { login(); return; }
   if (ds.a === "logout") { clearPresence(); F.signOut(F.auth); return; }
@@ -2880,6 +2988,7 @@ function onAdminClick(e) {
   if (ds.a === "fixnames") { fixNames(); return; }
   if (ds.a === "reid") { reIdChar(ds.reid); return; }
   if (ds.tsv || ds.tsk || ds.tsdel || ds.tsdelyes || ds.tsdelno || ds.tse) { tsAction(ds, t); return; }
+  if (ds.tpf || ds.tpnew || ds.tpopen || ds.tpback || ds.tptool || ds.tpsave || ds.tpdel || ds.tpdelno || ds.tpdelyes) { tipsAction(ds); return; }
   if (ds.gd || ds.gdk || ds.gdmv || ds.gddel !== undefined || ds.gddelno || ds.gddelyes !== undefined) { gdAction(ds); return; }
   if (ds.adrow) { openEditor(ED.k, ds.adrow); return; }
   if (ds.teamedit || ds.teamfloor || ds.a === "teamadd") {
