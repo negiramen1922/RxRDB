@@ -457,7 +457,7 @@ textarea.memo{width:100%;min-height:44px;border:1px dashed var(--line2);backgrou
 .subtabs button{border:0;background:none;padding:7px 16px;font-weight:700;font-size:13.5px;color:var(--muted);cursor:pointer;white-space:nowrap;clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%)}
 .subtabs button[aria-current="true"]{background:linear-gradient(100deg,#0d3b8c,#1a86ff);color:#fff}
 .subtabs button:hover:not([aria-current="true"]){color:var(--accent-ink);background:var(--soft)}
-.ownheadbox{margin-bottom:10px}.ownheadbox>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);box-shadow:var(--shadow);padding:8px 12px;font-size:14px}.ownheadbox>summary::-webkit-details-marker{display:none}.ownheadbox>summary b{font-size:18px;color:var(--accent-ink)}.ownheadbox>summary .count::after{content:" ▼"}.ownheadbox[open]>summary .count::after{content:" ▲"}.ownheadbox[open]>summary{margin-bottom:10px}
+.ownheadbox{margin-bottom:10px}.ogrp{font-size:12.5px;color:var(--sub)}.ogrp b{color:var(--accent-ink)}.obg{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:3px;background:var(--accent);color:#fff;font-size:11px;font-weight:900;margin-right:4px;vertical-align:middle}.ownheadbox>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);box-shadow:var(--shadow);padding:8px 12px;font-size:14px}.ownheadbox>summary::-webkit-details-marker{display:none}.ownheadbox>summary b{font-size:18px;color:var(--accent-ink)}.ownheadbox>summary .count::after{content:" ▼"}.ownheadbox[open]>summary .count::after{content:" ▲"}.ownheadbox[open]>summary{margin-bottom:10px}
 .ownhead{display:grid;grid-template-columns:auto auto 1fr;gap:16px;align-items:stretch;margin-bottom:12px}
 .ownrate,.ownstars,.ownbars{background:var(--panel);box-shadow:var(--shadow);padding:12px 18px}
 .ownrate{display:flex;flex-direction:column;justify-content:center;min-width:180px;border-left:4px solid var(--accent)}
@@ -1077,7 +1077,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 /* サイト設定：アクセス解析のIDを入れると有効になります */
 /* authX: X（Twitter）ログインのボタンを出す（Firebase コンソールで X を有効にしてから true に） */
 /* ver：サイトのバージョン（大きな節目＝1.1.000→1.2.000、main に入れる細かい調整＝1.1.001→1.1.002。中身は data/updates.json） */
-window.SITE={ver:"1.1.011",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
+window.SITE={ver:"1.1.012",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
   /* 記録の引き継ぎ（旧アドレス negiramen1922.github.io/RxRDB → 新しいドメイン）。hosts で開いた端末に記録が無ければ、一度だけ from（旧アドレスと同じオリジンに置いた引き継ぎページ）へ飛んで記録を持ち帰る。from を空にすると止まる */
   move:{from:"https://negiramen1922.github.io/rxr-move/",hosts:["rxrwiki.com","www.rxrwiki.com"],until:"2027-06-30"}};
 </script>
@@ -3255,13 +3255,17 @@ const RARCOL={SSR:"#ff8a3c",SR:"#9b6bff",R:"#4c9be8"};
 function ownItems(k){return k==="s"?SC.filter(x=>x.name&&!x.unrel).map(x=>({id:x.id,name:x.name,yomi:x.yomi,img:SIMG[x.id],rar:x.rar,role:x.role,date:x.date,col:RARCOL[x.rar]||"var(--line)"}))
   :CH.filter(c=>!c.unrel).map(c=>({id:c.id,name:c.name,img:IMG[c.id],attr:c.attr,role:c.role,order:c.order,base:c.base,bname:c.bname,date:c.date,col:attrColor(c.attr)}));}
 function ownStats(list,o){o=o||OWN();const n=list.length,k=list.filter(c=>o[c.id]).length;return{n,k,p:n?Math.round(k/n*1000)/10:0};}
+// アナザーバベル・バベルリビルドで使えるキャラ（騎士団の縛り）ごとの所持率
+function grpStats(items,o){return ["アナザー","リビルド"].map(g=>[g,ownStats(items.filter(c=>c.order&&inGrp(g,c.order)),o)]).filter(([,st])=>st.n);}
+const grpSum=gs=>gs.map(([g,st])=>`<span class="ogrp">${g==="アナザー"?"アナザー":"リビルド"} <b>${st.p}%</b></span>`).join("");
+const grpBars=gs=>gs.length?`<div>${gs.map(([g,st])=>bar(g==="アナザー"?"アナザー":"リビルド",st,`<span class="obg">${g==="アナザー"?"A":"R"}</span>`)).join("")}</div>`:"";
 function bar(label,st,icon){return `<div class="obar"><span class="obl">${icon||""}${esc(label)}</span><span class="obt"><i style="width:${st.n?st.k/st.n*100:0}%"></i></span><span class="obn">${st.k}/${st.n}</span></div>`;}
 function renderOwn(){
   const K=OKIND(),F=K==="s"?SOWNF:OWNF,o=K==="s"?SOWN():OWN(),items=ownItems(K),W=K==="s"?"スクリプト":"キャラ";
   if(!items.length){main.innerHTML=emptyBlock(K==="s"?"scripts":"chars");return;}
   // 初期の星より小さく記録されている所持（前の版で★1になったSSRなど）は初期の星に直す
   let fix=false;items.forEach(c=>{const m=ownMin(K,c.id);if(o[c.id]&&+o[c.id]<m){o[c.id]=m;fix=true;}});if(fix)save();
-  const all=ownStats(items,o);
+  const all=ownStats(items,o),gs=K==="c"?grpStats(items,o):[];
   const stars=[1,2,3,4,5].map(n=>items.filter(c=>o[c.id]===n).length);
   let list=items.slice();const q=F.q.toLowerCase();
   if(q)list=list.filter(c=>khit(c.name+c.id+(c.bname||c.base||"")+charKana(c),q));
@@ -3272,10 +3276,10 @@ function renderOwn(){
   const by=(a)=>items.filter(c=>(K==="s"?c.rar:c.attr)===a);
   let sub="";if(K==="c"){const bases=[...new Set(items.map(c=>c.base).filter(Boolean))];const bOwned=bases.filter(b=>items.some(c=>c.base===b&&o[c.id])).length;sub=`<span>キャラクター ${bOwned} / ${bases.length}</span>`;const un=CH.filter(c=>c.unrel).length;if(un)sub+=`<span>未実装の${un}スタイルは数えません</span>`;}
   let h=`${OSH.ret!=null?`<div class="oshback">${K==="s"?"スクリプト":"キャラ"}の所持を設定したら → <button class="btn small primary" data-ownret="1">編成を組んでもらうに戻る</button>${K==="c"?`<button class="aclink2" data-owngo="sown">スクリプトの所持も設定する</button>`:`<button class="aclink2" data-owngo="own">キャラの所持を設定する</button>`}</div>`:""}<div class="toolbar"><h2><small>COLLECTION</small>${W}の所持率チェッカー</h2><span style="flex:1"></span>${K==="c"?`<button class="btn small primary" data-act="ownlink">${svgI("link")} 所持キャラを共有</button><button class="btn small" data-tbopen="own">🛠 所持キャラで編成を組む</button>`:""}<button class="btn small" data-act="ownshare">画像で共有</button></div>
-  <details class="ownheadbox"${OWNHEADOPEN?" open":""}><summary><span>所持率 <b>${all.p}%</b>（${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}）</span><span class="count">グラフを見る</span></summary>
+  <details class="ownheadbox"${OWNHEADOPEN?" open":""}><summary><span>所持率 <b>${all.p}%</b>（${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}）</span>${K==="c"?grpSum(gs):""}<span class="count">グラフを見る</span></summary>
   <div class="ownhead"><div class="ownrate"><small>所持率</small><b>${all.p}<span>%</span></b><span>${all.k} / ${all.n} ${K==="s"?"種類":"スタイル"}</span>${sub}</div>
   <div class="ownstars">${stars.map((n,i)=>`<div><span class="st">${"★".repeat(i+1)}</span><b>${n}</b></div>`).reverse().join("")}</div>
-  <div class="ownbars"><div>${attrs.map(a=>bar(a,ownStats(by(a),o),K==="s"?"":ic(a))).join("")}</div><div>${roles.map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div>${ords.length?`<div>${ords.map(a=>bar(a,ownStats(items.filter(c=>c.order===a),o),ic(a,"ord"))).join("")}</div>`:""}</div></div></details>
+  <div class="ownbars"><div>${attrs.map(a=>bar(a,ownStats(by(a),o),K==="s"?"":ic(a))).join("")}</div><div>${roles.map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div>${K==="c"?grpBars(gs):""}${ords.length?`<div>${ords.map(a=>bar(a,ownStats(items.filter(c=>c.order===a),o),ic(a,"ord"))).join("")}</div>`:""}</div></div></details>
   <p class="hint" style="margin:0 0 10px">${W}の画像を押すと「持っている／持っていない」が切り替わります。${K==="s"?"下の欄で限界突破（0〜3凸、そのあと +1〜+9）を記録できます。":"★を押すと凸数（星の数）を記録できます。"}${LOGGEDIN?"記録はアカウントにも保存されます（ほかの端末でも同じアカウントでログインすると同じ記録になります）。":`記録はこのブラウザに保存されます。<button class="aclink2" data-account>ログイン</button>するとアカウントにも保存でき、機種変更しても消えません。`}</p>
   <div class="ownctl"><input class="search" id="ownQ" placeholder="${W}名で絞り込み" value="${esc(F.q)}">
    <div class="seg"><button data-ownshow="all" aria-pressed="${F.show==="all"}">すべて</button><button data-ownshow="own" aria-pressed="${F.show==="own"}">所持</button><button data-ownshow="not" aria-pressed="${F.show==="not"}">未所持</button></div>
@@ -3407,9 +3411,9 @@ function openSharedOwn(){if(!SOV.o)return;const o=SOV.o,mine=OWN(),items=ownItem
   list=sortList("chars",list.slice());
   const b=cfBar("sov");
   let h=`<h2>${SOV.name?esc(SOV.name)+" さんの":"共有された"}所持キャラ</h2>
-  <details class="ownheadbox"${OWNHEADOPEN?" open":""}><summary><span>所持率 <b>${st.p}%</b>（${st.k} / ${st.n} スタイル）${SOV.so?`・所持スクリプト ${Object.keys(SOV.so).length}種類`:""}</span><span class="count">グラフを見る</span></summary>
+  <details class="ownheadbox"${OWNHEADOPEN?" open":""}><summary><span>所持率 <b>${st.p}%</b>（${st.k} / ${st.n} スタイル）${SOV.so?`・所持スクリプト ${Object.keys(SOV.so).length}種類`:""}</span>${grpSum(grpStats(items,o))}<span class="count">グラフを見る</span></summary>
   <div class="ownhead sown"><div class="ownrate"><small>所持率</small><b>${st.p}<span>%</span></b><span>${st.k} / ${st.n} スタイル</span><span>キャラクター ${bOwned} / ${bases.length}</span>${hasOwn()?`<span>あなたも持っている：${both}</span>`:""}</div>
-  <div class="ownbars"><div>${ATTRS.filter(a=>items.some(c=>c.attr===a)).map(a=>bar(a,ownStats(items.filter(c=>c.attr===a),o),ic(a))).join("")}</div><div>${ROLES.filter(a=>items.some(c=>c.role===a)).map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div></div></div></details>
+  <div class="ownbars"><div>${ATTRS.filter(a=>items.some(c=>c.attr===a)).map(a=>bar(a,ownStats(items.filter(c=>c.attr===a),o),ic(a))).join("")}</div><div>${ROLES.filter(a=>items.some(c=>c.role===a)).map(a=>bar(a,ownStats(items.filter(c=>c.role===a),o),ic(a))).join("")}</div>${grpBars(grpStats(items,o))}</div></div></details>
   ${SOV.floor&&floorObj(SOV.floor)||SOV.msg?`<div class="sovreq">${SOV.floor&&floorObj(SOV.floor)?`<b>${esc(floorName(SOV.floor))}</b> の編成を相談しています`:"編成を相談しています"}${SOV.msg?`<p>課題：${esc(SOV.msg)}</p>`:""}</div>${SOV.floor&&floorObj(SOV.floor)?floorInfoHtml(SOV.floor,SOV.o,`${floorName(SOV.floor)} の情報`):""}`:""}
   <div class="tbcta"><button class="btn primary" data-tbopen="sov">🛠 この所持キャラで編成を組む</button><span class="hint">組んだ編成はリンクで送れます</span></div>
   <div class="ownctl"><div class="seg"><button data-sovshow="own" aria-pressed="${SOV.show==="own"}">所持</button><button data-sovshow="not" aria-pressed="${SOV.show==="not"}">未所持</button><button data-sovshow="all" aria-pressed="${SOV.show==="all"}">すべて</button></div>${b.btn}${sortBar("chars")}<span class="count">${list.length}人</span></div>
