@@ -714,7 +714,7 @@ dialog{overflow:auto;overscroll-behavior:contain}
 .qbtog{flex:none;border:0;background:none;color:var(--accent-ink);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 2px;text-decoration:underline;text-underline-offset:3px}.qbar .qbclose{margin-left:6px}
 @media (max-width:820px){.qbar{flex-wrap:wrap;overflow:visible;gap:4px 3px}.qbar .qsep{display:none}.qbar .qb{min-width:30px;height:30px;padding:0 2px}.qbar .qb .ic{width:22px;height:22px}.qbar .qb.qtxt{padding:0 6px;font-size:11.5px}}
 .cmpbtn{position:absolute;right:6px;bottom:6px;z-index:2;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.92);color:var(--accent-ink);font-weight:900;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.35);cursor:pointer}
-.cmpbtn.on{background:var(--accent);color:#fff}.ostars.ro i{font-style:normal;color:var(--line2)}.ostars.ro i.on{color:var(--gold)}.ownhead.sown{margin:8px 0}.chip.ownq[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}.linkbtn2{white-space:nowrap}.cdlinks{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.cdlinks .knlink{margin:0}.cmpdbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cmpbtn.on{background:var(--accent);color:#fff}.oshres{margin:10px 0 0;padding:10px 12px;border:1px solid var(--accent);background:rgba(26,134,255,.08)}.oshres input{flex:1;min-width:0;font-size:12px}.ostars.ro i{font-style:normal;color:var(--line2)}.ostars.ro i.on{color:var(--gold)}.ownhead.sown{margin:8px 0}.chip.ownq[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}.linkbtn2{white-space:nowrap}.cdlinks{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin:0 0 10px}.cdlinks .knlink{margin:0}.cmpdbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .cmpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;gap:8px;align-items:center;padding:8px 12px;background:linear-gradient(100deg,rgba(6,30,86,.96),rgba(14,70,170,.96));color:#fff;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100% - 20px)}
 .cmpbar[hidden]{display:none}.cmpbar b{white-space:nowrap}.cmpbar small{opacity:.8}.cmpthumbs{display:flex;gap:4px}
 .cmpth{position:relative;width:40px;height:40px;background:#16233f;display:flex;align-items:center;justify-content:center;font-size:10px}.cmpth img{width:100%;height:100%;object-fit:cover}
@@ -3346,7 +3346,8 @@ document.addEventListener("click",async e=>{const b=e.target.closest("[data-shar
   shareUrl(location.origin+location.pathname+"?"+LINKP[k]+"="+encodeURIComponent(v),linkTitle(k,v)+" | RxRwiki");},true);
 /* スマホは共有メニュー、PCはコピー */
 async function shareUrl(url,title){
-  if(navigator.share&&matchMedia("(pointer:coarse)").matches){try{await navigator.share({title,url});return;}catch(er){if(er&&er.name==="AbortError")return;}}
+  // url として渡すと、iPhone などの共有メニューの「コピー」がプレビュー付きのリンクになり、アプリによっては画像として貼られる。文字として渡す
+  if(navigator.share&&matchMedia("(pointer:coarse)").matches){try{await navigator.share({title,text:title+"\n"+url});return;}catch(er){if(er&&er.name==="AbortError")return;}}
   try{await navigator.clipboard.writeText(url);toast("リンクをコピーしました");}catch(er){prompt("このリンクをコピーしてください",url);}}
 /* ---------- 所持キャラの共有リンク ?own=コード&n=名前 ----------
    キャラの No ごとに 0〜5（0＝未所持、1〜5＝★の数）を 3bit ずつ、2人分を base64url の1文字に詰める（No が変わらない限り読める） */
@@ -3365,10 +3366,10 @@ function sownDecode(code){code=String(code||"");const v2=code[0]==="~";if(v2)cod
 function ownDecode(code){code=String(code||"");const dot=code.indexOf(".");if(dot>0)code="A".repeat(Math.min(5000,parseInt(code.slice(0,dot),36)||0))+code.slice(dot+1);const byNo={};CH.forEach(c=>{const n=charNo(c);if(n)byNo[n]=c.id;});const o={};
   String(code||"").split("").forEach((ch,i)=>{const v=B64.indexOf(ch);if(v<0)return;const a=v>>3,b=v&7,n=i*2+1;if(a&&byNo[n])o[byNo[n]]=Math.min(5,a);if(b&&byNo[n+1])o[byNo[n+1]]=Math.min(5,b);});return o;}
 /* 所持キャラを共有するダイアログ：名前・困っている階層（任意）・ひとこと（任意）。階層を入れると、組む側の編成ビルダーはその階層で固定 */
-const OSH={floor:"",type:"",msg:"",auto:false,pick:false,sc:true,ret:null};
+const OSH={floor:"",type:"",msg:"",auto:false,pick:false,sc:true,ret:null,url:""};
 const floorObj=k=>FLOORS.find(x=>x.key===k&&!x.seal)||SEALS.find(x=>x.key===k)||null;
 const floorName=k=>{const f=floorObj(k);return f?(f.seal?`封印戦 ${f.floor}`:`${f.type} ${f.floor}F`):"";};
-function shareOwnLink(floor){if(!floor&&!hasOwn()){toast("まず所持率チェッカーで持っているキャラを選んでください",5000);return;}
+function shareOwnLink(floor){OSH.url="";if(!floor&&!hasOwn()){toast("まず所持率チェッカーで持っているキャラを選んでください",5000);return;}
   OSH.floor=floor||"";OSH.auto=!!floor;OSH.pick=!floor;const f=floorObj(OSH.floor);OSH.type=f?(f.seal?"封印戦":f.type):"";
   let dl=document.getElementById("dlgOSH");if(!dl){dl=document.createElement("dialog");dl.id="dlgOSH";dl.innerHTML=`<div class="dlg" id="oshBody"></div>`;document.body.appendChild(dl);}
   oshRender();if(!dl.open)dl.showModal();}
@@ -3389,18 +3390,25 @@ function oshRender(){const types=TYPES.concat(SEALS.length?["封印戦"]:[]);con
   ${Object.keys(S.sown||{}).length?"":`<div class="oshinfo">スクリプトの所持も入れると、持っているスクリプトから選んでもらえます（任意）。<button class="aclink2" data-owngo="sown">スクリプトの所持を設定する</button></div>`}
   ${Object.keys(S.sown||{}).length?`<label class="oshchk"><input type="checkbox" id="oshSc" ${OSH.sc?"checked":""}> 所持スクリプト（${Object.keys(S.sown).length}種類）も入れる</label>`:""}
   <label class="oshl">課題（任意）<input id="oshMsg" maxlength="80" value="${esc(OSH.msg)}" placeholder="例：ボスの全体攻撃で前線が崩れます"></label>
-  <div class="foot"><button class="btn" data-close>やめる</button><button class="btn primary" data-oshgo="1">${svgI("link")} リンクを作って共有</button></div>`);}
-document.addEventListener("click",e=>{const b=e.target.closest("[data-oshtype],[data-oshfloor],[data-oshgo],[data-ownhelp],[data-oshpick],[data-owngo],[data-ownret]");if(!b)return;const ds=b.dataset;
-  const keep=()=>{const n=document.getElementById("oshName"),m=document.getElementById("oshMsg"),sc=document.getElementById("oshSc");if(sc)OSH.sc=sc.checked;if(n)S.ownName=n.value.trim().slice(0,20);if(m)OSH.msg=m.value.trim().slice(0,80);};
+  ${OSH.url?`<div class="oshres"><b>リンクを作りました</b><p class="hint" style="margin:2px 0 6px">共有メニューが開かなかったときや、貼り付けると画像になってしまうときは、ここからコピーしてください。</p><div class="addcol"><input id="oshUrl" readonly value="${esc(OSH.url)}"><button class="btn small primary" data-oshcopy="1">コピー</button></div></div>`:""}
+  <div class="foot"><button class="btn" data-close>${OSH.url?"閉じる":"やめる"}</button><button class="btn primary" data-oshgo="1">${svgI("link")} ${OSH.url?"もう一度共有":"リンクを作って共有"}</button></div>`);}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-oshtype],[data-oshfloor],[data-oshgo],[data-oshcopy],[data-ownhelp],[data-oshpick],[data-owngo],[data-ownret]");if(!b)return;const ds=b.dataset;
+  const keep=()=>{if(!ds.oshcopy&&!ds.oshgo)OSH.url="";const n=document.getElementById("oshName"),m=document.getElementById("oshMsg"),sc=document.getElementById("oshSc");if(sc)OSH.sc=sc.checked;if(n)S.ownName=n.value.trim().slice(0,20);if(m)OSH.msg=m.value.trim().slice(0,80);};
   if(ds.ownhelp!==undefined){const f=curFloor();shareOwnLink(f?f.key:"");return;}
   if(ds.owngo){keep();OSH.ret=OSH.floor||"";document.getElementById("dlgOSH").close();goSub(ds.owngo==="sown"?"sown":"own");window.scrollTo(0,0);return;}
   if(ds.ownret!==undefined){const k=OSH.ret;OSH.ret=null;const f=floorObj(k);if(f){if(f.seal){S.curSeal=f.key;switchTab("seal");}else{S.curType=f.type;S.curFloor=f.key;switchTab("tier");}}shareOwnLink(k);return;}
   if(ds.oshpick){keep();OSH.pick=true;oshRender();return;}
   if(ds.oshtype!==undefined){keep();OSH.type=ds.oshtype;OSH.floor="";oshRender();return;}
   if(ds.oshfloor){keep();OSH.floor=OSH.floor===ds.oshfloor?"":ds.oshfloor;oshRender();return;}
-  if(ds.oshgo){keep();save();const code=ownEncode(OWN());if(!code){toast("共有できるキャラがありません（No が未登録）");return;}document.getElementById("dlgOSH").close();
+  if(ds.oshgo){keep();save();const code=ownEncode(OWN());if(!code){toast("共有できるキャラがありません（No が未登録）");return;}
     const fn=floorName(OSH.floor);
-    shareUrl(location.origin+location.pathname+"?own="+code+(S.ownName?"&n="+encodeURIComponent(S.ownName):"")+(OSH.sc&&Object.keys(S.sown||{}).length?"&s="+sownEncode(SOWN()):"")+(OSH.floor?"&f="+encodeURIComponent(OSH.floor):"")+(OSH.msg?"&m="+encodeURIComponent(OSH.msg):""),`${S.ownName?S.ownName+"さんの":""}所持キャラ${fn?`（${fn} の編成を相談）`:""} | RxRwiki`);}});
+    OSH.url=location.origin+location.pathname+"?own="+code+(S.ownName?"&n="+encodeURIComponent(S.ownName):"")+(OSH.sc&&Object.keys(S.sown||{}).length?"&s="+sownEncode(SOWN()):"")+(OSH.floor?"&f="+encodeURIComponent(OSH.floor):"")+(OSH.msg?"&m="+encodeURIComponent(OSH.msg):"");
+    shareUrl(OSH.url,`${S.ownName?S.ownName+"さんの":""}所持キャラ${fn?`（${fn} の編成を相談）`:""} | RxRwiki`);oshRender();return;}
+  if(ds.oshcopy){copyPlain(OSH.url,document.getElementById("oshUrl"));return;}});
+/* 文字だけをコピー（画像やプレビューにならない）。使えないときは欄を選んだ状態にする */
+function copyPlain(t,inp){const ok=()=>toast("リンクをコピーしました（文字として貼り付けられます）");
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,()=>fb());}else fb();
+  function fb(){if(!inp){prompt("このリンクをコピーしてください",t);return;}inp.focus();inp.select();inp.setSelectionRange(0,t.length);try{if(document.execCommand("copy")){ok();return;}}catch(e){}toast("リンクを長押しして「コピー」を選んでください",4000);}}
 const SOV={o:null,so:null,name:"",show:"own",floor:"",msg:""};
 const sovOpen=()=>!!(SOV.o&&document.getElementById("dlgDetail").open&&document.querySelector("#detailBody [data-sovimport]"));
 /* 共有された所持キャラ：キャラ一覧と同じ絞り込み（CFS.sov。「所持」は共有した人の所持）・並び替え（SORTS.chars） */
