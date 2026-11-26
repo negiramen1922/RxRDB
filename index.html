@@ -1077,7 +1077,7 @@ tr.rkrow-focus td.first,tr.rkrow-focus td.nm{background:linear-gradient(rgba(255
 /* サイト設定：アクセス解析のIDを入れると有効になります */
 /* authX: X（Twitter）ログインのボタンを出す（Firebase コンソールで X を有効にしてから true に） */
 /* ver：サイトのバージョン（大きな節目＝1.1.000→1.2.000、main に入れる細かい調整＝1.1.001→1.1.002。中身は data/updates.json） */
-window.SITE={ver:"1.1.012",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
+window.SITE={ver:"1.1.013",authX:false,cfBeacon:"",ga:"G-ZLFG00YE2J",firebase:{apiKey:"AIzaSyCYj4L5oskCq3mOM3vuRJoSzaC8n1at0dM",projectId:"my-log-vh3o3b"},
   /* 記録の引き継ぎ（旧アドレス negiramen1922.github.io/RxRDB → 新しいドメイン）。hosts で開いた端末に記録が無ければ、一度だけ from（旧アドレスと同じオリジンに置いた引き継ぎページ）へ飛んで記録を持ち帰る。from を空にすると止まる */
   move:{from:"https://negiramen1922.github.io/rxr-move/",hosts:["rxrwiki.com","www.rxrwiki.com"],until:"2027-06-30"}};
 </script>
@@ -2466,7 +2466,7 @@ function armLazy(){const els=document.querySelectorAll("[data-pslazy]:not([data-
   els.forEach(el=>{el.dataset.armed="1";LAZYOB.observe(el);});}
 function lazyGo(el){if(el.dataset.feedmoreS){if(tab==="feed"&&!FEED.busy&&!FEED.end)loadFeed(true);return;}if(el.dataset.pslazy){if(PST.f!==el.dataset.pslazy&&!PST.busy)loadFloorPosts(el.dataset.pslazy);}else if(el.dataset.hposts!=null)loadHomePosts();}
 const HP={list:null,busy:false};
-async function loadHomePosts(){if(HP.list||HP.busy)return fillHomePosts();HP.busy=true;try{const pm=await loadPosts();HP.list=await pm.latest(4);}catch(e){HP.list=[];}HP.busy=false;fillHomePosts();}
+async function loadHomePosts(){if(HP.list||HP.busy)return fillHomePosts();HP.busy=true;try{const pm=await loadPostsR();HP.list=await pm.latest(4);}catch(e){HP.list=[];}HP.busy=false;fillHomePosts();}
 function fillHomePosts(){const el=document.querySelector("[data-hposts]");if(!el||!HP.list)return;
   el.innerHTML=HP.list.length?`<div class="pslist">${HP.list.map(p=>postCardHtml(p,true)).join("")}</div>`:'<p class="count">まだ投稿がありません。</p>';}
 const lvSel=(k,l,v)=>`<label>${l} <select data-tbf="${k}"><option value="">—</option>${Array.from({length:13},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(n)===String(v)?"selected":""}>${n}</option>`).join("")}</select></label>`;
@@ -2532,7 +2532,7 @@ function postCardHtml(p,showFloor){const ms=postMs(p.m).filter(x=>x.id);
 const FEED={list:null,busy:false,end:false,err:""};
 const isSealKey=f=>/^封印戦\|/.test(f||"");
 async function loadFeed(more){if(FEED.busy)return;FEED.busy=true;FEED.err="";if(tab==="feed")renderFeed();
-  try{const pm=await loadPosts();const r=await pm.listRecent(more,isSealKey);FEED.list=(more&&FEED.list?FEED.list:[]).concat(r.list.filter(p=>!FEED.list||!more||!FEED.list.some(x=>x.id===p.id)));FEED.end=r.end;}
+  try{const pm=await loadPostsR();const r=await pm.listRecent(more,isSealKey);FEED.list=(more&&FEED.list?FEED.list:[]).concat(r.list.filter(p=>!FEED.list||!more||!FEED.list.some(x=>x.id===p.id)));FEED.end=r.end;}
   catch(er){console.warn(er);FEED.err="読み込めませんでした。時間をおいてもう一度お試しください";}
   FEED.busy=false;if(tab==="feed")renderFeed();}
 function renderFeed(){if(!FEED.list&&!FEED.busy&&!FEED.err){loadFeed(false);return;}
@@ -2544,7 +2544,7 @@ function renderFeed(){if(!FEED.list&&!FEED.busy&&!FEED.err){loadFeed(false);retu
   ${l.length&&!FEED.end&&!FEED.busy&&!FEED.err?'<div data-feedmore-s="1" class="feedsent"></div>':""}<p class="psbtns"><button class="btn small" data-feedreload="1" ${FEED.busy?"disabled":""}>${svgI("refresh")} 最新にする</button></p></div>`;armLazy();}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-feedreload]");if(!b)return;loadFeed(false);});
 async function loadFloorPosts(fk){PST.busy=true;PST.err="";if(PST.f!==fk)PST.n=5;PST.f=fk;PST.list=null;render();
-  try{const pm=await loadPosts();PST.list=await pm.listByFloor(fk);}catch(er){console.warn(er);PST.err="読み込めませんでした。時間をおいてもう一度お試しください";PST.f="";}
+  try{const pm=await loadPostsR();PST.list=await pm.listByFloor(fk);}catch(er){console.warn(er);PST.err="読み込めませんでした。時間をおいてもう一度お試しください";PST.f="";}
   PST.busy=false;render();}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],[data-postnew],[data-psort],[data-post],[data-plike],[data-preport],[data-pedit],[data-pdel],[data-pshare],[data-mypage],[data-pprof],[data-pbm],[data-pbmlist],[data-pbmrm]");if(!b)return;const ds=b.dataset;
   if(ds.pbm){const o=PBM();if(o[ds.pbm])delete o[ds.pbm];else if(PCUR&&PCUR.id===ds.pbm)o[ds.pbm]={t:PCUR.title,f:PCUR.f,n:PCUR.name,at:Date.now()};save();const on=!!o[ds.pbm];b.innerHTML=pbmLabel(on);b.classList.toggle("primary",on);toast(on?"ブックマークしました":"ブックマークを外しました");if(tab==="tier"||tab==="seal")render();return;}
@@ -2566,7 +2566,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-postload],
 function videoHtml(u){if(!u||!/^https?:\/\//i.test(u))return "";const m=/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/.exec(u);
   return m?`<a class="psvid" href="${esc(u)}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${m[1]}/hqdefault.jpg" alt="" loading="lazy"><span>▶ YouTube で見る</span></a>`:`<a class="psvlink" href="${esc(u)}" target="_blank" rel="noopener nofollow">${svgI("play")} 動画を見る（${esc(u.replace(/^https?:\/\//,"").split("/")[0])}）</a>`;}
 let PCUR=null;
-async function openPostById(pid){let pm,p;try{pm=await loadPosts();p=await pm.get(pid);}catch(er){toast("投稿を読み込めませんでした");return;}
+async function openPostById(pid){let pm,p;try{pm=await loadPostsR();p=await pm.get(pid);}catch(er){toast("投稿を読み込めませんでした");return;}
   if(!p||p.hidden){toast("この投稿は見つかりませんでした（削除されたか、非表示になっています）");return;}
   PCUR=p;if(await pm.view(pid).catch(()=>false))p.views++;
   const mine=pm.user()&&pm.user().uid===p.uid,lk=await pm.liked(pid).catch(()=>false);
@@ -2600,7 +2600,7 @@ function bookmarksHtml(){const l=Object.entries(PBM()).sort((a,b)=>(b[1].at||0)-
   return l.length?`<div class="pslist">${l.map(([id,x])=>`<div class="pbmrow"><button class="pscard" data-post="${esc(id)}"><b class="pst">${esc(x.t||"（タイトルなし）")}</b><span class="psmeta"><span>${esc(floorName(x.f)||"")}</span><span>${esc(x.n||"")}</span></span></button><button class="btn small" data-pbmrm="${esc(id)}" aria-label="ブックマークを外す">✕</button></div>`).join("")}</div>`:'<p class="count">まだありません。投稿の詳細の「ブックマーク」で追加できます。</p>';}
 function openBookmarks(){document.getElementById("detailBody").innerHTML=`<h2>${svgI("bookmark")} ブックマークした攻略</h2><p class="hint">このブラウザに保存されます（ログインしていればアカウントにも保存され、ほかの端末でも見られます）。</p>${bookmarksHtml()}<div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();}
 // 投稿者のページ（フレンドIDは本人が公開にしたときだけ）
-async function openProfile(uid){let pm,pr,l;try{pm=await loadPosts();[pr,l]=await Promise.all([pm.getProfile(uid),pm.listByUser(uid)]);}catch(er){toast("読み込めませんでした");return;}
+async function openProfile(uid){let pm,pr,l;try{pm=await loadPostsR();[pr,l]=await Promise.all([pm.getProfile(uid),pm.listByUser(uid)]);}catch(er){toast("読み込めませんでした");return;}
   const h=`<h2>${esc((pr&&pr.name)||"投稿者")}</h2>${pr&&pr.fpub&&pr.fid?`<p class="psfid">フレンドID：<b>${esc(pr.fid)}</b> <button class="btn small" onclick="navigator.clipboard.writeText(${esc(JSON.stringify(pr.fid))}).then(()=>RXR.toast('コピーしました'))">コピー</button></p>`:""}
   <p class="note-h">投稿（${l.length}件）</p><div class="pslist">${l.sort((a,b)=>b.at-a.at).map(postCardHtml).join("")||'<p class="count">まだ投稿がありません</p>'}</div><div class="foot"><button class="btn primary" data-close>閉じる</button></div>`;
   document.getElementById("detailBody").innerHTML=h;const dl=document.getElementById("dlgDetail");dl.classList.remove("cmpdlg");if(!dl.open)dl.showModal();dl.scrollTop=0;}
@@ -2981,6 +2981,39 @@ async function fsCommit(writes){
   if(!r.ok)throw new Error("fs "+r.status);
 }
 const fsDoc=p=>`projects/${FBC.projectId}/databases/(default)/documents/${p}`;
+/* みんなの攻略を「見るだけ」のときは Firebase SDK（＝App Check の reCAPTCHA 判定。判定の回数で費用がかかる）を使わず、
+   Firestore の REST で読む（posts・profiles は誰でも読める）。ログインしている人・投稿や いいね をするときだけ js/posts.js（SDK）を使う。
+   REST で読めない（App Check を「適用」にしているなど）ときは SDK に切り替える */
+const fsv=v=>{if(!v)return null;if("stringValue" in v)return v.stringValue;if("integerValue" in v)return +v.integerValue;if("doubleValue" in v)return v.doubleValue;if("booleanValue" in v)return v.booleanValue;if("timestampValue" in v)return Date.parse(v.timestampValue);if("nullValue" in v)return null;if("arrayValue" in v)return (v.arrayValue.values||[]).map(fsv);if("mapValue" in v){const o={};Object.entries(v.mapValue.fields||{}).forEach(([k,x])=>o[k]=fsv(x));return o;}return null;};
+const fsObj=d=>{const o={};Object.entries((d&&d.fields)||{}).forEach(([k,v])=>o[k]=fsv(v));return o;};
+const PHIDE=3;
+function restPost(d){const x=fsObj(d);const id=String(d.name||"").split("/").pop();const js=s=>{try{const v=JSON.parse(s||"[]");return Array.isArray(v)?v:[];}catch(e){return [];}};
+  return {id,uid:x.uid,name:x.name||"",f:x.f||"",title:x.title||"",body:x.body||"",m:js(x.m),w:js(x.w),tl:js(x.tl),sw:x.sw||"",v:x.v||"",at:x.at||0,t:x.t||0,likes:x.likes||0,views:x.views||0,rc:x.rc||0,hidden:!!x.hidden};}
+const pVisible=p=>!p.hidden&&p.rc<PHIDE;
+async function fsRest(url,opt){const r=await withTimeout(fetch(url,opt),8000);if(r.status===404)return null;if(!r.ok){const e=new Error("fs "+r.status);e.status=r.status;throw e;}return r.json();}
+async function fsQuery(sq){const j=await fsRest(`${FSURL}:runQuery?key=${FBC.apiKey}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({structuredQuery:sq})});return (j||[]).filter(x=>x.document).map(x=>x.document);}
+const fEq=(f,v)=>({fieldFilter:{field:{fieldPath:f},op:"EQUAL",value:{stringValue:v}}});
+let RLAST=null;
+const POSTR={
+  user:()=>null,liked:async()=>false,
+  async listByFloor(f){return (await fsQuery({from:[{collectionId:"posts"}],where:fEq("f",f),limit:100})).map(restPost).filter(pVisible);},
+  async listByUser(uid){return (await fsQuery({from:[{collectionId:"posts"}],where:fEq("uid",uid),limit:100})).map(restPost).filter(pVisible);},
+  async listRecent(more,skip){if(!more)RLAST=null;else if(!RLAST)return {list:[],end:true};
+    const sq={from:[{collectionId:"posts"}],orderBy:[{field:{fieldPath:"at"},direction:"DESCENDING"}],limit:20};if(more&&RLAST)sq.startAt={values:[{timestampValue:RLAST}],before:false};
+    const ds=await fsQuery(sq);if(ds.length)RLAST=ds[ds.length-1].fields.at.timestampValue;
+    return {list:ds.map(restPost).filter(p=>pVisible(p)&&!(skip&&skip(p.f))),end:ds.length<20};},
+  async latest(n){return (await fsQuery({from:[{collectionId:"posts"}],orderBy:[{field:{fieldPath:"at"},direction:"DESCENDING"}],limit:n+4})).map(restPost).filter(pVisible).slice(0,n);},
+  async get(pid){const d=await fsRest(`${FSURL}/posts/${encodeURIComponent(pid)}?key=${FBC.apiKey}`);return d?restPost(d):null;},
+  async getProfile(uid){const d=await fsRest(`${FSURL}/profiles/${encodeURIComponent(uid)}?key=${FBC.apiKey}`);return d?fsObj(d):null;},
+  // 閲覧数：同じ端末では1つの投稿につき1日1回だけ（App Check のトークンは付けない）
+  async view(pid){const k="rxr-pv-"+pid,day=new Date().toISOString().slice(0,10);try{if(localStorage.getItem(k)===day)return false;localStorage.setItem(k,day);}catch(e){}
+    try{const r=await fetch(`${FSURL.replace(/\/documents$/,"/documents:commit")}?key=${FBC.apiKey}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({writes:[{transform:{document:fsDoc("posts/"+pid),fieldTransforms:[{fieldPath:"views",increment:{integerValue:"1"}}]},currentDocument:{exists:true}}]})});return r.ok;}catch(e){return false;}}
+};
+let POSTR_OK=true;   // REST で読めなかったら以後は SDK
+const loggedHint=()=>{try{return !!localStorage.getItem("rxr-login");}catch(e){return false;}};
+// 読むだけの処理はこれを使う。ログインしている・SDK を読み込み済みなら SDK、それ以外は REST（失敗したら SDK に切り替えてやり直す）
+function loadPostsR(){if(!FBC||POSTMOD||loggedHint()||!POSTR_OK)return loadPosts();
+  return Promise.resolve(new Proxy(POSTR,{get(t,k){const f=t[k];if(typeof f!=="function")return f;return async(...a)=>{try{return await f.apply(t,a);}catch(e){if(e&&(e.status===401||e.status===403)){POSTR_OK=false;const pm=await loadPosts();return pm[k](...a);}throw e;}};}}));}
 function jstDay(t){return new Date((t||Date.now())+9*3600e3).toISOString().slice(0,10);}
 /* みんなの所持率の集計（運営だけが管理画面で見る）：所持の記録を匿名で ownstat/{端末ID} に送る（所持のコードだけ。名前・ログイン情報は送らない）。
    記録が変わったときだけ、前回から7日以上空けて（App Check の判定の回数を抑える）。端末ID と前回の印は localStorage rxr-ostat */

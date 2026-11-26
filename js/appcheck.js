@@ -19,7 +19,7 @@ export const app = getApps()[0] || initializeApp(firebaseConfig);
 const LOCAL = /^(localhost|127\.)/.test(location.hostname);
 let AC = null;
 export const ready = LOCAL ? Promise.resolve(null) : import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js")
-  .then(m => { AC = { m, ac: m.initializeAppCheck(app, { provider: new m.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true }) }; return AC; })
+  .then(m => { AC = { m, ac: m.initializeAppCheck(app, { provider: new m.ReCaptchaEnterpriseProvider(APPCHECK_KEY), isTokenAutoRefreshEnabled: false }) }; return AC; })
   .catch(e => { console.warn("App Check", e); return null; });
 // REST で Firestore に書くとき（公開サイトのご意見送信）に付けるトークン。取れなければ空
 export async function appCheckToken() {
